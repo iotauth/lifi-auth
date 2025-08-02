@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include "sst_crypto_embedded.h"
+#include "../../include/sst_crypto_embedded.h"
 
 int main() {
     uint8_t key[SST_KEY_SIZE] = { 0x00 };
