@@ -93,48 +93,87 @@ The code is organized into a modular structure:
 
 ---
 
-## Project Structure
-
 ```plaintext
-sst-c-api/embedded
-├── CMakeLists.txt              # Root CMake build configuration
-├── CMakePresets.json           # Preset build settings for CMake
-├── README.md                   # Project documentation
-├── notes.txt                   # Developer notes and references
-│
-├── 📁 build/                   # (Generated) Build artifacts from CMake
+sst-c-api-lifi
+├── CMakeLists.txt               # Top-level CMake entry
+├── README.md                    # This doc
+├── run_build.sh                 # Build helper (pico/…)
+├── set_build.sh                 # Env/preset helper
+├── make_build.sh                # Convenience wrapper
+├── lifi_receiver.config         # Default runtime config
 │
 ├── 📁 config/
-│   └── mbedtls_config.h        # mbedTLS configuration settings
+│   └── mbedtls_config.h         # mbedTLS build config (Pico)
 │
 ├── 📁 include/
-│   ├── cmd_handler.h           # Command processing interface
-│   ├── config_handler.h        # Configuration management interface
-│   ├── pico_handler.h          # Pico-specific helper functions
-│   └── sst_crypto_embedded.h   # Embedded crypto API definitions
+│   ├── cmd_handler.h
+│   ├── config_handler.h
+│   ├── pico_handler.h
+│   ├── protocol.h
+│   └── sst_crypto_embedded.h
 │
-├── 📁 lib/
-│   └── 📁 mbedtls/             # mbedTLS cryptographic library source
-│   ├── 📁 pico-sdk/            # Raspberry Pi Pico C/C++ SDK
-│   └── 📁 picotool/            # CLI utility for Pico boards
-│
-├── 📁 receiver/
-│   ├── CMakeLists.txt          # Receiver build configuration
-│   ├── 📁 config/              # Receiver-specific config files
-│   ├── 📁 src/                 # Receiver source code
-│   ├── lifi_receiver.config    # Receiver runtime configuration
-│   └── update-credentials.sh   # Script to update stored credentials
+├── 📁 src/
+│   ├── cmd_handler.c
+│   ├── config_handler.c
+│   ├── pico_handler.c
+│   └── sst_crypto_embedded.c
 │
 ├── 📁 sender/
-│   ├── CMakeLists.txt          # Sender build configuration
-│   └── 📁 src/                 # Sender source code
+│   ├── CMakeLists.txt
+│   └── 📁 src/                  # sender app sources
 │
-└── 📁 src/
-    ├── cmd_handler.c           # Command processing implementation
-    ├── config_handler.c        # Configuration management logic
-    ├── pico_handler.c          # Pico helper logic
-    └── sst_crypto_embedded.c   # Embedded crypto API implementation
+├── 📁 receiver/
+│   ├── CMakeLists.txt
+│   ├── 📁 include/              # receiver-local headers
+│   ├── 📁 config/               # receiver config (creds, etc.)
+│   ├── 📁 src/                  # receiver app sources
+│   └── update-credentials.sh    # helper for credential files
+│
+├── 📁 deps/                     # External project dependencies (git submodules)
+│   ├── iotauth/                 # (submodule) iotauth server/client bits (if used)
+│   └── sst-c-api/               # (submodule) core SST C API (c_api.c, etc.)
+│
+├── 📁 lib/                      # Third-party libraries (git submodules)
+│   ├── mbedtls/                 # (submodule) mbedTLS crypto (pinned)
+│   ├── pico-sdk/                # (submodule) Raspberry Pi Pico SDK
+│   └── picotool/                # (submodule) Pico CLI tool (building/flash)
+│
+├── 📁 img/
+│   ├── build_artifacts_layout.PNG
+│   └── physical_lifi.png
+│
+├── 📁 artifacts/                # (Generated) Build outputs kept for convenience
+│   └── 📁 pico/
+│       ├── latest.uf2           # last built firmware image
+│       ├── latest.uf2.sha256    # checksum
+│       └── *.json / *.uf2       # versioned build metadata & images
+│
+└── 📁 build/                    # (Generated) CMake build trees
+    ├── pico/                    # Pico build dir (cmake/ninja/make files, libs, elf/uf2)
+    ├── pi4/                     # (optional) other target builds
+    └── _picotool/               # picotool helper build
 ```
+
+### Submodules
+
+* `deps/sst-c-api` → `https://github.com/iotauth/sst-c-api.git`
+* `lib/mbedtls` → `https://github.com/Mbed-TLS/mbedtls.git` (recommended tag: `mbedtls-3.5.1`)
+* `lib/pico-sdk` → `https://github.com/raspberrypi/pico-sdk.git`
+* `lib/picotool` → `https://github.com/raspberrypi/picotool.git`
+
+Initialize/update:
+
+```bash
+git submodule update --init --recursive
+```
+
+### Quick build (Pico)
+
+```bash
+./run_build.sh pico
+# artifacts appear under artifacts/pico/ (latest.uf2 and versioned files)
+```
+
 
 ## Hardware Requirements
 

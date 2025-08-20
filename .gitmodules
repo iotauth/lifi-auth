@@ -7,3 +7,9 @@
 [submodule "lib/picotool"]
 	path = lib/picotool
 	url = https://github.com/raspberrypi/picotool.git
+[submodule "deps/sst-c-api"]
+	path = deps/sst-c-api
+	url = https://github.com/iotauth/sst-c-api.git
+[submodule "deps/iotauth"]
+	path = deps/iotauth
+	url = https://github.com/iotauth/iotauth
