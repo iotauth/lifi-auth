@@ -94,7 +94,7 @@ The code is organized into a modular structure:
 ---
 
 ```plaintext
-sst-c-api-lifi
+lifi-auth
 ├── CMakeLists.txt               # Top-level CMake entry
 ├── README.md                    # This doc
 ├── run_build.sh                 # Build helper (pico/…)
@@ -173,7 +173,12 @@ git submodule update --init --recursive
 ./run_build.sh pico
 # artifacts appear under artifacts/pico/ (latest.uf2 and versioned files)
 ```
+### Quick build (Pi4)
 
+```bash
+./run_build.sh pi4
+# artifacts appear under artifacts/pi4/ (latest and versioned files)
+```
 
 ## Hardware Requirements
 
