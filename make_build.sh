@@ -134,20 +134,27 @@ cmake --build "$build_dir" -j"$jobs"
 
 echo "✅ Build complete: $BUILD_TARGET (artifacts in build/${OUT_DIR:-$BUILD_TARGET})"
 
-# === Collect artifacts (history + latest symlink + checksum + manifest) ===
+# === Collect artifacts (history + latest file + checksum + manifest) ===
 art_dir="$here/artifacts/$BUILD_TARGET"
 mkdir -p "$art_dir"
 
 ts="$(date +%Y%m%d-%H%M%S)"
-git_desc="$(git -C "$here/.." describe --always --dirty --tags 2>/dev/null || git -C "$here/.." rev-parse --short HEAD)"
+repo_dir="$(git -C "$here" rev-parse --show-toplevel 2>/dev/null || echo "$here")"
+git_desc="$(git -C "$repo_dir" describe --always --dirty --tags 2>/dev/null \
+        || git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null \
+        || date +%Y%m%d)"
 ver_tag="${git_desc:-unknown}"
 
-# === Collect artifacts (history + latest symlink + checksum + manifest) ===
+# === Collect artifacts (history + latest file + checksum + manifest) ===
 art_dir="$here/artifacts/$BUILD_TARGET"
 mkdir -p "$art_dir"
 
 ts="$(date +%Y%m%d-%H%M%S)"
-git_desc="$(git -C "$here/.." describe --always --dirty --tags 2>/dev/null || git -C "$here/.." rev-parse --short HEAD)"
+repo_dir="$(git -C "$here" rev-parse --show-toplevel 2>/dev/null || echo "$here")"
+git_desc="$(git -C "$repo_dir" describe --always --dirty --tags 2>/dev/null \
+        || git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null \
+        || date +%Y%m%d)"
+echo "Version: $git_desc"
 ver_tag="${git_desc:-unknown}"
 
 write_manifest() {
