@@ -13,11 +13,11 @@
 # --- Configuration ---
 # The relative path to the root of the iotauth project directory.
 # Adjust this if your directory structure is different.
-AUTH_PROJECT_ROOT="../../../iotauth"
+AUTH_PROJECT_ROOT="deps/iotauth"
 
 # The stable staging directory for the receiver's credentials.
 # This path should match what's in lifi_receiver.config
-RECEIVER_STAGING_DIR="./config/credentials"
+RECEIVER_STAGING_DIR="receiver/config/credentials"
 
 # --- Script ---
 set -e # Exit immediately if a command exits with a non-zero status.

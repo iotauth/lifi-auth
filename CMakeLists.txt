@@ -2,6 +2,27 @@ cmake_minimum_required(VERSION 3.13)
 
 set(PICO_SDK_DISABLE_MBEDTLS 1)   # stops the SDK from bringing its mbedTLS
 
+# ---- ONLY build sstcapi on pi4 ----
+if(BUILD_TARGET STREQUAL "pi4")
+  set(SST_C_API_DIR "${CMAKE_SOURCE_DIR}/deps/sst-c-api")
+  add_library(sstcapi STATIC
+    ${SST_C_API_DIR}/c_api.c
+    ${SST_C_API_DIR}/c_common.c
+    ${SST_C_API_DIR}/c_crypto.c
+    ${SST_C_API_DIR}/c_secure_comm.c
+    ${SST_C_API_DIR}/load_config.c
+    ${SST_C_API_DIR}/ipfs.c
+  )
+  target_include_directories(sstcapi PUBLIC ${SST_C_API_DIR})
+endif()
+
+# === mbedTLS (submodule) ===
+set(MBEDTLS_DIR "${CMAKE_CURRENT_LIST_DIR}/lib/mbedtls" CACHE PATH "Path to vendored mbedTLS" FORCE)
+if(NOT EXISTS "${MBEDTLS_DIR}/library/aes.c")
+  message(FATAL_ERROR "mbedTLS submodule not found at ${MBEDTLS_DIR}. Run: git submodule update --init --recursive")
+endif()
+message(STATUS "Using mbedTLS from: ${MBEDTLS_DIR}")
+
 # --- Handle PICO_SDK_PATH ---
 if(NOT DEFINED PICO_SDK_PATH AND DEFINED ENV{PICO_SDK_PATH})
   set(PICO_SDK_PATH $ENV{PICO_SDK_PATH} CACHE PATH "Path to the Pico SDK")
@@ -184,6 +205,6 @@ target_link_libraries(sst_embedded
     ram_handler
 )
 
-if(BUILD_TARGET STREQUAL "pico")
-  target_link_libraries(sst_embedded PRIVATE pico_stdlib)
+if(BUILD_TARGET STREQUAL "pico") 
+  target_link_libraries(sst_embedded PRIVATE pico_stdlib) 
 endif()

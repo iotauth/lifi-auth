@@ -89,6 +89,8 @@ The code is organized into a modular structure:
 -   `include/`: Header files defining the public interface for each module.
 -   `sender/src/`: The main application firmware (`lifi_flash.c`) for the Pico transmitter.
 -   `lib/`: External libraries, including `mbedtls`, `pico-sdk`, and `picotool`.
+-   `deps/`: required repositories for session key including `sst-c-api` and `iotauth`.
+- - `iotauth` to be run if setting up server for live connection and live access to session key (on pi4)
 -   `CMakeLists.txt`: The main build file that orchestrates the compilation of all modules and targets.
 
 ---
@@ -178,6 +180,39 @@ git submodule update --init --recursive
 ```bash
 ./run_build.sh pi4
 # artifacts appear under artifacts/pi4/ (latest and versioned files)
+```
+### To run iotauth server
+```bash
+cd deps/iotauth/examples
+./cleanAll.sh
+./generateAll.sh
+```
+You will be prompted to enter your password. Build the server:
+
+```bash
+cd ../auth/auth-server/
+mvn clean install
+```
+build the server:
+```bash
+java -jar target/auth-server-jar-with-dependencies.jar -p ../properties/exampleAuth101.properties
+```
+Enter your password again. Now you should leave that terminal running, open another terminal
+- Note: for latest build instructions check: https://github.com/iotauth/iotauth
+> in the second terminal navigate to root directory of the repo: `lifi-auth/`
+We can now connect to the server with pi4 (assuming you built it above with `./run_build.sh pi4`):
+- once inside `lifi-auth/` run `update_credentials.sh` from there
+```bash
+./receiver/update-credentials.sh
+```
+With this `lifi-auth/receiver/config/credentials` should now be populated with the necessary `Auth101EntityCert.pem` & `Net1.ClientKey.pem` files
+```bash
+ls receiver/config/credentials/
+```
+Now connect to the server using the latest build (will always be here *and updated* from running `./run_build pi4` previously).
+- iotauth takes a config to connect: so lifi_receiver.config will be the second argument:
+```bash
+./artifacts/pi4/latest lifi_receiver.config
 ```
 
 ## Hardware Requirements

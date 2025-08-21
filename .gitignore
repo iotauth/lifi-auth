@@ -2,3 +2,4 @@
 /build/
 /.build_target
 /.tooling/
+/receiver/config/credentials/*
