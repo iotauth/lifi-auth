@@ -290,6 +290,12 @@ use helper script `run_build.sh` which automatically cleans and builds inside bu
 ```bash
 ./run_build.sh pico # artifacts appear under artifacts/pico/ (latest.uf2 and versioned files)
 ```
+* Very first `./run_build.sh pico` will take a while but after that it'll run faster (by reusing .tooling/)
+* ^ it will build and “install” a local **picotool** under `embedded/.tooling/picotool/` and wire CMake to use it automatically.
+* Subsequent runs:
+* * **reuse** .tooling/ (no warning spam, no re-build).
+* * cleans the build so no need to `rm -rf build`.
+* * cleans the `artifacts/pico` (or pi4) folder based on how many `KEEP_BUILDS` are set
 ## Quick build (Pi4 - receiver)
 
 ```bash
@@ -335,17 +341,8 @@ This will now connect to auth you will get "Retrieving session key from SST..." 
 **OPTIONAL: set a 'pico-sdk' path**
 > you can set a global PICO_SDK_PATH for embedded/CMakeLists.txt, but it will automatically configure to lib/pico-sdk
 - handled when running `make_build.sh` and `run_build.sh` scripts
-## 3) Build
+## Build Details
 
-```bash
-./run_build.sh pico    # --- OR pi4 --- builds to build/pico/, copies artifacts to artifacts/pico/
-````
-* Very first `./run_build.sh pico` will take a while but after that it'll run faster (by reusing .tooling/)
-* ^ it will build and “install” a local **picotool** under `embedded/.tooling/picotool/` and wire CMake to use it automatically.
-* Subsequent runs:
-* * **reuse** .tooling/ (no warning spam, no re-build).
-* * cleans the build so no need to `rm -rf build`.
-* * cleans the `artifacts/pico` (or pi4) folder based on how many `KEEP_BUILDS` are set
 ### Where to find results
 
 * **Pico:** `artifacts/pico/latest.uf2` (+ `latest.uf2.sha256`, `latest.json`)
@@ -372,29 +369,13 @@ KEEP_BUILDS=5 ./run_build.sh pi4
 
 ---
 
-## Running the receiver (Pi4/Linux)
-
-**Runtime Creations**
+### Runtime Creations
 * `build/*` is throwaway; safe to delete any time.
 * `.tooling/picotool` is the reusable local install that suppresses SDK warnings.
 * `artifacts/<target (pi4 OR pico)>/latest*` always points to the newest build; older builds are pruned.
 ---
 
-## Notes
-
-* **You normally do *not* need** `PICO_SDK_PATH` or `PICO_TOOLCHAIN_PATH`.
-  Our `CMakeLists.txt` pins the SDK to `lib/pico-sdk`. If you installed ARM GCC via apt, we’ll find `arm-none-eabi-gcc` on PATH automatically.
-
-* **Custom toolchain location (optional):**
-
-  ```bash
-  export PICO_TOOLCHAIN_PATH="$HOME/toolchains/arm-gnu-13.2.rel1"  # contains bin/arm-none-eabi-gcc
-  ```
-
-  Only set this if `arm-none-eabi-gcc` is not on your PATH.
-
-## Common issues (and quick fixes)
-
+## Common issues (and fixes)
 * **`Could NOT find OpenSSL (missing: OPENSSL_CRYPTO_LIBRARY)`** (pi4):
   `sudo apt install -y libssl-dev`
 
@@ -410,7 +391,7 @@ KEEP_BUILDS=5 ./run_build.sh pi4
 ---
 
 
-### 4) Flash the Pico 
+### Flash the Pico 
 
 After `./run_build.sh pico`, your firmware is here: `artifacts/pico/latest.uf2`.
 ```bash
