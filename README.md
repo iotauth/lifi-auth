@@ -214,6 +214,7 @@ Now connect to the server using the latest build (will always be here *and updat
 ```bash
 ./artifacts/pi4/latest lifi_receiver.config
 ```
+This will now connect to auth you will get "Retrieving session key from SST..." The pi4 should print the session key (for debug).
 
 ## Hardware Requirements
 
