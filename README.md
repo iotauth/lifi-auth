@@ -51,6 +51,82 @@ This repository contains the embedded software for a secure Li-Fi transmitter (t
   </table>
 </div>
 
+## Hardware Requirements
+
+### **Sender (Pico)**
+- [Raspberry Pi Pico (RP2040)](https://www.sparkfun.com/raspberry-pi-pico.html?src=raspberrypi)
+- Li-Fi LED transmitter module
+- USB cable (for programming and debug serial)
+
+### **Receiver (Pi 4)**
+- [Raspberry Pi 4 Model B (4 GB)](https://www.sparkfun.com/raspberry-pi-4-model-b-4-gb.html?src=raspberrypi)
+- Li-Fi receiver module
+
+---
+
+## 📖 Pinout References
+
+For full details on the board headers:
+
+* **Raspberry Pi Pico (RP2040)** → [Pico Pinout (official PDF)](https://datasheets.raspberrypi.com/pico/Pico-R3-A4-Pinout.pdf)
+* **Raspberry Pi 4 (40-pin header)** → [Pi 4 GPIO Pinout (pinout.xyz)](https://pinout.xyz/pinout/pin8_gpio14#)
+
+---
+
+## 🔌 UART1 Wiring (Pico ↔ Pi 4)
+
+| Function     | Pico Pin (RP2040) | Pi 4 Header Pin | Pi 4 GPIO | Notes                      |
+| ------------ | ----------------- | --------------- | --------- | -------------------------- |
+| **UART1 TX** | GPIO4 (Pin 6)     | Pin 10          | GPIO15 RX | Pico sends → Pi 4 receives |
+| **UART1 RX** | GPIO5 (Pin 7)     | Pin 8           | GPIO14 TX | Pico receives ← Pi 4 sends |
+| **Ground**   | GND (Pin 38)      | Pin 6           | GND       | Common ground required     |
+
+> ⚠️ TX ↔ RX must cross: Pico TX → Pi RX, Pico RX ← Pi TX.
+#### TX = Transmit: The pin that sends data. 
+#### RX = Receive: The pin that receives data.
+#### Should not be RX -> RX only TX -> RX or RX -> TX
+---
+
+## ⚙️ Pico Firmware Setup (update)
+
+```c
+#define UART_ID uart1  // Use hardware UART1 (separate from USB debug/stdio)
+#define UART_TX_PIN 4 // GPIO4 → TX line for Pico → Pi4 (sending data out)
+#define UART_RX_PIN 5 // GPIO5 → RX line for Pico ← Pi4 (receiving session keys)
+#define BAUD_RATE 1000000 // 1 Mbps for high-throughput, low-latency key exchange
+
+uart_init(UART_ID, BAUD_RATE);
+// Map the chosen GPIO pins to the UART hardware.
+gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
+gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+// Allowing the pico to retrieve the session key over UART.
+```
+
+---
+
+## ⚙️ Raspberry Pi 4 Setup (update)
+
+1. Enable UART in `/boot/config.txt`:
+
+   ```ini
+   enable_uart=1
+   ```
+2. Reboot, then check:
+
+   ```bash
+   ls -l /dev/serial0
+   ```
+
+   It should link to `/dev/ttyAMA0` or `/dev/ttyS0`.
+3. Open the port at 1 Mbps:
+
+   ```bash
+   # Configure 1M Baud rate and interface to type messages to send on pico
+   stty -F /dev/serial0 1000000 # setting to 1M Baud matches pico's firmware -> #define BAUD_RATE 1000000
+   screen /dev/serial0 1000000 # setting pico CMD interface so you can type commands like CMD: new key, CMD: print key sender, etc. directly into the Pico.
+   ```
+   ---
+
 ## Key Features:
 
 - **Authenticated Encryption:**  
@@ -76,7 +152,17 @@ This repository contains the embedded software for a secure Li-Fi transmitter (t
 
 - **Cryptographically Secure PRNG:**  
 &nbsp;&nbsp;&nbsp;&nbsp;mbedTLS CTR_DRBG seeded from the RP2040 ring-oscillator via `pico_hardware_entropy_poll()` → high-quality randomness for salts and other needs.
+---
 
+---
+
+## Software Dependencies
+
+-   CMake ≥ 3.13
+-   ARM GCC Toolchain
+-   in deps/ for you (git submodule update --init --recursive)
+- -   (Pico Sender)[Pico SDK](https://github.com/raspberrypi/pico-sdk)
+- -   (Pi4 Receiver) [iotauth](https://github.com/iotauth/iotauth) project for advanced key provisioning.
 
 ---
 
@@ -156,32 +242,60 @@ lifi-auth
     └── _picotool/               # picotool helper build
 ```
 
-### Submodules
+## Submodules
 
 * `deps/sst-c-api` → `https://github.com/iotauth/sst-c-api.git`
 * `lib/mbedtls` → `https://github.com/Mbed-TLS/mbedtls.git` (recommended tag: `mbedtls-3.5.1`)
 * `lib/pico-sdk` → `https://github.com/raspberrypi/pico-sdk.git`
 * `lib/picotool` → `https://github.com/raspberrypi/picotool.git`
 
-Initialize/update:
+## Prerequisites (once per machine)
+
+**Ubuntu / WSL**
+```bash
+sudo apt update
+sudo apt install -y build-essential cmake git pkg-config \
+  ninja-build \
+  # Pico toolchain (for `pico` builds)
+  gcc-arm-none-eabi libnewlib-arm-none-eabi \
+  # Needed to build picotool once
+  libusb-1.0-0-dev
+# (pi4 builds will use your system gcc; if OpenSSL is missing:)
+sudo apt install -y libssl-dev
+```
+**Also install for scripts:**
+```
+sudo apt install -y libusb-1.0-0-dev pkg-config
+```
+
+**Optional (recommended) speed-ups:**
+Install `ninja-build` to make builds faster on repeats
+
+## Initialize/update:
+ssh
+```bash
+git clone git@github.com:asu-kim/lifi-auth.git
+cd lifi-auth
+```
 
 ```bash
 git submodule update --init --recursive
 ```
 
-### Quick build (Pico)
+## Quick build (Pico - sender)
+use helper script `run_build.sh` which automatically cleans and builds inside build/<pi4 or pico> folder. 
+- Uses `set_build.sh` and `make_build.sh`
+- Creates artifacts/<pi4 or pico> for latest builds and keeps a history of most recent builds and auto-prunes old builds
+- Note: first build takes longer, next builds will use .tooling to build faster
+```bash
+./run_build.sh pico # artifacts appear under artifacts/pico/ (latest.uf2 and versioned files)
+```
+## Quick build (Pi4 - receiver)
 
 ```bash
-./run_build.sh pico
-# artifacts appear under artifacts/pico/ (latest.uf2 and versioned files)
+./run_build.sh pi4 # artifacts appear under artifacts/pi4/ (latest and versioned files)
 ```
-### Quick build (Pi4)
-
-```bash
-./run_build.sh pi4
-# artifacts appear under artifacts/pi4/ (latest and versioned files)
-```
-### To run iotauth server
+## Run iotauth server (Pi4 - receiver)
 ```bash
 cd deps/iotauth/examples
 ./cleanAll.sh
@@ -216,150 +330,11 @@ Now connect to the server using the latest build (will always be here *and updat
 ```
 This will now connect to auth you will get "Retrieving session key from SST..." The pi4 should print the session key (for debug).
 
-## Hardware Requirements
 
-### **Sender (Pico)**
-- [Raspberry Pi Pico (RP2040)](https://www.sparkfun.com/raspberry-pi-pico.html?src=raspberrypi)
-- Li-Fi LED transmitter module
-- USB cable (for programming and debug serial)
 
-### **Receiver (Pi 4)**
-- [Raspberry Pi 4 Model B (4 GB)](https://www.sparkfun.com/raspberry-pi-4-model-b-4-gb.html?src=raspberrypi)
-- Li-Fi receiver module
-
----
-
-## 📖 Pinout References
-
-For full details on the board headers:
-
-* **Raspberry Pi Pico (RP2040)** → [Pico Pinout (official PDF)](https://datasheets.raspberrypi.com/pico/Pico-R3-A4-Pinout.pdf)
-* **Raspberry Pi 4 (40-pin header)** → [Pi 4 GPIO Pinout (pinout.xyz)](https://pinout.xyz/pinout/pin8_gpio14#)
-
----
-
-## 🔌 UART1 Wiring (Pico ↔ Pi 4)
-
-| Function     | Pico Pin (RP2040) | Pi 4 Header Pin | Pi 4 GPIO | Notes                      |
-| ------------ | ----------------- | --------------- | --------- | -------------------------- |
-| **UART1 TX** | GPIO4 (Pin 6)     | Pin 10          | GPIO15 RX | Pico sends → Pi 4 receives |
-| **UART1 RX** | GPIO5 (Pin 7)     | Pin 8           | GPIO14 TX | Pico receives ← Pi 4 sends |
-| **Ground**   | GND (Pin 38)      | Pin 6           | GND       | Common ground required     |
-
-> ⚠️ TX ↔ RX must cross: Pico TX → Pi RX, Pico RX ← Pi TX.
-#### TX = Transmit: The pin that sends data. 
-#### RX = Receive: The pin that receives data.
-#### Should not be RX -> RX only TX -> RX or RX -> TX
-
----
-
-## ⚙️ Pico Firmware Setup
-
-```c
-#define UART_ID uart1  // Use hardware UART1 (separate from USB debug/stdio)
-#define UART_TX_PIN 4 // GPIO4 → TX line for Pico → Pi4 (sending data out)
-#define UART_RX_PIN 5 // GPIO5 → RX line for Pico ← Pi4 (receiving session keys)
-#define BAUD_RATE 1000000 // 1 Mbps for high-throughput, low-latency key exchange
-
-uart_init(UART_ID, BAUD_RATE);
-// Map the chosen GPIO pins to the UART hardware.
-gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
-gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-// Allowing the pico to retrieve the session key over UART.
-```
-
----
-
-## ⚙️ Raspberry Pi 4 Setup
-
-1. Enable UART in `/boot/config.txt`:
-
-   ```ini
-   enable_uart=1
-   ```
-2. Reboot, then check:
-
-   ```bash
-   ls -l /dev/serial0
-   ```
-
-   It should link to `/dev/ttyAMA0` or `/dev/ttyS0`.
-3. Open the port at 1 Mbps:
-
-   ```bash
-   # Configure 1M Baud rate and interface to type messages to send on pico
-   stty -F /dev/serial0 1000000 # setting to 1M Baud matches pico's firmware -> #define BAUD_RATE 1000000
-   screen /dev/serial0 1000000 # setting pico CMD interface so you can type commands like CMD: new key, CMD: print key sender, etc. directly into the Pico.
-   ```
-
----
-
-## Software Dependencies
-
--   CMake ≥ 3.13
--   ARM GCC Toolchain
--   [Pico SDK](https://github.com/raspberrypi/pico-sdk)
--   (Optional for Host) [iotauth](https://github.com/iotauth/iotauth) project for advanced key provisioning.
-
----
-
-# Embedded build quickstart
-
-This repo builds two targets:
-
-* **`pico`** → RP2040 sender firmware (`.uf2`)
-* **`pi4`** → Linux receiver executable (tested on Ubuntu/WSL)
-
-The build scripts take care of submodules, the Pico SDK, and `picotool` for you. You only need the system packages below.
-
-## 0) Prerequisites (once per machine)
-
-**Ubuntu / WSL**
-
-```bash
-sudo apt update
-sudo apt install -y build-essential cmake git pkg-config \
-  ninja-build \
-  # Pico toolchain (for `pico` builds)
-  gcc-arm-none-eabi libnewlib-arm-none-eabi \
-  # Needed to build picotool once
-  libusb-1.0-0-dev
-# (pi4 builds will use your system gcc; if OpenSSL is missing:)
-sudo apt install -y libssl-dev
-```
-### Also install for scripts:
-```
-sudo apt install -y libusb-1.0-0-dev pkg-config
-```
-
-**Optional speed-ups:**
-Install `ninja-build` to make builds faster on repeats
-
-## 1) Clone (+ submodules) with ssh
-
-```bash
-git clone --recurse-submodules https://github.com/iotauth/sst-c-api.git
-cd sst-c-api/embedded
-```
-If already inside clone:
-```bash
-# (If you forgot --recurse-submodules)
-git submodule update --init --recursive
-```
-- Note: perform right inside `/sst-c-api` project root folder
-- We pin the Pico SDK, Mbed TLS, and picotool as submodules under `sst-c-api/embedded/lib/`.
-## OPTIONAL: set a 'pico-sdk' path
-> you can set a global PICO_SDK_PATH for embedded/CMakeLists.txt, but it will automatically configure to embedded/lib/pico-sdk
+**OPTIONAL: set a 'pico-sdk' path**
+> you can set a global PICO_SDK_PATH for embedded/CMakeLists.txt, but it will automatically configure to lib/pico-sdk
 - handled when running `make_build.sh` and `run_build.sh` scripts
-## 2) Pick a target (one-liner)
-> from inside sst-c-api/embedded/
-```bash
-cd embedded
-./set_build.sh pico    # or: ./set_build pi4
-```
-
-This writes `.build_target` and tells the scripts which tree to build (pico OR pi 4).
-
 ## 3) Build
 
 ```bash
@@ -397,28 +372,18 @@ KEEP_BUILDS=5 ./run_build.sh pi4
 
 ---
 
-## 4) Running the receiver (Pi4/Linux)
-The paths are updated under /receiver/credentials and is handled by first running from inside receiver:
-```bash
-cd receiver
-./update-credentials
-cd .. # return to embedded
-```
+## Running the receiver (Pi4/Linux)
 
-From `embedded/`:
-
-```bash
-./artifacts/pi4/latest lifi_receiver.config
-```
-
-> The receiver expects a valid `lifi_receiver.config` (paths, endpoints, keys). If you get something like “Failed to find default config”, run it from `embedded/` or pass an explicit config path.
-
+**Runtime Creations**
+* `build/*` is throwaway; safe to delete any time.
+* `.tooling/picotool` is the reusable local install that suppresses SDK warnings.
+* `artifacts/<target (pi4 OR pico)>/latest*` always points to the newest build; older builds are pruned.
 ---
 
 ## Notes
 
 * **You normally do *not* need** `PICO_SDK_PATH` or `PICO_TOOLCHAIN_PATH`.
-  Our CMake pins the SDK to `embedded/lib/pico-sdk`. If you installed ARM GCC via apt, we’ll find `arm-none-eabi-gcc` on PATH automatically.
+  Our `CMakeLists.txt` pins the SDK to `lib/pico-sdk`. If you installed ARM GCC via apt, we’ll find `arm-none-eabi-gcc` on PATH automatically.
 
 * **Custom toolchain location (optional):**
 
@@ -427,20 +392,6 @@ From `embedded/`:
   ```
 
   Only set this if `arm-none-eabi-gcc` is not on your PATH.
-
-* **Build type:** default is `Release`. Override per run:
-
-  ```bash
-  BUILD_TYPE=Debug ./run_build.sh pico
-  ```
-
-* **Verbose build (debug the script):**
-
-  ```bash
-  RUN_VERBOSE=1 ./run_build.sh pico
-  ```
-
----
 
 ## Common issues (and quick fixes)
 
@@ -456,45 +407,44 @@ From `embedded/`:
 * **Assembler errors like `.syntax`/`.cpu`** during Pico builds:
   You’re using the **host gcc** instead of ARM GCC. Install `gcc-arm-none-eabi libnewlib-arm-none-eabi`, or set `PICO_TOOLCHAIN_PATH` to your ARM toolchain root.
 
-* **WSL feels slow:** Make sure the repo lives under `/home/<you>/…`, not `/mnt/c/…`.
-
----
-
-## Directory layout (after first build)
-```
-embedded/
-├─ build/
-│  ├─ pico/         # out-of-tree build for Pico target
-│  ├─ pi4/          # out-of-tree build for Pi4 target
-│  └─ _picotool/    # temp CMake build dir for picotool (first run only)
-├─ .tooling/
-│  └─ picotool/     # locally installed picotool (bin + CMake package)
-├─ artifacts/
-│  ├─ pico/         # latest.uf2 + history + checksums + manifests
-│  └─ pi4/          # latest (exe) + history + checksums + manifests
-└─ lib/
-   ├─ pico-sdk/     # submodule: Raspberry Pi Pico SDK
-   ├─ mbedtls/      # submodule: vendored mbedTLS we build against
-   └─ picotool/     # submodule: picotool source (built once into .tooling/)
-```
-
-**Notes**
-
-* `build/*` is throwaway; safe to delete any time.
-* `.tooling/picotool` is the reusable local install that suppresses SDK warnings.
-* `artifacts/<target>/latest*` always points to the newest build; older builds are pruned.
 ---
 
 
 ### 4) Flash the Pico 
 
 After `./run_build.sh pico`, your firmware is here: `artifacts/pico/latest.uf2`.
+```bash
+./run_build.sh pico
+```
 
-**Option A — Drag & drop (BOOTSEL mode)**
+**Option A (TESTED/WORKING) — Windows & WSL (usbipd Powershell)**
 
 1. Unplug the Pico. Hold **BOOTSEL** while plugging it in (it mounts as a USB drive).
-2. Copy the UF2:
+2. Copy or drag the UF2:
+- I did this using windows->WSL running Windows PowerShell as admin via usbipd in this order:
+- - Flashed latest.uf2 to pico
+- - Attached the busid to wsl
+```bash
+usbipd list
+```
+In the same row as USB Mass Storage Device, RP2 Boot -> Note the hardware under the BUSID: use that id for this command. In my case the BUSID is 2-2.
+- Replace 2-2 with your BUSID:
+```bash
+usbipd attach --busid 2-2 --wsl
+```
+In WSL now you should be able to see ls /dev/ttyACM0
+```bash
+ls /dev/ttyACM*
+```
+If thats the case you can run:
+```
+picocom /dev/ttyACM0
+```
+Now you can provision pico with keys (up to 2) and use `CMD: help` for all commands.
+These keys will be saved to flash storage even if it powers off it will reboot with valid key
+- Note: logic to valid keys are not implemented yet (timers with rel_validity and abs_validity in sst-c-api -- SOON --)
 
+**Option B — Flash to Pico**
 ```bash
 UF2="artifacts/pico/latest.uf2"
 DEST="$(ls -d /media/$USER/RPI-RP2 /run/media/$USER/$USER/RPI-RP2 2>/dev/null | head -n1)"
@@ -502,24 +452,6 @@ cp "$UF2" "$DEST"/
 ```
 
 > Adjust `DEST` if your system mounts the drive somewhere else (e.g., `/media/user/RPI-RP2`). On Windows, just drag `latest.uf2` onto the `RPI-RP2` drive in Explorer.
-
-**Option B — Flash with picotool (no file manager needed)**
-We vendor & auto-install picotool at `embedded/.tooling/picotool/bin/picotool`.
-
-```bash
-# If the Pico is running your app, reboot it into BOOTSEL:
-.embedded/.tooling/picotool/bin/picotool reboot -f
-
-# Then load the UF2 (with Pico in BOOTSEL):
-.embedded/.tooling/picotool/bin/picotool load -f artifacts/pico/latest.uf2
-```
-
-> Tip: `picotool info -a` shows connected boards; `picotool help` lists commands.
-
----
-
-This replaces the old `cp sender/lifi_flash.uf2 ...` line and always uses the canonical `artifacts/pico/latest.uf2`.
-
 
 ---
 
@@ -535,29 +467,8 @@ This guide outlines the steps to provision the Pico with a session key from the 
 -   The firmware and executables have been built successfully using `./run_build.sh`.
 -   The `lifi_receiver.config` file is present in the `embedded/` directory and all paths are correct.
 
-### 2. Configure and Start the Receiver (Pi 4 / Host)
 
-Before the receiver can fetch a session key, you must provide it with the necessary credentials to authenticate with the SST Auth.
-
-1.  **Update Credentials**:  
-    Run the interactive script to configure the client certificate, private key, and CA certificate paths that the receiver will use.
-
-    ```bash
-    ./receiver/update-credentials.sh
-    ```
-    Follow the prompts to provide the paths to your PEM-encoded credential files. This will update the `lifi_receiver.config` file.
-
-2.  **Start the Receiver**:  
-    With the credentials configured, run the receiver program. It will connect to the SST Auth to get a 16-byte session key and then send it to the Pico.
-
-    ```bash
-    ./artifacts/pi4/latest lifi_receiver.config
-    ```
-
-3.  **Monitor Output**:  
-    The receiver will print "Retrieving session key from SST..." and, upon success, "Sent preamble + session key over UART." It is now actively listening for encrypted messages from the Pico.
-
-### 3. Provision the Sender (Pico)
+### 2. Provision the Sender (Pico)
 
 Next, power on the Pico. If it's the first time running or its key slots are empty, it will automatically enter provisioning mode.
 
@@ -603,7 +514,7 @@ Use the on-device command interface over the Pico’s USB serial:
   ```
   CMD: slot status
   ```
-* (Other commands live here; see the “Command reference” section if you add more.)
+* (Other commands; see the "Command Interface" section below for more.)
 
 ---
 
@@ -640,5 +551,5 @@ Interact with the Pico over the USB serial connection. All commands are prefixed
 -   The system is designed for high reliability, automatically recovering from reboots and provisioning itself on first run.
 -   Future work could include:
     -   A GUI-based host application for managing multiple devices.
-    -   Support for secure file transfers over Li-Fi.
+    -   Support for secure different file types over Li-Fi.
     -   Integration with a hardware Trusted Platform Module (TPM) on the host for even more secure key storage.
