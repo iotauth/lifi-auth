@@ -3,3 +3,7 @@
 /.build_target
 /.tooling/
 /receiver/config/credentials/*
+*.pem
+*.key
+*.p12
+*.pfx
