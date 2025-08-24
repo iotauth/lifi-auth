@@ -342,9 +342,6 @@ Now connect to the server using the latest build (will always be here *and updat
 ```
 This will now connect to auth you will get "Retrieving session key from SST..." The pi4 should print the session key (for debug).
 
-
-
-make sure `$PICO_SDK_PATH` is correctly set to `lib/pico-sdk` for the `make_build.sh` and `run_build.sh` scripts
 ## Build Details
 
 ### Where to find results
