@@ -335,7 +335,8 @@ With this `lifi-auth/receiver/config/credentials` should now be populated with t
 ```bash
 ls receiver/config/credentials/
 ```
-Now connect to the server using the latest build (will always be here *and updated* from running `./run_build pi4` previously).
+>Note: never push these files to Github
+- Now connect to the server using the latest build (will always be here *and updated* from running `./run_build pi4` previously).
 - iotauth takes a config to connect: so lifi_receiver.config will be the second argument:
 ```bash
 ./artifacts/pi4/latest lifi_receiver.config
