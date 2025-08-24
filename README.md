@@ -8,7 +8,7 @@ This project implements a secure, real-time Li-Fi communication channel between 
 
 This repository contains the embedded software for a secure Li-Fi transmitter (the Pico) and the necessary host-side components to manage it. The system is designed to showcase a secure communication workflow example, from initial key provisioning to real-time encrypted messaging.
 
--   **Sender (Raspberry Pi Pico)**: A powerful Li-Fi transmitter that encrypts messages using a persistent session key with AES-GCM mode. It operates autonomously and can be managed remotely via a command interface.
+-   **Sender (Raspberry Pi Pico)**: A powerful Li-Fi transmitter that encrypts messages using a persistent session key with AES-128-GCM. It operates autonomously and can be managed remotely via a command interface.
 -   **Receiver/Controller (Host)**: A host system (like a Raspberry Pi 4 or a PC) is responsible for the initial provisioning of the session key and can be used to receive and decrypt the Li-Fi messages.
 
 <div style="text-align:center;">
@@ -130,7 +130,7 @@ gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
 ## Key Features:
 
 - **Authenticated Encryption:**  
-&nbsp;&nbsp;&nbsp;&nbsp;Utilizes **AES-12-GCM** for state-of-the-art encryption and message authentication, protecting against both eavesdropping and tampering.
+&nbsp;&nbsp;&nbsp;&nbsp;Utilizes **AES-128-GCM** for state-of-the-art encryption and message authentication, protecting against both eavesdropping and tampering.
 
 - **Robust Key Persistence:**  
 &nbsp;&nbsp;&nbsp;&nbsp;Implements a redundant **A/B slot system** in the Pico's flash memory to ensure the session key survives reboots and power loss. The system automatically falls back to a valid key if one slot is corrupted.
@@ -160,8 +160,8 @@ gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
 
 -   CMake ≥ 3.13
 -   ARM GCC Toolchain
--   in deps/ for you (git submodule update --init --recursive)
-- -   (Pico Sender)[Pico SDK](https://github.com/raspberrypi/pico-sdk)
+-   in deps/ for you (git submodule update --init --recursive --progress)
+- -   (Pico Sender) [Pico SDK](https://github.com/raspberrypi/pico-sdk)
 - -   (Pi4 Receiver) [iotauth](https://github.com/iotauth/iotauth) project for advanced key provisioning.
 
 ---
@@ -171,7 +171,7 @@ gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
 The code is organized into a modular structure:
 
 -   `src/`: Core logic, including the command handler (`cmd_handler.c`) and Pico-specific/Pi-4 specific functions (`pico_handler.c`)/(`pi_handler.c`).
-- - `note`: `pi_handler.c` is under construction
+- - `note`: `pi_handler.c` is under construction - waiting for TPM module
 -   `include/`: Header files defining the public interface for each module.
 -   `sender/src/`: The main application firmware (`lifi_flash.c`) for the Pico transmitter.
 -   `lib/`: External libraries, including `mbedtls`, `pico-sdk`, and `picotool`.
@@ -244,6 +244,7 @@ lifi-auth
 
 ## Submodules
 
+* `deps/iotauth` → `https://github.com/iotauth/iotauth`
 * `deps/sst-c-api` → `https://github.com/iotauth/sst-c-api.git`
 * `lib/mbedtls` → `https://github.com/Mbed-TLS/mbedtls.git` (recommended tag: `mbedtls-3.5.1`)
 * `lib/pico-sdk` → `https://github.com/raspberrypi/pico-sdk.git`
@@ -277,9 +278,14 @@ ssh
 git clone git@github.com:asu-kim/lifi-auth.git
 cd lifi-auth
 ```
-
+Bring in submodules recursively and show progress:
 ```bash
-git submodule update --init --recursive
+git submodule update --init --recursive --progress
+```
+
+To set the pico-sdk path run:
+```bash
+export PICO_SDK_PATH=$(pwd)/lib/pico-sdk
 ```
 
 ## Quick build (Pico - sender)
@@ -339,8 +345,14 @@ This will now connect to auth you will get "Retrieving session key from SST..." 
 
 
 **OPTIONAL: set a 'pico-sdk' path**
+from inside the `lifi-auth` root repository
+run
+```bash
+export PICO_SDK_PATH=$(pwd)/lib/pico-sdk
+```
+this will correctly assign the pico_sdk_path
 > you can set a global PICO_SDK_PATH for embedded/CMakeLists.txt, but it will automatically configure to lib/pico-sdk
-- handled when running `make_build.sh` and `run_build.sh` scripts
+1- handled when running `make_build.sh` and `run_build.sh` scripts
 ## Build Details
 
 ### Where to find results
@@ -383,7 +395,7 @@ KEEP_BUILDS=5 ./run_build.sh pi4
   Our script builds a local picotool once; ensure `libusb-1.0-0-dev` is installed, then re-run `./run_build pico`.
 
 * **`pico_sdk_init.cmake not found`** or missing SDK:
-  `git submodule update --init --recursive` (we vendored the SDK under `embedded/lib/pico-sdk`).
+  `git submodule update --init --recursive --progress` (we vendored the SDK under `embedded/lib/pico-sdk`).
 
 * **Assembler errors like `.syntax`/`.cpu`** during Pico builds:
   You’re using the **host gcc** instead of ARM GCC. Install `gcc-arm-none-eabi libnewlib-arm-none-eabi`, or set `PICO_TOOLCHAIN_PATH` to your ARM toolchain root.
@@ -408,8 +420,8 @@ After `./run_build.sh pico`, your firmware is here: `artifacts/pico/latest.uf2`.
 ```bash
 usbipd list
 ```
-In the same row as USB Mass Storage Device, RP2 Boot -> Note the hardware under the BUSID: use that id for this command. In my case the BUSID is 2-2.
-- Replace 2-2 with your BUSID:
+In the same row as USB Mass Storage Device, RP2 Boot -> Note the hardware under the BUSID: use that id for this command. In my case the BUSID is `2-2`.
+- *Replace `2-2` with your BUSID --found when running usbipd list*:
 ```bash
 usbipd attach --busid 2-2 --wsl
 ```
