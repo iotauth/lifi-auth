@@ -344,15 +344,7 @@ This will now connect to auth you will get "Retrieving session key from SST..." 
 
 
 
-**OPTIONAL: set a 'pico-sdk' path**
-from inside the `lifi-auth` root repository
-run
-```bash
-export PICO_SDK_PATH=$(pwd)/lib/pico-sdk
-```
-this will correctly assign the pico_sdk_path
-> you can set a global PICO_SDK_PATH for embedded/CMakeLists.txt, but it will automatically configure to lib/pico-sdk
-1- handled when running `make_build.sh` and `run_build.sh` scripts
+make sure `$PICO_SDK_PATH` is correctly set to `lib/pico-sdk` for the `make_build.sh` and `run_build.sh` scripts
 ## Build Details
 
 ### Where to find results
