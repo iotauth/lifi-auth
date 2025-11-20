@@ -53,7 +53,16 @@ int main() {
         current_slot = 0;  // Default to A if not found
     }
 
+#define RED_PIN 0
+#define GREEN_PIN 1
+#define BLUE_PIN 2
+
     printf("PICO STARTED\n");
+
+    // Initialize RGB Channels for High-Speed LiFi
+    gpio_init(RED_PIN); gpio_set_dir(RED_PIN, GPIO_OUT); gpio_put(RED_PIN, 0);
+    gpio_init(GREEN_PIN); gpio_set_dir(GREEN_PIN, GPIO_OUT); gpio_put(GREEN_PIN, 0);
+    gpio_init(BLUE_PIN); gpio_set_dir(BLUE_PIN, GPIO_OUT); gpio_put(BLUE_PIN, 0);
 
     gpio_init(25);
     gpio_set_dir(25, GPIO_OUT);
@@ -164,6 +173,19 @@ int main() {
         if (strncmp(message_buffer, "CMD:", 4) == 0) {
             // Extract the command part (skip the "CMD:" prefix)
             const char *cmd = message_buffer + 4;
+
+            // Hardware Test Command for RGB PCB
+            if (strncmp(cmd, " test rgb", 9) == 0) {
+                printf("Testing RGB Channels (Red -> Green -> Blue)...\n");
+                for(int i=0; i<3; i++) {
+                    gpio_put(RED_PIN, 1); sleep_ms(200); gpio_put(RED_PIN, 0);
+                    gpio_put(GREEN_PIN, 1); sleep_ms(200); gpio_put(GREEN_PIN, 0);
+                    gpio_put(BLUE_PIN, 1); sleep_ms(200); gpio_put(BLUE_PIN, 0);
+                }
+                printf("RGB Test Complete.\n");
+                memset(message_buffer, 0, sizeof(message_buffer));
+                continue;
+            }
 
             // Run the command handler and check if it modified the active
             // session key (e.g., load new key, clear key, or switch slots).
