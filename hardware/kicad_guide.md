@@ -16,10 +16,14 @@ For a "finished product" design, it is best to use the specific symbols and foot
     -   **Source**: [SnapMagic (formerly SnapEDA)](https://www.snapeda.com/parts/UCC27517DBVR/Texas%20Instruments/view-part/) or [Ultra Librarian](https://www.ultralibrarian.com/).
     -   **Search**: "UCC27517DBVR".
     -   **Download**: Select "KiCad" format.
-2.  **BSZ090N03LS (MOSFET)**:
-    -   **Source**: [Infineon Website](https://www.infineon.com/) or [SnapMagic](https://www.snapeda.com/).
-    -   **Search**: "BSZ090N03LS".
+2.  **CSD17309Q3 (MOSFET)**:
+    -   **Source**: [Texas Instruments](https://www.ti.com/product/CSD17309Q3) or [SnapMagic](https://www.snapeda.com/).
+    -   **Search**: "CSD17309Q3".
     -   **Download**: Select "KiCad" format.
+3.  **SRR1260-220M (Inductor)**:
+    -   **Source**: [Bourns](https://www.bourns.com/) or Distributor.
+    -   **Search**: "SRR1260".
+    -   **Download**: Select "KiCad" format (or use standard `Inductor_SMD:L_Bourns_SRR1260`).
 
 **How to Import (Step-by-Step):**
 
@@ -37,7 +41,7 @@ For a "finished product" design, it is best to use the specific symbols and foot
     -   *Note: Do NOT select the .pretty folder here.*
 
 3.  **Add Footprints (Manage Footprint Libraries)**:
-    -   **Menu**: Go to **Preferences** -> **Manage Footprint Libraries**.
+    -   **Menu**: Go to **Preferences** -> **Manage Footprint Libraries**. (This is a DIFFERENT menu!)
     -   *Note: If you see "Design Block Libraries", you are in the wrong place or looking at a different panel. Look specifically for "Manage Footprint Libraries".*
     -   **Tab**: Click **Project Specific Libraries**.
     -   **Action**: Click the **Folder Icon**.
@@ -51,11 +55,11 @@ Add your components (Press `A`):
 | :--- | :--- | :--- | :--- |
 | **Pico 2 W** | `MCU_Module:RaspberryPi_Pico` | 1 | Standard library is fine. |
 | **Gate Driver** | `UCC27517` (Your Imported Lib) | 3 | Use the specific symbol you downloaded. |
-| **MOSFET** | `BSZ090N03LS` (Your Imported Lib) | 3 | Use the specific symbol you downloaded. |
-| **Inductor** | `Device:L` | 1 | Generic is fine, assign footprint later. |
+| **MOSFET** | `CSD17309Q3` (Your Imported Lib) | 3 | **High Speed Upgrade.** Use the specific symbol. |
+| **Inductor** | `Device:L` | 1 | 22uH Shielded Power Inductor. |
 | **Capacitor (Bulk)** | `Device:C_Polarized` | 1 | 100uF Electrolytic. |
 | **Capacitor (Ceramic)** | `Device:C` | 7 | 0.1uF (x4), 10uF (x3). |
-| **Resistor** | `Device:R` | 3 | High Power Resistors. |
+| **Resistor** | `Device:R` | 3 | **5W High Power Resistors.** |
 | **Terminal Block** | `Connector:Screw_Terminal_01x02` | 1 | Power Input. |
 | **LED Header** | `Connector:Conn_01x08_Pin` | 1 | For OSRAM Kit wires. |
 
@@ -71,8 +75,8 @@ This is the most important step. Open the **Footprint Assignment Tool** and assi
 | :--- | :--- |
 | **Pico 2 W** | `Module:RaspberryPi_Pico` (Ensure it has the castellated holes if you plan to solder it flat, or pin headers) |
 | **Gate Driver** | `Package_TO_SOT_SMD:SOT-23-5` (Standard for UCC27517) |
-| **MOSFET** | `Package_SO:Infineon_PG-TSDSON-8` (Or `Package_SO:SOIC-8` if you change parts, but BSZ is TSDSON-8) |
-| **Inductor** | `Inductor_SMD:L_Bourns_SRR1260` (Or match your specific part size) |
+| **MOSFET** | `Package_SON:Texas_S-PVSON-N8` (or your imported `SON-8` / `VSON-CLIP` footprint for CSD17309Q3) |
+| **Inductor** | `Inductor_SMD:L_Bourns_SRR1260` (Matches our 22uH inductor) |
 | **Cap (100uF)** | `Capacitor_THT:CP_Radial_D8.0mm_P3.50mm` (Standard Electrolytic) |
 | **Cap (Ceramic)** | `Capacitor_SMD:C_0603_1608Metric` (Easy to hand solder) |
 | **Resistor (Power)** | `Resistor_THT:R_Axial_DIN0414_L11.9mm_D4.5mm_P15.24mm_Horizontal` (For 5W Cement/Wirewound) |
@@ -98,7 +102,7 @@ This is the most important step. Open the **Footprint Assignment Tool** and assi
 4.  **Pico PWM**: Route these on the top layer. They are lower current, so standard 0.25mm width is fine.
 
 ### 3.4 Thermal Vias
-- Under the MOSFETs (if they have a thermal pad), add multiple small vias connecting to the Bottom GND plane to help dissipate heat.
+- Under the MOSFETs (CSD17309Q3 has a thermal pad), add multiple small vias connecting to the Bottom GND plane to help dissipate heat.
 
 ## 4. Manufacturing
 1.  **DRC**: Run **Inspect > Design Rules Checker**. Fix any errors.
