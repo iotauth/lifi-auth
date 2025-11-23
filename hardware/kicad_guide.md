@@ -65,8 +65,31 @@ Add your components (Press `A`):
 
 ### 2.2 Wiring Connections
 Wire the components exactly as described in the [Design Document](sender_pcb_design.md).
-- **Critical**: Connect the `UCC27517` VDD pin to the 5V rail, and place a 0.1uF and 10uF capacitor pair on the schematic right next to it.
-- **PWM**: Connect Pico GPIO 0, 1, 2 to the inputs of the three Gate Drivers.
+
+#### UCC27517 Gate Driver (Non-Inverting Configuration)
+We are using the **Non-Inverting** configuration so that a **High** signal from the Pico turns the LED **ON**.
+*Refer to the UCC27517 datasheet or symbol for pin numbers, but the names are standard:*
+
+*   **VDD (Pin 1)**: Connect to `5V_HIGH`.
+    *   *Critical*: Place a **0.1uF** and **10uF** capacitor in **parallel** (both connected between VDD and GND).
+    *   *Placement*: The 0.1uF cap must be physically closest to the pin.
+*   **GND (Pin 2)**: Connect to `GND`.
+*   **IN+ (Pin 3)**: Connect to **Pico GPIO** (Red: GP0, Green: GP1, Blue: GP2).
+*   **IN- (Pin 4)**: Connect directly to `GND`. **(Crucial for Non-Inverting Mode)**.
+*   **OUT (Pin 5)**: Connect to **MOSFET Gate** (via optional 4.7Ω resistor).
+
+#### Pico Power Filter (LC Filter)
+This filters the noisy 5V rail before it powers the delicate Pico.
+*   **Inductor (L1)**: Connect one side to `5V_HIGH` and the other to a new net called `VSYS_FILT`.
+*   **Capacitors**: Connect **100uF** and **0.1uF** in **parallel** between `VSYS_FILT` and `GND`.
+*   **Pico VSYS (Pin 39)**: Connect to `VSYS_FILT`.
+
+#### CSD17309Q3 MOSFET (The 3 Pins)
+Your symbol shows 3 pins. Here is what they do and where they go:
+*   **Gate (Pin 1 or G)**: The "Trigger". Connects to the **Driver OUT**.
+*   **Source (Pin 2 or S)**: The "Exit". Connects directly to **GND**.
+*   **Drain (Pin 3 or D)**: The "Entrance". Connects to the **Resistor** (which comes from the LED).
+    *   *Note*: The MOSFET acts like a switch between Drain and Source. It does **not** connect directly to 5V.
 
 ### 2.3 Footprint Assignment
 This is the most important step. Open the **Footprint Assignment Tool** and assign these footprints:
