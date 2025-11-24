@@ -61,7 +61,8 @@ Add your components (Press `A`):
 | **Capacitor (Ceramic)** | `Device:C` | 7 | 0.1uF (x4), 10uF (x3). |
 | **Resistor** | `Device:R` | 3 | **5W High Power Resistors.** |
 | **Terminal Block** | `Connector:Screw_Terminal_01x02` | 1 | Power Input. |
-| **LED Header** | `Connector:Conn_01x08_Pin` | 1 | For OSRAM Kit wires. |
+| **LED Anode Block** | `Connector:Screw_Terminal_01x04` | 1 | J1 (Anodes). Secure wire connection. |
+| **LED Cathode Block** | `Connector:Screw_Terminal_01x04` | 1 | J2 (Cathodes). Secure wire connection. |
 
 ### 2.2 Wiring Connections
 Wire the components exactly as described in the [Design Document](sender_pcb_design.md).

@@ -5,7 +5,7 @@ This document details the hardware design for a high-speed, 3-channel (RGB) LiFi
 
 **Key Features:**
 - **Controller:** Raspberry Pi Pico 2 W (RP2350).
-- **Channels:** 3 Independent Channels (Red, Green, Blue) for high-speed modulation.
+- **Channels:** 4 Independent Channels (Red, Green, Blue, White) for high-speed modulation.
 - **Power Input:** Single 5V High-Current Supply (e.g., 5V 10A).
 - **Switching Speed:** >10 MHz potential (limited by LED/Resistor RC time constant, but driver is ultra-fast).
 - **Protection:** Filtered power for MCU to prevent resets.
@@ -20,33 +20,36 @@ This document details the hardware design for a high-speed, 3-channel (RGB) LiFi
 - **Logic Rail (VSYS_FILT):** Filtered 5V for Pico 2 W.
     - **Filter:** LC Pi Filter.
     - **L1:** 10uH - 22uH Inductor (Rated >500mA).
-    - **C1:** 100uF Electrolytic (Bulk storage).
+    - **C1:** 100uF Electrolytic Footprint (Populate with 10uF if needed, but design for 100uF).
     - **C2:** 0.1uF Ceramic (High-frequency noise decoupling).
     - **Connection:** `5V_HIGH` -> `L1` -> `VSYS_FILT` -> `Pico Pin 39 (VSYS)`.
     - **GND:** Common Ground Plane.
 
-### 1.2 Gate Drivers (x3 Channels)
+### 1.2 Gate Drivers (x4 Channels)
 - **IC:** Texas Instruments **UCC27517** (SOT-23-5).
-- **Power:** Pin 2 (VDD) connected to `5V_HIGH`.
-- **Decoupling:** 0.1uF (C_bypass) + 10uF (C_bulk) placed *immediately* next to VDD pin.
+- **Power:** Pin 1 (VDD) connected to `5V_HIGH`.
+- **Decoupling:** 0.1uF (C_bypass) and 10uF (C_bulk) in **parallel** between VDD and GND, placed *immediately* next to VDD pin.
 - **Input:** Pin 3 (IN+) connected to Pico GPIO (PWM signal).
 - **Input Ground:** Pin 4 (IN-) connected to GND.
-- **Output:** Pin 1 (OUT) connected to MOSFET Gate via 4.7Ω resistor (optional, to dampen ringing).
+- **Output:** Pin 5 (OUT) connected to MOSFET Gate via 4.7Ω resistor (optional, to dampen ringing).
 
-### 1.3 MOSFET Output Stage (x3 Channels)
-- **MOSFET:** Infineon **BSZ090N03LS** (TSDSON-8).
+### 1.3 MOSFET Output Stage (x4 Channels)
+- **MOSFET:** Texas Instruments **CSD17309Q3** (SON-8).
 - **Configuration:** Low-Side Switch.
 - **Gate:** Connected to Driver OUT.
 - **Source:** Connected to GND Plane (Multiple vias for thermal/inductance).
 - **Drain:** Connected to Current Limiting Resistor.
 
 ### 1.4 LED Connection & Current Limiting
-- **Connector:** 8-pin Header or Wire-to-Board pads for OSRAM LED Kit wires.
+- **Connectors:** Two separate 4-pin **Screw Terminals** (e.g., 5.08mm pitch) to match the OSRAM Kit's J1 (Anode) and J2 (Cathode).
+    - **J1 (Anode Block):** Connects `5V_HIGH` to LED Anodes.
+    - **J2 (Cathode Block):** Connects LED Cathodes to `Resistors`.
 - **Topology:** `5V_HIGH` -> `LED Anode` -> `LED Cathode` -> `Resistor` -> `MOSFET Drain`.
 - **Resistors (High Power):**
     - **Red Channel:** 2.7Ω (5W). Target: ~1.0A.
     - **Green Channel:** 1.5Ω (3W/5W). Target: ~1.0A.
     - **Blue Channel:** 2.0Ω (3W/5W). Target: ~1.0A.
+    - **White Channel:** 2.0Ω (3W/5W). Target: ~1.0A.
 
 ---
 
@@ -55,18 +58,19 @@ This document details the hardware design for a high-speed, 3-channel (RGB) LiFi
 | Component | Description | Value | Qty | Part Number (Example) |
 | :--- | :--- | :--- | :--- | :--- |
 | **MCU** | Raspberry Pi Pico 2 W | - | 1 | SC1637 |
-| **Gate Driver** | Low-Side Driver, 4A, High Speed | - | 3 | **UCC27517DBVR** |
-| **MOSFET** | N-Ch, 30V, 40A, Low Qg, 3x3mm | - | 3 | **BSZ090N03LS G** |
+| **Gate Driver** | Low-Side Driver, 4A, High Speed | - | 4 | **UCC27517DBVR** |
+| **MOSFET** | N-Ch, 30V, 60A, Low Qg, SON-8 | - | 4 | **CSD17309Q3** |
 | **Inductor** | Power Inductor, Shielded, >0.5A | 22uH | 1 | SRR1260-220M |
-| **Capacitor** | Electrolytic, 16V | 100uF | 1 | - |
+| **Capacitor** | Electrolytic, 16V | 100uF (Footprint) | 1 | - |
 | **Capacitor** | Ceramic X7R, 0603/0805 | 10uF | 3 | - |
 | **Capacitor** | Ceramic X7R, 0402/0603 | 0.1uF | 4 | - |
 | **Resistor** | Power Resistor, 5W, Wirewound/Ceramic | 2.7Ω | 1 | SQP500JB-2R7 |
 | **Resistor** | Power Resistor, 5W, Wirewound/Ceramic | 1.5Ω | 1 | SQP500JB-1R5 |
-| **Resistor** | Power Resistor, 5W, Wirewound/Ceramic | 2.0Ω | 1 | SQP500JB-2R0 |
-| **Resistor** | Gate Resistor, 0603 (Optional) | 4.7Ω | 3 | - |
+| **Resistor** | Power Resistor, 5W, Wirewound/Ceramic | 2.0Ω | 2 | SQP500JB-2R0 |
+| **Resistor** | Gate Resistor, 0603 (Optional) | 4.7Ω | 4 | - |
 | **Connector** | Screw Terminal, 2-pos | - | 1 | - |
-| **Connector** | Pin Header/Pads for LED | - | 1 | - |
+| **Connector** | Pin Header/Pads (Anode) | - | 1 | - |
+| **Connector** | Pin Header/Pads (Cathode) | - | 1 | - |
 
 ---
 
@@ -101,3 +105,4 @@ This document details the hardware design for a high-speed, 3-channel (RGB) LiFi
 | 1 | GP0 | **Red** PWM | UCC27517 (Red) IN+ |
 | 2 | GP1 | **Green** PWM | UCC27517 (Green) IN+ |
 | 4 | GP2 | **Blue** PWM | UCC27517 (Blue) IN+ |
+| 5 | GP3 | **White** PWM | UCC27517 (White) IN+ |
