@@ -21,8 +21,8 @@ target_include_directories(receiver_common PUBLIC
 # ---- sst-c-api (submodule under deps/) ----
 set(SST_C_API_DIR "${CMAKE_SOURCE_DIR}/deps/sst-c-api")
 
-add_executable(receiver_flash
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/receiver_flash.c
+add_executable(lifi_session_receiver
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/lifi_session_receiver.c
   ${SST_C_API_DIR}/c_api.c
   ${SST_C_API_DIR}/c_common.c
   ${SST_C_API_DIR}/c_crypto.c
@@ -31,13 +31,13 @@ add_executable(receiver_flash
   ${SST_C_API_DIR}/ipfs.c
 )
 
-target_include_directories(receiver_flash PRIVATE
+target_include_directories(lifi_session_receiver PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/include
   ${SST_C_API_DIR}
   ${MBEDTLS_DIR}/include
 )
-target_link_libraries(receiver_flash PRIVATE
+target_link_libraries(lifi_session_receiver PRIVATE
   receiver_common
   sst_embedded         # <-- provides sst_decrypt_gcm
   mbedcrypto           # <-- mbedTLS crypto objs
@@ -45,10 +45,10 @@ target_link_libraries(receiver_flash PRIVATE
 )
 
 # C standard & warnings
-set_property(TARGET receiver_common receiver_flash PROPERTY C_STANDARD 11)
-target_compile_options(receiver_flash PRIVATE -Wall -Wextra -Wno-unused-parameter)
+set_property(TARGET receiver_common lifi_session_receiver PROPERTY C_STANDARD 11)
+target_compile_options(lifi_session_receiver PRIVATE -Wall -Wextra -Wno-unused-parameter)
 
 # Use an absolute default config path
-target_compile_definitions(receiver_flash PRIVATE
+target_compile_definitions(lifi_session_receiver PRIVATE
   DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/lifi_receiver.config\"
 )
