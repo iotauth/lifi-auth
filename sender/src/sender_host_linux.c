@@ -26,6 +26,7 @@ void print_session_key_details(session_key_t *key) {
         return;
     }
     printf("=== Session Key Details ===\n");
+//check later about exact key id size to be used here
     printf("Key ID: ");
     for (int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
         printf("%02X", key->key_id[i]);
