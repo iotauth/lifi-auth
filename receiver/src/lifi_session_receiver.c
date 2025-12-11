@@ -28,7 +28,7 @@
 // ---------- Helpers ----------
 
 // Just in case you don't already have this in utils/serial_linux:
-static ssize_t read_exact(int fd, uint8_t *buf, size_t len) {
+static ssize_t read_exact_local(int fd, uint8_t *buf, size_t len) {
     size_t got = 0;
     while (got < len) {
         ssize_t n = read(fd, buf + got, len - got);
@@ -36,11 +36,12 @@ static ssize_t read_exact(int fd, uint8_t *buf, size_t len) {
             if (errno == EINTR) continue;
             return -1;
         }
-        if (n == 0) break; // EOF / no more
+        if (n == 0) break;
         got += (size_t)n;
     }
     return (ssize_t)got;
 }
+
 
 void print_session_key_details(session_key_t *key) {
     if (!key) {
@@ -139,7 +140,7 @@ int main(int argc, char *argv[]) {
                         printf("\n[LiFi] Detected MSG_TYPE_KEY_ID. Reading Key ID...\n");
 
                         uint8_t received_key_id[SESSION_KEY_ID_SIZE];
-                        ssize_t got = read_exact(fd, received_key_id, SESSION_KEY_ID_SIZE);
+                        ssize_t got = read_exact_local(fd, received_key_id, SESSION_KEY_ID_SIZE);
 
                         if (got == SESSION_KEY_ID_SIZE) {
                             printf("[LiFi] Received Key ID: ");
