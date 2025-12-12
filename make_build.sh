@@ -32,7 +32,7 @@ dir_populated() {
 }
 
 if [[ ! -f "$here/.build_target" ]]; then
-  echo "No build target selected. Run: ./set_build pico   OR   ./set_build pi4"
+  echo "No build target selected. Run: ./set_build pico | pi4 | host"
   exit 1
 fi
 # shellcheck disable=SC1090
@@ -176,7 +176,8 @@ if [[ "$BUILD_TARGET" == "pico" ]]; then
     ln -sfn "$manifest"                "$art_dir/latest.json"
     echo "📦 UF2: $art_dir/$fname"
   fi
-else
+
+elif [[ "$BUILD_TARGET" == "pi4" ]]; then
   exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -executable -print -quit)"
   if [[ -n "$exe" ]]; then
     exename="$(basename "$exe")"
@@ -191,7 +192,25 @@ else
     echo "📦 EXE: $art_dir/$fname"
     echo "ℹ️  Binary info: $(file "$art_dir/$fname" | sed 's/.*: //')"
   fi
+
+elif [[ "$BUILD_TARGET" == "host" ]]; then
+  # Assuming CMake creates build/host/sender/host/sender_host_linux
+  exe="$(find "$build_dir" -maxdepth 4 -type f -name 'sender_host_linux' -executable -print -quit)"
+  if [[ -n "$exe" ]]; then
+    exename="$(basename "$exe")"   # sender_host_linux
+    fname="${exename}-${ver_tag}-${ts}"
+    install -m 0755 -- "$exe" "$art_dir/$fname"
+    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
+    manifest="$art_dir/${exename}-${ver_tag}-${ts}.json"
+    write_manifest "$manifest" "host" "$ver_tag" "$ts" "$fname"
+    ln -sfn "$art_dir/$fname"          "$art_dir/latest"
+    ln -sfn "$art_dir/$fname.sha256"   "$art_dir/latest.sha256"
+    ln -sfn "$manifest"                "$art_dir/latest.json"
+    echo "📦 HOST EXE: $art_dir/$fname"
+    echo "ℹ️  Binary info: $(file "$art_dir/$fname" | sed 's/.*: //')"
+  fi
 fi
+
 
 # === Prune: keep only the last M complete builds (artifact + .sha256 + .json) ===
 M_BUILDS="${KEEP_BUILDS:-3}"   # override with: KEEP_BUILDS=N ./run_build <target>

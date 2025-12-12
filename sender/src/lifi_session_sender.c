@@ -1,193 +1,254 @@
-#include <errno.h>
-#include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <termios.h>
-#include <time.h>
-#include <unistd.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
-// Project headers
-#include "c_api.h"
-#include "config_handler.h"   // change_directory_to_config_path, get_config_path
-#include "key_exchange.h"
-#include "protocol.h"         // protocol constants & sizes (NONCE_SIZE, etc.)
-#include "serial_linux.h"     // UART_DEVICE, UART_BAUDRATE_TERMIOS, init_serial()
-#include "sst_crypto_embedded.h"
-#include "utils.h"
+#include "../../include/cmd_handler.h"      // not strictly needed here, but kept for project consistency
+#include "../../include/pico_handler.h"     // for pico_prng_init, pico_nonce_init if you want them later
+#include "../../include/sst_crypto_embedded.h"
+#include "hardware/gpio.h"
+#include "hardware/uart.h"
+#include "pico/stdio_usb.h"
+#include "pico/stdlib.h"
+#include "pico/time.h"
 
-#define PREAMBLE_BYTE_1   0xAB
-#define PREAMBLE_BYTE_2   0xCD
-#define MSG_TYPE_KEY_ID   0x03
+// UART & LiFi framing constants (match your receiver)
+#define UART_ID_DEBUG       uart0
+#define UART_RX_PIN_DEBUG   1
+#define UART_TX_PIN_DEBUG   0
+
+#define UART_ID             uart1
+#define UART_RX_PIN         5
+#define UART_TX_PIN         4
+
+#define BAUD_RATE           1000000
+
+#define PREAMBLE_BYTE_1     0xAB
+#define PREAMBLE_BYTE_2     0xCD
+#define MSG_TYPE_KEY_ID     0x03
 #define SESSION_KEY_ID_SIZE 8
 
-// If SST_KEY_SIZE isn't already defined, it's usually 16 for AES-128.
-// But we don't actually need it in this stripped-down version.
+#define LED_PIN             25
+#define RED_PIN             0
+#define GREEN_PIN           1
+#define BLUE_PIN            2
 
-// ---------- Helpers ----------
+// Convert two hex characters (e.g., "AF") into a byte (0xAF).
+static bool hexpair_to_byte(const char *hex, uint8_t *out) {
+    char buf[3] = { hex[0], hex[1], 0 };
+    char *end = NULL;
+    long v = strtol(buf, &end, 16);
+    if (*end != '\0' || v < 0 || v > 255) {
+        return false;
+    }
+    *out = (uint8_t)v;
+    return true;
+}
 
-// Just in case you don't already have this in utils/serial_linux:
-static ssize_t read_exact(int fd, uint8_t *buf, size_t len) {
-    size_t got = 0;
-    while (got < len) {
-        ssize_t n = read(fd, buf + got, len - got);
-        if (n < 0) {
-            if (errno == EINTR) continue;
-            return -1;
+// Trim leading spaces in-place and return first non-space char pointer.
+static char *ltrim(char *s) {
+    while (*s == ' ' || *s == '\t') s++;
+    return s;
+}
+
+// Simple line reader using USB CDC, with backspace support.
+// Reuses the style from your existing sender: getchar_timeout_us in a loop.
+static void read_line(char *buf, size_t buf_size) {
+    size_t len = 0;
+    memset(buf, 0, buf_size);
+
+    for (;;) {
+        int ch = getchar_timeout_us(1000000);  // 1ms polling
+        if (ch == PICO_ERROR_TIMEOUT) {
+            continue;
         }
-        if (n == 0) break; // EOF / no more
-        got += (size_t)n;
+
+        if (ch == '\r' || ch == '\n') {
+            buf[len] = '\0';
+            putchar('\n');
+            fflush(stdout);
+            return;
+        }
+
+        // handle backspace / delete
+        if ((ch == 127 || ch == 8) && len > 0) {
+            len--;
+            printf("\b \b");
+            fflush(stdout);
+            continue;
+        }
+
+        // printable ASCII only
+        if (ch >= 32 && ch < 127 && len < buf_size - 1) {
+            buf[len++] = (char)ch;
+            putchar(ch);
+            fflush(stdout);
+        }
     }
-    return (ssize_t)got;
 }
 
-void print_session_key_details(session_key_t *key) {
-    if (!key) {
-        printf("Error: Session Key is NULL.\n");
-        return;
-    }
-    printf("=== Session Key Details ===\n");
-    printf("Key ID: ");
-    for (int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
-        printf("%02X", key->key_id[i]);
-    }
-    printf("\n");
-    print_hex("Cipher Key: ", key->cipher_key, key->cipher_key_size);
-    print_hex("MAC Key:    ", key->mac_key, key->mac_key_size);
-    printf("===========================\n");
+static void print_help(void) {
+    printf("Commands:\n");
+    printf("  ID <16 hex chars>  - Set session Key ID (example: A1B2C3D4E5F60708)\n");
+    printf("  SHOW               - Show current Key ID\n");
+    printf("  SEND               - Send LiFi frame: AB CD 03 <KeyID>\n");
+    printf("  HELP               - Show this help message\n");
 }
 
-// ---------- Main ----------
+// --- Main ---
 
-int main(int argc, char *argv[]) {
-    const char *config_path = NULL;
+int main() {
+    stdio_init_all();
+    sleep_ms(3000);  // Wait for USB to enumerate so prints are visible
 
-    if (argc > 2) {
-        fprintf(stderr, "Error: Too many arguments.\n");
-        fprintf(stderr, "Usage: %s [<path/to/lifi_receiver.config>]\n", argv[0]);
-        return 1;
-    } else if (argc == 2) {
-        config_path = argv[1];
+    // Optional: if you want PRNG/nonce elsewhere later; harmless if unused
+    pico_prng_init();
+    pico_nonce_init();
+
+    // LED + RGB pins for feedback
+    gpio_init(LED_PIN);
+    gpio_set_dir(LED_PIN, GPIO_OUT);
+    gpio_put(LED_PIN, 0);
+
+    gpio_init(RED_PIN);   gpio_set_dir(RED_PIN, GPIO_OUT);   gpio_put(RED_PIN, 0);
+    gpio_init(GREEN_PIN); gpio_set_dir(GREEN_PIN, GPIO_OUT); gpio_put(GREEN_PIN, 0);
+    gpio_init(BLUE_PIN);  gpio_set_dir(BLUE_PIN, GPIO_OUT);  gpio_put(BLUE_PIN, 0);
+
+    // Debug UART0 (if you want to mirror logs later)
+    uart_init(UART_ID_DEBUG, BAUD_RATE);
+    gpio_set_function(UART_TX_PIN_DEBUG, GPIO_FUNC_UART);
+    gpio_set_function(UART_RX_PIN_DEBUG, GPIO_FUNC_UART);
+
+    // LiFi UART1: TX = GPIO4 -> LED driver, RX = GPIO5 (unused here but configured)
+    uart_init(UART_ID, BAUD_RATE);
+    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
+    gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+
+    // Flush any garbage from UART1 RX
+    while (uart_is_readable(UART_ID)) {
+        (void)uart_getc(UART_ID);
     }
 
-    // Resolve / chdir and pick the config filename
-    change_directory_to_config_path(config_path);
-    config_path = get_config_path(config_path);
-    printf("Using config file: %s\n", config_path);
+    printf("========================================\n");
+    printf("  PICO LiFi Session Key ID Sender\n");
+    printf("  UART1 @ %d baud (TX=GPIO4, RX=GPIO5)\n", BAUD_RATE);
+    printf("  Frame: AB CD 03 <8-byte KeyID>\n");
+    printf("========================================\n\n");
 
-    // --- 1) Initialize SST and fetch a session key from Auth ---
-    printf("Initializing SST Context & Fetching Session Key...\n");
-    SST_ctx_t *sst = init_SST(config_path);
-    if (!sst) {
-        fprintf(stderr, "SST init failed.\n");
-        return 1;
-    }
+    uint8_t current_key_id[SESSION_KEY_ID_SIZE] = {0};
+    bool key_id_set = false;
 
-    session_key_list_t *key_list = get_session_key(sst, NULL);
-    if (!key_list || key_list->num_key == 0) {
-        fprintf(stderr, "Failed to get session key.\n");
-        free_SST_ctx_t(sst);
-        return 1;
-    }
+    char line[128];
 
-    session_key_t s_key = key_list->s_key[0];  // Use first key from Auth
-    print_session_key_details(&s_key);
+    while (true) {
+        printf("\n> ");
+        fflush(stdout);
 
-    // If you want to force later lookup-by-ID to hit the Auth server,
-    // create an *empty* list here:
-    session_key_list_t *s_key_list = init_empty_session_key_list();
+        read_line(line, sizeof(line));
+        char *cmd = ltrim(line);
 
-    // --- 2) Open UART to LiFi receiver path ---
-    printf("Opening UART device: %s @ %d\n", UART_DEVICE, UART_BAUDRATE_TERMIOS);
-    int fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);
-    if (fd < 0) {
-        fprintf(stderr, "Failed to open UART.\n");
-        free_session_key_list_t(key_list);
-        free_SST_ctx_t(sst);
-        return 1;
-    }
+        if (*cmd == '\0') {
+            continue; // empty line
+        }
 
-    tcflush(fd, TCIFLUSH);
-    printf("Listening for LiFi messages (expecting key ID packets)...\n");
-    printf("Frame format: 0x%02X 0x%02X 0x%02X <8-byte KeyID>\n",
-           PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_KEY_ID);
+        // Normalize first token uppercase for simple matching
+        // We’ll compare only first few chars anyway.
+        if (strncasecmp(cmd, "HELP", 4) == 0) {
+            print_help();
+            continue;
+        }
 
-    uint8_t byte = 0;
-    int uart_state = 0;
-
-    while (1) {
-        ssize_t n = read(fd, &byte, 1);
-        if (n == 1) {
-            switch (uart_state) {
-                case 0:  // Waiting for first preamble byte
-                    if (byte == PREAMBLE_BYTE_1) {
-                        uart_state = 1;
-                    }
-                    break;
-
-                case 1:  // Got first preamble; expect second
-                    if (byte == PREAMBLE_BYTE_2) {
-                        uart_state = 2;
-                    } else {
-                        uart_state = 0;  // reset state
-                    }
-                    break;
-
-                case 2:  // Expect message type
-                    if (byte == MSG_TYPE_KEY_ID) {
-                        printf("\n[LiFi] Detected MSG_TYPE_KEY_ID. Reading Key ID...\n");
-
-                        uint8_t received_key_id[SESSION_KEY_ID_SIZE];
-                        ssize_t got = read_exact(fd, received_key_id, SESSION_KEY_ID_SIZE);
-
-                        if (got == SESSION_KEY_ID_SIZE) {
-                            printf("[LiFi] Received Key ID: ");
-                            for (int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
-                                printf("%02X", received_key_id[i]);
-                            }
-                            printf("\n");
-
-                            // Optional: ask Auth for this key by ID
-                            printf("[Auth] Requesting Session Key from Auth using this ID...\n");
-                            session_key_t *retrieved_key = get_session_key_by_ID(
-                                received_key_id,
-                                sst,
-                                s_key_list   // empty list forces network fetch
-                            );
-
-                            if (retrieved_key) {
-                                printf("[Auth] SUCCESS: Retrieved Session Key from Auth!\n");
-                                print_session_key_details(retrieved_key);
-                            } else {
-                                printf("[Auth] FAILURE: Could not retrieve session key for this ID.\n");
-                            }
-                        } else {
-                            printf("[LiFi] Error: timed out or failed reading %d bytes of Key ID.\n",
-                                   SESSION_KEY_ID_SIZE);
-                        }
-
-                        // After handling one message, go back to looking for a new preamble
-                        uart_state = 0;
-                    } else {
-                        // Not a key-ID message; ignore and reset state
-                        // (you can add MSG_TYPE_ENCRYPTED handling here later)
-                        uart_state = 0;
-                    }
-                    break;
-
-                default:
-                    uart_state = 0;
+        if (strncasecmp(cmd, "SHOW", 4) == 0) {
+            if (!key_id_set) {
+                printf("Key ID is not set.\n");
+            } else {
+                printf("Current Key ID: ");
+                for (int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
+                    printf("%02X", current_key_id[i]);
+                }
+                printf("\n");
             }
-        } else if (n < 0 && errno != EINTR) {
-            perror("UART read error");
-            break;  // break out and clean up if needed
+            continue;
         }
+
+        if (strncasecmp(cmd, "ID", 2) == 0) {
+            // Expect: ID <16 hex chars>
+            cmd += 2;
+            cmd = ltrim(cmd);
+
+            if (*cmd == '\0') {
+                printf("Usage: ID <16 hex chars>\n");
+                continue;
+            }
+
+            // Take exactly first 16 non-space chars as hex
+            char hexbuf[17] = {0};
+            int hlen = 0;
+            while (*cmd && *cmd != ' ' && *cmd != '\t' && hlen < 16) {
+                hexbuf[hlen++] = *cmd++;
+            }
+            hexbuf[hlen] = '\0';
+
+            if (hlen != 16) {
+                printf("Expected exactly 16 hex characters, got %d.\n", hlen);
+                printf("Example: ID A1B2C3D4E5F60708\n");
+                continue;
+            }
+
+            bool ok = true;
+            for (int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
+                if (!hexpair_to_byte(&hexbuf[i * 2], &current_key_id[i])) {
+                    ok = false;
+                    break;
+                }
+            }
+
+            if (!ok) {
+                printf("Invalid hex in Key ID. Use 0-9, A-F.\n");
+                continue;
+            }
+
+            key_id_set = true;
+            printf("Key ID set to: ");
+            for (int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
+                printf("%02X", current_key_id[i]);
+            }
+            printf("\n");
+            continue;
+        }
+
+        if (strncasecmp(cmd, "SEND", 4) == 0) {
+            if (!key_id_set) {
+                printf("No Key ID set. Use: ID <16 hex chars>\n");
+                continue;
+            }
+
+            printf("Sending LiFi frame: AB CD 03 <KeyID>\n");
+            printf("Bytes: ");
+            printf("%02X %02X %02X ", PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_KEY_ID);
+            for (int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
+                printf("%02X ", current_key_id[i]);
+            }
+            printf("\n");
+
+            // Send over UART1 to LiFi LED path
+            uart_putc_raw(UART_ID, PREAMBLE_BYTE_1);
+            uart_putc_raw(UART_ID, PREAMBLE_BYTE_2);
+            uart_putc_raw(UART_ID, MSG_TYPE_KEY_ID);
+            uart_write_blocking(UART_ID, current_key_id, SESSION_KEY_ID_SIZE);
+
+            // Blink LED as confirmation
+            gpio_put(LED_PIN, 1);
+            sleep_ms(100);
+            gpio_put(LED_PIN, 0);
+
+            printf("Frame sent.\n");
+            continue;
+        }
+
+        // Unknown command
+        printf("Unknown command. Type HELP for options.\n");
     }
 
-    close(fd);
-    free_session_key_list_t(key_list);
-    free_session_key_list_t(s_key_list);
-    free_SST_ctx_t(sst);
     return 0;
 }

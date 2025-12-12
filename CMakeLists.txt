@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.13)
 
 set(PICO_SDK_DISABLE_MBEDTLS 1)   # stops the SDK from bringing its mbedTLS
 
-# ---- ONLY build sstcapi on pi4 ----
-if(BUILD_TARGET STREQUAL "pi4")
+# ---- build sstcapi on pi4 and host (Linux tools) ----
+if(BUILD_TARGET STREQUAL "pi4" OR BUILD_TARGET STREQUAL "host")
   set(SST_C_API_DIR "${CMAKE_SOURCE_DIR}/deps/sst-c-api")
   add_library(sstcapi STATIC
     ${SST_C_API_DIR}/c_api.c
@@ -15,6 +15,7 @@ if(BUILD_TARGET STREQUAL "pi4")
   )
   target_include_directories(sstcapi PUBLIC ${SST_C_API_DIR})
 endif()
+
 
 # === mbedTLS (submodule) ===
 set(MBEDTLS_DIR "${CMAKE_CURRENT_LIST_DIR}/lib/mbedtls" CACHE PATH "Path to vendored mbedTLS" FORCE)
@@ -50,8 +51,9 @@ if(EXISTS "${_bt_file}")
 endif()
 
 if(BUILD_TARGET STREQUAL "")
-  message(FATAL_ERROR "No build target selected. Run: ./set_build pico | pi4")
+  message(FATAL_ERROR "No build target selected. Run: ./set_build pico | pi4 | host")
 endif()
+
 
 # Import Pico SDK *only* for Pico builds (before project())
 if(BUILD_TARGET STREQUAL "pico")
@@ -91,12 +93,20 @@ endif()
 if(BUILD_TARGET STREQUAL "pico")
   set(_SUB_BIN "${CMAKE_BINARY_DIR}/sender")
   add_subdirectory(sender "${_SUB_BIN}")
+
 elseif(BUILD_TARGET STREQUAL "pi4")
   set(_SUB_BIN "${CMAKE_BINARY_DIR}/receiver")
   add_subdirectory(receiver "${_SUB_BIN}")
+
+elseif(BUILD_TARGET STREQUAL "host")
+  # Host-side tools (Linux sender)
+  set(_SUB_BIN "${CMAKE_BINARY_DIR}/host")
+  add_subdirectory(sender/host "${_SUB_BIN}")
+
 else()
   message(FATAL_ERROR "Unknown BUILD_TARGET='${BUILD_TARGET}'")
 endif()
+
 
 
 # === mbedTLS (lock to submodule) ===
@@ -152,8 +162,7 @@ if(BUILD_TARGET STREQUAL "pico")
   target_link_libraries(mbedcrypto PRIVATE pico_stdlib)
 endif()
 
-# === Platform-Specific handler (Pico vs Pi4) ===
-# Build a normal STATIC lib on Pico; on Pi4 build either a real impl or a stub.
+# === Platform-Specific handler (Pico vs Pi4/host) ===
 if(BUILD_TARGET STREQUAL "pico")
   add_library(ram_handler STATIC
     src/pico_handler.c
@@ -177,16 +186,18 @@ if(BUILD_TARGET STREQUAL "pico")
       pico_stdio_usb
       mbedcrypto
   )
-else()  # pi4
+
+elseif(BUILD_TARGET STREQUAL "pi4" OR BUILD_TARGET STREQUAL "host")
   if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/src/pi_handler.c)
     add_library(ram_handler STATIC src/pi_handler.c)
     target_include_directories(ram_handler PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
-    # link normal Linux libs here if needed (pthread, rt, etc.)
+    # Linux-specific libs if needed, e.g. pthread, rt, etc.
   else()
     add_library(ram_handler INTERFACE)
     target_include_directories(ram_handler INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
   endif()
 endif()
+
 
 # === Embedded SST Crypto Wrapper (common) ===
 add_library(sst_embedded
