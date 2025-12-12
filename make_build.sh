@@ -171,9 +171,9 @@ if [[ "$BUILD_TARGET" == "pico" ]]; then
     (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
     manifest="$art_dir/pico-${ver_tag}-${ts}.json"
     write_manifest "$manifest" "pico" "$ver_tag" "$ts" "$fname"
-    ln -sfn "$art_dir/$fname"          "$art_dir/latest.uf2"
-    ln -sfn "$art_dir/$fname.sha256"   "$art_dir/latest.uf2.sha256"
-    ln -sfn "$manifest"                "$art_dir/latest.json"
+    ln -sfn "$art_dir/$fname"        "$art_dir/latest.uf2"
+    ln -sfn "$art_dir/$fname.sha256" "$art_dir/latest.uf2.sha256"
+    ln -sfn "$manifest"              "$art_dir/latest.json"
     echo "📦 UF2: $art_dir/$fname"
   fi
 
@@ -186,30 +186,39 @@ elif [[ "$BUILD_TARGET" == "pi4" ]]; then
     (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
     manifest="$art_dir/${exename}-${ver_tag}-${ts}.json"
     write_manifest "$manifest" "pi4" "$ver_tag" "$ts" "$fname"
-    ln -sfn "$art_dir/$fname"          "$art_dir/latest"
-    ln -sfn "$art_dir/$fname.sha256"   "$art_dir/latest.sha256"
-    ln -sfn "$manifest"                "$art_dir/latest.json"
+    ln -sfn "$art_dir/$fname"        "$art_dir/latest"
+    ln -sfn "$art_dir/$fname.sha256" "$art_dir/latest.sha256"
+    ln -sfn "$manifest"              "$art_dir/latest.json"
     echo "📦 EXE: $art_dir/$fname"
     echo "ℹ️  Binary info: $(file "$art_dir/$fname" | sed 's/.*: //')"
   fi
 
 elif [[ "$BUILD_TARGET" == "host" ]]; then
-  # Assuming CMake creates build/host/sender/host/sender_host_linux
-  exe="$(find "$build_dir" -maxdepth 4 -type f -name 'sender_host_linux' -executable -print -quit)"
-  if [[ -n "$exe" ]]; then
-    exename="$(basename "$exe")"   # sender_host_linux
+  # sender_host is the host-side binary; locate it anywhere under build_dir.
+  exe="$(find "$build_dir" -type f -name 'sender_host' -executable -print -quit)"
+
+  if [[ -z "$exe" ]]; then
+    echo "⚠️ sender_host executable not found under $build_dir"
+  else
+    exename="$(basename "$exe")"    # sender_host
     fname="${exename}-${ver_tag}-${ts}"
+
     install -m 0755 -- "$exe" "$art_dir/$fname"
     (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
+
     manifest="$art_dir/${exename}-${ver_tag}-${ts}.json"
     write_manifest "$manifest" "host" "$ver_tag" "$ts" "$fname"
-    ln -sfn "$art_dir/$fname"          "$art_dir/latest"
-    ln -sfn "$art_dir/$fname.sha256"   "$art_dir/latest.sha256"
-    ln -sfn "$manifest"                "$art_dir/latest.json"
-    echo "📦 HOST EXE: $art_dir/$fname"
+
+    ln -sfn "$art_dir/$fname"        "$art_dir/latest"
+    ln -sfn "$art_dir/$fname.sha256" "$art_dir/latest.sha256"
+    ln -sfn "$manifest"              "$art_dir/latest.json"
+
+    echo "📦 EXE (host): $art_dir/$fname"
     echo "ℹ️  Binary info: $(file "$art_dir/$fname" | sed 's/.*: //')"
   fi
 fi
+
+
 
 
 # === Prune: keep only the last M complete builds (artifact + .sha256 + .json) ===
