@@ -52,36 +52,3 @@ target_compile_options(lifi_session_receiver PRIVATE -Wall -Wextra -Wno-unused-p
 target_compile_definitions(lifi_session_receiver PRIVATE
   DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/lifi_receiver.config\"
 )
-
-# --- Sender Host App (Linux) ---
-add_executable(sender_host
-  ${CMAKE_CURRENT_SOURCE_DIR}/../sender/src/sender_host_linux.c
-  ${SST_C_API_DIR}/c_api.c
-  ${SST_C_API_DIR}/c_common.c
-  ${SST_C_API_DIR}/c_crypto.c
-  ${SST_C_API_DIR}/c_secure_comm.c
-  ${SST_C_API_DIR}/load_config.c
-  ${SST_C_API_DIR}/ipfs.c
-)
-
-target_include_directories(sender_host PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/include
-  ${SST_C_API_DIR}
-  ${MBEDTLS_DIR}/include
-)
-
-target_link_libraries(sender_host PRIVATE
-  receiver_common
-  sst_embedded
-  mbedcrypto
-  OpenSSL::Crypto
-)
-
-# C standard & warnings
-set_property(TARGET sender_host PROPERTY C_STANDARD 11)
-target_compile_options(sender_host PRIVATE -Wall -Wextra -Wno-unused-parameter)
-
-target_compile_definitions(sender_host PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/../lifi_sender.config\"
-)
