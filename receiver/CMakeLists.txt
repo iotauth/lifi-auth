@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.13)
 project(receiver_uart_project C)
 
-# Host build needs OpenSSL
+# Host build needs OpenSSL and Curses (ui)
 find_package(OpenSSL REQUIRED)
+
+find_package(Curses REQUIRED)
 
 # ---- Common helpers (utils, serial, replay, config handler) ----
 add_library(receiver_common
@@ -35,13 +37,16 @@ target_include_directories(lifi_session_receiver PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/include
   ${SST_C_API_DIR}
-  ${MBEDTLS_DIR}/include
+  ${MBEDTLS_DIR}/include  
+  ${CURSES_INCLUDE_DIRS}
 )
+
 target_link_libraries(lifi_session_receiver PRIVATE
   receiver_common
   sst_embedded         # <-- provides sst_decrypt_gcm
   mbedcrypto           # <-- mbedTLS crypto objs
   OpenSSL::Crypto
+  ${CURSES_LIBRARIES}
 )
 
 # C standard & warnings

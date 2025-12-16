@@ -7,7 +7,12 @@
 #include <termios.h>  // Linux serial
 #include <time.h>
 #include <unistd.h>
+
+//for ui on pi4
 #include <fcntl.h>  // for open()
+#include <ncurses.h>
+#include <stdarg.h>
+
 
 // Project headers (use -I include dirs instead of ../../../)
 #include "c_api.h"
@@ -19,6 +24,95 @@
 #include "sst_crypto_embedded.h"  // brings in sst_decrypt_gcm prototype and sizes
 #include "utils.h"
 
+// ncurses for ui on pi4
+
+static WINDOW *win_log = NULL;
+static WINDOW *win_cmd = NULL;
+
+static void log_printf(const char *fmt, ...) {
+    if (!win_log) return;
+    int y, x;
+    getyx(win_log, y, x);
+    (void)x;
+    if (y == 0) wmove(win_log, 1, 1);
+
+    va_list ap;
+    va_start(ap, fmt);
+    vw_printw(win_log, fmt, ap);
+    va_end(ap);
+    wprintw(win_log, "\n");
+    wrefresh(win_log);
+}
+
+static void cmd_printf(const char *fmt, ...) {
+    if (!win_cmd) return;
+    int y, x;
+    getyx(win_cmd, y, x);
+    (void)x;
+    if (y == 0) wmove(win_cmd, 1, 1);
+
+    va_list ap;
+    va_start(ap, fmt);
+    vw_printw(win_cmd, fmt, ap);
+    va_end(ap);
+    wprintw(win_cmd, "\n");
+    wrefresh(win_cmd);
+}
+
+static void ui_init(void) {
+    initscr();
+    cbreak();
+    noecho();
+    nodelay(stdscr, TRUE);     // getch nonblocking
+    keypad(stdscr, TRUE);
+
+    int rows, cols;
+    getmaxyx(stdscr, rows, cols);
+    int cmd_h = 6;
+    int log_h = rows - cmd_h;
+
+    win_log = newwin(log_h, cols, 0, 0);
+    win_cmd = newwin(cmd_h, cols, log_h, 0);
+
+
+    scrollok(win_log, TRUE);
+    scrollok(win_cmd, TRUE);
+
+    box(win_log, 0, 0);
+    box(win_cmd, 0, 0);
+    wsetscrreg(win_log, 1, log_h - 2);
+    wsetscrreg(win_cmd, 1, cmd_h - 2);
+
+    mvwprintw(win_log, 0, 2, " RX / Photodiode Log ");
+    mvwprintw(win_cmd, 0, 2, " Commands / Status ");
+    wrefresh(win_log);
+    wrefresh(win_cmd);
+
+    // Put cursor in cmd window
+    wmove(win_cmd, 1, 1);
+    wmove(win_log, 1, 1);
+    wrefresh(win_log);
+    wrefresh(win_cmd);
+}
+
+static void cmd_hex(const char* label, const uint8_t* b, size_t n) {
+    if (!win_cmd) return;
+    int y, x;
+    getyx(win_cmd, y, x);
+    (void)x;
+    if (y == 0) wmove(win_cmd, 1, 1);
+
+    wprintw(win_cmd, "%s", label);
+    for (size_t i = 0; i < n; i++) wprintw(win_cmd, "%02X ", b[i]);
+    wprintw(win_cmd, "\n");
+    wrefresh(win_cmd);
+}
+
+static void ui_shutdown(void) {
+    if (win_log) delwin(win_log);
+    if (win_cmd) delwin(win_cmd);
+    endwin();
+}
 
 
 static inline int timespec_passed(const struct timespec* dl) {
@@ -44,40 +138,7 @@ static int write_all(int fd, const void* buf, size_t len) {
     return (sent == len) ? 0 : -1;
 }
 
-// Set stdin to non-blocking mode for keyboard shortcuts
-static void set_nonblocking_stdin(void) {
-    struct termios tty;
-    tcgetattr(STDIN_FILENO, &tty);
-    tty.c_lflag &= ~(ICANON | ECHO);  // Disable canonical mode and echo
-    tty.c_cc[VMIN] = 0;   // Non-blocking read
-    tty.c_cc[VTIME] = 0;  // No timeout
-    tcsetattr(STDIN_FILENO, TCSANOW, &tty);
-}
-
-// Restore stdin to normal mode on exit
-static void restore_stdin(void) {
-    struct termios tty;
-    tcgetattr(STDIN_FILENO, &tty);
-    tty.c_lflag |= (ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &tty);
-}
-
-// Check if a key was pressed (non-blocking)
-static int get_keypress(void) {
-    char ch;
-    if (read(STDIN_FILENO, &ch, 1) == 1) {
-        return ch;
-    }
-    return -1;  // No key pressed
-}
-
 int main(int argc, char* argv[]) {
-
-    bool cmd_mode = false;
-    char cmd_buf[256];
-    size_t cmd_len = 0;
-    (void)cmd_buf;
-    (void)cmd_len;
 
     const char* config_path = NULL;
 
@@ -94,24 +155,28 @@ int main(int argc, char* argv[]) {
     // no-op)
     change_directory_to_config_path(config_path);
     config_path = get_config_path(config_path);
-    printf("Using config file: %s\n", config_path);
+
+    ui_init();
+    atexit(ui_shutdown);
+
+    cmd_printf("Using config file: %s", config_path);
 
     // --- Fetch session key from SST ---
-    printf("Retrieving session key from SST...\n");
+    cmd_printf("Retrieving session key from SST...");
     SST_ctx_t* sst = init_SST(config_path);
     if (!sst) {
-        fprintf(stderr, "SST init failed.\n");
+        log_printf("SST init failed.");
         return 1;
     }
 
     session_key_list_t* key_list = get_session_key(sst, NULL);
     if (!key_list || key_list->num_key == 0) {
-        fprintf(stderr, "No session key.\n");
+        log_printf("No session key.");
         return 1;
     }
 
     session_key_t s_key = key_list->s_key[0];
-    print_hex("Session Key: ", s_key.cipher_key, SESSION_KEY_SIZE);
+    cmd_hex("Session Key: ", s_key.cipher_key, SESSION_KEY_SIZE);
 
     bool key_valid = true;                        // track if current key usable
     uint8_t pending_key[SESSION_KEY_SIZE] = {0};  // for rotations
@@ -133,7 +198,7 @@ int main(int argc, char* argv[]) {
     int fd = -1;
     fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);
     if (fd < 0) {
-        fprintf(stderr, "Warning: serial not open (%s). Press 'r' to retry.\n", UART_DEVICE);
+        log_printf("Warning: serial not open (%s). Press 'r' to retry.", UART_DEVICE);
     }
     if (fd >= 0) {
         int flags = fcntl(fd, F_GETFL, 0);
@@ -149,142 +214,135 @@ int main(int argc, char* argv[]) {
     const uint8_t preamble[2] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2};
     // Automatic handshake REMOVED - waitForUser to press [1]
 
-    // Setup non-blocking keyboard input for shortcuts
-    set_nonblocking_stdin();
-    atexit(restore_stdin);  // Restore terminal on exit
-
-    printf("\n");
-    printf("╔════════════════════════════════════════════════════════╗\n");
-    printf("║          LiFi Receiver - Interactive Mode             ║\n");
-    printf("╠════════════════════════════════════════════════════════╣\n");
-    printf("║  [1] Send Session Key to Pico                         ║\n");
-    printf("║  [2] Send HMAC Challenge (verify key)                 ║\n");
-    printf("║  [s] Show Status (Key & Connection)                   ║\n");
-    printf("║  [q] Quit                                              ║\n");
-    printf("╚════════════════════════════════════════════════════════╝\n");
-    printf("\n");
+    cmd_printf("\n");
+    cmd_printf("╔════════════════════════════════════════════════════════╗\n");
+    cmd_printf("║          LiFi Receiver - Interactive Mode             ║\n");
+    cmd_printf("╠════════════════════════════════════════════════════════╣\n");
+    cmd_printf("║  [1] Send Session Key to Pico                         ║\n");
+    cmd_printf("║  [2] Send HMAC Challenge (verify key)                 ║\n");
+    cmd_printf("║  [s] Show Status (Key & Connection)                   ║\n");
+    cmd_printf("║  [q] Quit                                              ║\n");
+    cmd_printf("╚════════════════════════════════════════════════════════╝\n");
+    cmd_printf("\n");
 
     // UART framing state
     uint8_t byte = 0;
     int uart_state = 0;
 
-    printf("Listening for encrypted message...\n");
-    tcflush(fd, TCIFLUSH);
+    log_printf("Listening for encrypted message...\n");
+    if (fd >= 0) tcflush(fd, TCIFLUSH);
 
     while (1) {
         // --- Handle Keyboard Shortcuts ---
-        int key = get_keypress();
+        int key = getch();
+        if (key == ERR) key = -1;
+
         if (key != -1) {
-            if (!cmd_mode) {
-                switch (key) {
-                    case '1': {
-                        printf("\n[Shortcut] Sending session key to Pico...\n");
-                        if (fd < 0) {
-                            printf("Serial not open. Press 'r' to retry.\n");
-                            break;
-                        }
-                        if (!key_valid) {
-                            printf("No valid session key loaded. (Fix SST key fetch first.)\n");
-                            break;
-                        }
-                        if (write_all(fd, preamble, sizeof preamble) < 0 ||
-                            write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
-                            printf("Error: Failed to send session key.\n");
-                        } else {
-                            tcdrain(fd);
-                            printf("✓ Session key sent.\n");
-                        }
+            switch (key) {
+                case '1': {
+                    cmd_printf("[Shortcut] Sending session key to Pico...");
+                    if (fd < 0) { cmd_printf("Serial not open. Press 'r' to retry."); break; }
+                    if (!key_valid) { cmd_printf("No valid session key loaded."); break; }
+
+                    if (write_all(fd, preamble, sizeof preamble) < 0 ||
+                        write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+                        cmd_printf("Error: Failed to send session key.");
+                    } else {
+                        tcdrain(fd);
+                        cmd_printf("✓ Session key sent.");
+                    }
+                    break;
+                }
+
+                case '2': {
+                    cmd_printf("[Shortcut] Initiating HMAC challenge...");
+                    if (fd < 0) { cmd_printf("Serial not open. Press 'r' to retry."); break; }
+                    if (!key_valid) { cmd_printf("No valid session key loaded."); break; }
+
+                    if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
+                        cmd_printf("Error: Failed to generate challenge nonce.");
                         break;
                     }
 
-                    case '2': {
-                        printf("\n[Shortcut] Initiating HMAC challenge...\n");
-                        if (fd < 0) {
-                            printf("Serial not open. Press 'r' to retry.\n");
-                            break;
-                        }
-                        if (!key_valid) {
-                            printf("No valid session key loaded. Cannot challenge.\n");
-                            break;
-                        }
-                        if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
-                            printf("Error: Failed to generate challenge nonce.\n");
-                            break;
-                        }
-
-                        uint8_t msg[] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_CHALLENGE};
-                        if (write_all(fd, msg, sizeof msg) < 0 ||
-                            write_all(fd, pending_challenge, CHALLENGE_SIZE) < 0) {
-                            printf("Error: Failed to send challenge.\n");
-                        } else {
-                            state = STATE_WAITING_FOR_HMAC_RESP;
-                            clock_gettime(CLOCK_MONOTONIC, &state_deadline);
-                            state_deadline.tv_sec += 5;
-                            challenge_active = true;
-                            printf("✓ Challenge sent. Waiting for HMAC response...\n");
-                        }
-                        break;
+                    uint8_t msg[] = { PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_CHALLENGE };
+                    if (write_all(fd, msg, sizeof msg) < 0 ||
+                        write_all(fd, pending_challenge, CHALLENGE_SIZE) < 0) {
+                        cmd_printf("Error: Failed to send challenge.");
+                    } else {
+                        state = STATE_WAITING_FOR_HMAC_RESP;
+                        clock_gettime(CLOCK_MONOTONIC, &state_deadline);
+                        state_deadline.tv_sec += 5;
+                        challenge_active = true;
+                        cmd_printf("✓ Challenge sent. Waiting for HMAC response...");
                     }
+                    break;
+                }
 
-                    case 's':
-                    case 'S': {
-                        printf("\n--- Status Report ---\n");
-                        printf("Serial: %s\n", (fd >= 0) ? "OPEN" : "CLOSED");
-                        printf("UART Device: %s\n", UART_DEVICE);
-                        printf("Key valid: %s\n", key_valid ? "YES" : "NO");
-                        if (key_valid) {
-                            print_hex("Key ID: ", s_key.key_id, SESSION_KEY_ID_SIZE);
-                            print_hex("Session Key: ", s_key.cipher_key, SESSION_KEY_SIZE);
-                        }
-                        printf("State: %d\n", state);
-                        printf("---------------------\n");
-                        break;
+                case 's':
+                case 'S': {
+                    cmd_printf("--- Status Report ---");
+                    cmd_printf("Serial: %s", (fd >= 0) ? "OPEN" : "CLOSED");
+                    cmd_printf("UART Device: %s", UART_DEVICE);
+                    cmd_printf("Key valid: %s", key_valid ? "YES" : "NO");
+                    if (key_valid) {
+                        cmd_hex("Key ID: ", s_key.key_id, SESSION_KEY_ID_SIZE);
+                        cmd_hex("Session Key: ", s_key.cipher_key, SESSION_KEY_SIZE);
                     }
+                    cmd_printf("State: %d", state);
+                    cmd_printf("---------------------");
+                    break;
+                }
 
-                    case 'r':
-                    case 'R': {
-                        if (fd >= 0) {
-                            close(fd);
-                            fd = -1;
-                        }
-                        fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);
-                        if (fd >= 0) printf("✓ Serial opened.\n");
-                        else printf("Still failed to open serial.\n");
-                        break;
+                case 'r':
+                case 'R': {
+                    if (fd >= 0) {
+                        cmd_printf("Closing serial...");
+                        close(fd);
+                        fd = -1;
                     }
-
-                    case 'q':
-                    case 'Q': {
-                        printf("\nExiting...\n");
-                        if (fd >= 0) close(fd);
-                        free_session_key_list_t(key_list);
-                        free_SST_ctx_t(sst);
-                        return 0;
+                    fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);
+                    if (fd >= 0) {
+                        int flags = fcntl(fd, F_GETFL, 0);
+                        if (flags >= 0) fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+                        tcflush(fd, TCIFLUSH);
+                        cmd_printf("✓ Serial opened.");
+                    } else {
+                        cmd_printf("Still failed to open serial.");
                     }
+                    break;
+                }
 
-                    default:
-                        // Ignore other keys
-                        break;
-                }   
+                case 'q':
+                case 'Q': {
+                    cmd_printf("Exiting...");
+                    if (fd >= 0) close(fd);
+                    free_session_key_list_t(key_list);
+                    free_SST_ctx_t(sst);
+                    return 0;
+                }
+
+                default:
+                    break;
             }
         }
+
 
 
         // --- Handle State Timeouts ---
         if (state != STATE_IDLE && timespec_passed(&state_deadline)) {
             if (state == STATE_WAITING_FOR_YES) {
-                printf(
+                cmd_printf(
                     "Confirmation for 'new key' timed out. Returning to "
                     "idle.\n");
                 // nothing to wipe here
             } else if (state == STATE_WAITING_FOR_ACK) {
-                printf(
+                cmd_printf(
                     "Timeout waiting for key update ACK. Discarding new "
                     "key.\n");
                 explicit_bzero(pending_key, sizeof pending_key);
                 // keep old key; key_valid stays true
             } else if (state == STATE_WAITING_FOR_HMAC_RESP) {
-                printf("HMAC challenge timed out. Pico did not respond.\n");
+                cmd_printf("HMAC challenge timed out. Pico did not respond.\n");
                 explicit_bzero(pending_challenge, sizeof(pending_challenge));
                 challenge_active = false;
             }
@@ -298,7 +356,7 @@ int main(int argc, char* argv[]) {
                     if (byte == PREAMBLE_BYTE_1) {
                         uart_state = 1;
                     } else {
-                        printf(
+                        log_printf(
                             "Waiting: got 0x%02X, expecting PREAMBLE_BYTE_1\n",
                             byte);
                     }
@@ -307,7 +365,7 @@ int main(int argc, char* argv[]) {
                     if (byte == PREAMBLE_BYTE_2) {
                         uart_state = 2;
                     } else {
-                        printf("Bad second preamble byte: 0x%02X\n", byte);
+                        log_printf("Bad second preamble byte: 0x%02X\n", byte);
                         uart_state = 0;
                     }
                     break;
@@ -320,14 +378,14 @@ int main(int argc, char* argv[]) {
                         // Read nonce + length
                         if (read_exact(fd, nonce, NONCE_SIZE) != NONCE_SIZE ||
                             read_exact(fd, len_bytes, 2) != 2) {
-                            printf("Failed to read nonce or length\n");
+                            log_printf("Failed to read nonce or length\n");
                             uart_state = 0;
                             continue;
                         }
 
                         // --- Nonce Replay Check ---
                         if (replay_window_seen(&rwin, nonce)) {
-                            printf("Nonce replayed! Rejecting message.\n");
+                            log_printf("Nonce replayed! Rejecting message.\n");
                             uart_state = 0;
                             continue;
                         }
@@ -339,7 +397,7 @@ int main(int argc, char* argv[]) {
                         if (msg_len == 0 ||
                             msg_len >
                                 1024) {  // or use MAX_MSG_LEN from protocol.h
-                            printf("Message too long: %u bytes\n", msg_len);
+                            log_printf("Message too long: %u bytes\n", msg_len);
                             uart_state = 0;
                             continue;
                         }
@@ -355,7 +413,7 @@ int main(int argc, char* argv[]) {
                         if (c == msg_len && t == TAG_SIZE) {
                             if (!key_valid) {  // Skip decryption if key was
                                                // cleared and not yet rotated
-                                printf(
+                                log_printf(
                                     "No valid session key. Rejecting encrypted "
                                     "message.\n");
                                 uart_state = 0;
@@ -370,13 +428,13 @@ int main(int argc, char* argv[]) {
                                 decrypted[msg_len] =
                                     '\0';  // Null-terminate the decrypted
                                            // message
-                                printf("%s\n", decrypted);
+                                log_printf("%s\n", decrypted);
 
                                 // If the decrypted message is "I have the key",
                                 // stop sending the key.
                                 if (strcmp((char*)decrypted,
                                            "I have the key") == 0) {
-                                    printf(
+                                    log_printf(
                                         "Pico has confirmed receiving the "
                                         "key.\n");
                                 }
@@ -387,7 +445,7 @@ int main(int argc, char* argv[]) {
                                                 "new key -f") == 0) {
                                     // Logic to request a new key and forcefully
                                     // overwrite current one
-                                    printf(
+                                    cmd_printf(
                                         "Received 'new key -f' command. "
                                         "Requesting new key...\n");
 
@@ -396,14 +454,13 @@ int main(int argc, char* argv[]) {
                                         sst, init_empty_session_key_list());
                                     
                                     if (!key_list || key_list->num_key == 0) {
-                                        fprintf(stderr,
-                                                "Failed to fetch new session "
+                                        cmd_printf("Failed to fetch new session "
                                                 "key.\n");
                                     } else {
                                         memcpy(pending_key,
                                                key_list->s_key[0].cipher_key,
                                                SESSION_KEY_SIZE);
-                                        print_hex(
+                                        cmd_hex(
                                             "New Session Key (pending ACK): ",
                                             pending_key, SESSION_KEY_SIZE);
                                         key_valid = true;
@@ -414,7 +471,7 @@ int main(int argc, char* argv[]) {
                                               SESSION_KEY_SIZE);
                                         usleep(5000);  // 5ms sleep to let
                                                        // transmission complete
-                                        printf(
+                                        cmd_printf(
                                             "Sent new session key to Pico. "
                                             "Waiting 5s for ACK...\n");
                                         state = STATE_WAITING_FOR_ACK;
@@ -429,15 +486,15 @@ int main(int argc, char* argv[]) {
                                          0) {
                                     // Logic to check key cooldown and request a
                                     // new key
-                                    time_t now = time(NULL);
+                                    time_t now = time(NULL);    
                                     if (now - last_key_req_time <
                                         KEY_UPDATE_COOLDOWN_S) {
-                                        printf(
+                                        cmd_printf(
                                             "Rate limit: another new key "
                                             "request too soon. Ignoring.\n");
                                     } else {
                                         last_key_req_time = now;
-                                        printf(
+                                        cmd_printf(
                                             "Received 'new key' command. "
                                             "Waiting 5s for 'yes' "
                                             "confirmation...\n");
@@ -452,14 +509,14 @@ int main(int argc, char* argv[]) {
                                 // sent)
                                 else if (state == STATE_WAITING_FOR_ACK &&
                                          strcmp((char*)decrypted, "ACK") == 0) {
-                                    printf(
+                                    cmd_printf(
                                         "ACK received. Finalizing key "
                                         "update.\n");
                                     memcpy(s_key.cipher_key, pending_key,
                                            SESSION_KEY_SIZE);
                                     explicit_bzero(pending_key,
                                                    sizeof(pending_key));
-                                    print_hex("New key is now active: ",
+                                    cmd_hex("New key is now active: ",
                                               s_key.cipher_key,
                                               SESSION_KEY_SIZE);
                                     state = STATE_IDLE;
@@ -467,11 +524,11 @@ int main(int argc, char* argv[]) {
 
                                 // Handle "verify key" command - initiate HMAC challenge
                                 else if (strcmp((char*)decrypted, "verify key") == 0) {
-                                    printf("Initiating HMAC challenge to verify Pico has session key...\n");
+                                    cmd_printf("Initiating HMAC challenge to verify Pico has session key...\n");
                                     
                                     // Generate random challenge
                                     if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
-                                        printf("Failed to generate challenge nonce.\n");
+                                        cmd_printf("Failed to generate challenge nonce.\n");
                                     } else {
                                         // Send challenge via UART
                                         uint8_t msg[] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_CHALLENGE};
@@ -484,7 +541,7 @@ int main(int argc, char* argv[]) {
                                         state_deadline.tv_sec += 5;  // 5 second timeout
                                         challenge_active = true;
                                         
-                                        printf("Challenge sent. Waiting for HMAC response...\n");
+                                        cmd_printf("Challenge sent. Waiting for HMAC response...\n");
                                     }
                                 }
 
@@ -506,9 +563,9 @@ int main(int argc, char* argv[]) {
                                                               CHALLENGE_SIZE, expected_hmac);
                                     
                                     if (ret == 0 && memcmp(received_hmac, expected_hmac, HMAC_SIZE) == 0) {
-                                        printf("✅ HMAC VERIFICATION SUCCESSFUL: Pico has correct session key!\n");
+                                        log_printf("✅ HMAC VERIFICATION SUCCESSFUL: Pico has correct session key!\n");
                                     } else {
-                                        printf("❌ HMAC VERIFICATION FAILED: Pico does not have correct key!\n");
+                                        log_printf("❌ HMAC VERIFICATION FAILED: Pico does not have correct key!\n");
                                     }
                                     
                                     // Clear challenge state
@@ -519,11 +576,11 @@ int main(int argc, char* argv[]) {
 
                             } else {
                                 // AES-GCM decryption failed
-                                printf("AES-GCM decryption failed: %d\n", ret);
+                                log_printf("AES-GCM decryption failed: %d\n", ret);
                             }
 
                         } else {
-                            printf("Incomplete ciphertext or tag.\n");
+                            log_printf("Incomplete ciphertext or tag.\n");
                         }
                         uart_state = 0;  // Reset uart_state machine
                     } else {
