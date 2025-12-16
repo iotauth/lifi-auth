@@ -2,6 +2,18 @@
 #include "../include/sst_crypto_embedded.h"
 
 #include "mbedtls/gcm.h"
+#include "mbedtls/md.h"
+
+int sst_hmac_sha256(const uint8_t *key, const uint8_t *input, size_t input_len, uint8_t *output) {
+    const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    if (md_info == NULL) {
+        return -1; // Should not happen if SHA256 is enabled
+    }
+    
+    // We use the full 32-byte session key for HMAC
+    // (Ensure the key passed in is actually 32 bytes or handle sizing appropriately)
+    return mbedtls_md_hmac(md_info, key, 32, input, input_len, output);
+}
 
 int sst_encrypt_gcm(const uint8_t *key, const uint8_t *nonce,
                     const uint8_t *input, size_t input_len, uint8_t *ciphertext,

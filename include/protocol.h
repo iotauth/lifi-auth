@@ -46,3 +46,6 @@
 #define MSG_TYPE_RESPONSE   0x05
 #define CHALLENGE_SIZE      32
 #define HMAC_SIZE           32
+
+// HMAC response is sent as encrypted message with this prefix
+#define HMAC_RESPONSE_PREFIX "HMAC:"

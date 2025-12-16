@@ -1,253 +1,306 @@
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
-#include <stdbool.h>
 
-#include "../../include/cmd_handler.h"      // not strictly needed here, but kept for project consistency
-#include "../../include/pico_handler.h"     // for pico_prng_init, pico_nonce_init if you want them later
+#include "../../include/cmd_handler.h"
+#include "../../include/pico_handler.h"
+#include "../../include/protocol.h"
 #include "../../include/sst_crypto_embedded.h"
+#include "hardware/flash.h"
 #include "hardware/gpio.h"
+#include "hardware/sync.h"
 #include "hardware/uart.h"
+#include "hardware/watchdog.h"
+#include "mbedtls/sha256.h"
+#include "pico/bootrom.h"
+#include "pico/rand.h"
 #include "pico/stdio_usb.h"
 #include "pico/stdlib.h"
 #include "pico/time.h"
 
-// UART & LiFi framing constants (match your receiver)
-#define UART_ID_DEBUG       uart0
-#define UART_RX_PIN_DEBUG   1
-#define UART_TX_PIN_DEBUG   0
+#define UART_ID_DEBUG uart0
+#define UART_RX_PIN_DEBUG 1
+#define UART_TX_PIN_DEBUG 0
 
-#define UART_ID             uart1
-#define UART_RX_PIN         5
-#define UART_TX_PIN         4
+#define UART_ID uart1
+#define UART_RX_PIN 5
+#define UART_TX_PIN 4
 
-#define BAUD_RATE           1000000
-
-#define PREAMBLE_BYTE_1     0xAB
-#define PREAMBLE_BYTE_2     0xCD
-#define MSG_TYPE_KEY_ID     0x03
-#define SESSION_KEY_ID_SIZE 8
-
-#define LED_PIN             25
-#define RED_PIN             0
-#define GREEN_PIN           1
-#define BLUE_PIN            2
-
-// Convert two hex characters (e.g., "AF") into a byte (0xAF).
-static bool hexpair_to_byte(const char *hex, uint8_t *out) {
-    char buf[3] = { hex[0], hex[1], 0 };
-    char *end = NULL;
-    long v = strtol(buf, &end, 16);
-    if (*end != '\0' || v < 0 || v > 255) {
-        return false;
-    }
-    *out = (uint8_t)v;
-    return true;
-}
-
-// Trim leading spaces in-place and return first non-space char pointer.
-static char *ltrim(char *s) {
-    while (*s == ' ' || *s == '\t') s++;
-    return s;
-}
-
-// Simple line reader using USB CDC, with backspace support.
-// Reuses the style from your existing sender: getchar_timeout_us in a loop.
-static void read_line(char *buf, size_t buf_size) {
-    size_t len = 0;
-    memset(buf, 0, buf_size);
-
-    for (;;) {
-        int ch = getchar_timeout_us(1000000);  // 1ms polling
-        if (ch == PICO_ERROR_TIMEOUT) {
-            continue;
-        }
-
-        if (ch == '\r' || ch == '\n') {
-            buf[len] = '\0';
-            putchar('\n');
-            fflush(stdout);
-            return;
-        }
-
-        // handle backspace / delete
-        if ((ch == 127 || ch == 8) && len > 0) {
-            len--;
-            printf("\b \b");
-            fflush(stdout);
-            continue;
-        }
-
-        // printable ASCII only
-        if (ch >= 32 && ch < 127 && len < buf_size - 1) {
-            buf[len++] = (char)ch;
-            putchar(ch);
-            fflush(stdout);
-        }
-    }
-}
-
-static void print_help(void) {
-    printf("Commands:\n");
-    printf("  ID <16 hex chars>  - Set session Key ID (example: A1B2C3D4E5F60708)\n");
-    printf("  SHOW               - Show current Key ID\n");
-    printf("  SEND               - Send LiFi frame: AB CD 03 <KeyID>\n");
-    printf("  HELP               - Show this help message\n");
-}
-
-// --- Main ---
+#define BAUD_RATE 1000000
+#define PREAMBLE_BYTE_1 0xAB
+#define PREAMBLE_BYTE_2 0xCD
+#define MSG_TYPE_ENCRYPTED 0x02
 
 int main() {
     stdio_init_all();
-    sleep_ms(3000);  // Wait for USB to enumerate so prints are visible
-
-    // Optional: if you want PRNG/nonce elsewhere later; harmless if unused
     pico_prng_init();
+    sleep_ms(3000);  // Wait for USB serial
     pico_nonce_init();
 
-    // LED + RGB pins for feedback
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
-    gpio_put(LED_PIN, 0);
+    // Enable watchdog with a 5-second timeout. It will be paused on debug.
+    // watchdog_enable(5000, 1);
 
-    gpio_init(RED_PIN);   gpio_set_dir(RED_PIN, GPIO_OUT);   gpio_put(RED_PIN, 0);
-    gpio_init(GREEN_PIN); gpio_set_dir(GREEN_PIN, GPIO_OUT); gpio_put(GREEN_PIN, 0);
-    gpio_init(BLUE_PIN);  gpio_set_dir(BLUE_PIN, GPIO_OUT);  gpio_put(BLUE_PIN, 0);
+    int current_slot = 0;  // 0 = A, 1 = B
 
-    // Debug UART0 (if you want to mirror logs later)
+    if (watchdog_caused_reboot() && !stdio_usb_connected()) {
+        printf("Rebooted via watchdog.\n");
+    } else {
+        printf("Fresh power-on boot or reboot via flash.\n");
+    }
+    // boot with last saved slot
+    int saved_slot = load_last_used_slot();
+    if (saved_slot == 0 || saved_slot == 1) {
+        current_slot = saved_slot;
+    } else {
+        current_slot = 0;  // Default to A if not found
+    }
+
+    printf("PICO STARTED\n");
+
+    gpio_init(25);
+    gpio_set_dir(25, GPIO_OUT);
+
     uart_init(UART_ID_DEBUG, BAUD_RATE);
     gpio_set_function(UART_TX_PIN_DEBUG, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN_DEBUG, GPIO_FUNC_UART);
 
-    // LiFi UART1: TX = GPIO4 -> LED driver, RX = GPIO5 (unused here but configured)
     uart_init(UART_ID, BAUD_RATE);
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
 
-    // Flush any garbage from UART1 RX
+    // Flush UART input buffer to discard any leftover or garbage data.
     while (uart_is_readable(UART_ID)) {
-        (void)uart_getc(UART_ID);
+        volatile uint8_t _ = uart_getc(UART_ID);
     }
 
-    printf("========================================\n");
-    printf("  PICO LiFi Session Key ID Sender\n");
-    printf("  UART1 @ %d baud (TX=GPIO4, RX=GPIO5)\n", BAUD_RATE);
-    printf("  Frame: AB CD 03 <8-byte KeyID>\n");
-    printf("========================================\n\n");
+    uint8_t session_key[SST_KEY_SIZE] = {0};
 
-    uint8_t current_key_id[SESSION_KEY_ID_SIZE] = {0};
-    bool key_id_set = false;
+    // Try to load an existing valid session key from flash
+    if (!load_session_key(session_key)) {
+        printf("No valid session key found. Waiting for one...\n");
 
-    char line[128];
+        // Wait up to 20 seconds to receive a new session key over UART
+        if (receive_new_key_with_timeout(
+                session_key,
+                20000)) {  // changed to a long time for testing
+            print_hex("Received session key: ", session_key, SST_KEY_SIZE);
+            // Attempt to save the newly received key to flash
+            if (store_session_key(session_key)) {
+                uint8_t tmp[SST_KEY_SIZE];
+                int written_slot = -1;
+
+                // Find which flash slot (A or B) the key was written to
+                for (int slot = 0; slot <= 1; slot++) {
+                    if (pico_read_key_from_slot(slot, tmp) &&
+                        memcmp(tmp, session_key, SST_KEY_SIZE) == 0) {
+                        written_slot = slot;
+                        break;
+                    }
+                }
+                secure_zero(tmp, sizeof(tmp));
+
+                if (written_slot >= 0) {
+                    current_slot = written_slot;
+                    // Save the last used slot index in flash
+                    store_last_used_slot((uint8_t)current_slot);
+
+                    // Reset the nonce tracking since the key has changed
+                    pico_nonce_on_key_change();
+                    printf("Key saved to flash slot %c.\n",
+                           current_slot == 0 ? 'A' : 'B');
+                } else {
+                    printf(
+                        "Warning: couldn't verify which slot has the new "
+                        "key.\n");
+                }
+            } else {
+                printf("Failed to save key to flash.\n");
+                return 1;
+            }
+        } else {
+            printf("Timeout. No session key received. Aborting.\n");
+            return 1;
+        }
+    } else {
+        print_hex("Using session key: ", session_key, SST_KEY_SIZE);
+    }
+
+    char message_buffer[256];
 
     while (true) {
-        printf("\n> ");
-        fflush(stdout);
+        printf("Enter a message to send over LiFi:\n");
+        // can add function to show A(VALID): or A(INVALID): or B(VALID): etc..
+        //  in message preview -- show validity and which slot we are on !
+        size_t msg_len = 0;
+        int ch;  // character
+        uint8_t ciphertext[256] = {0};
+        uint8_t tag[SST_TAG_SIZE] = {0};
 
-        read_line(line, sizeof(line));
-        char *cmd = ltrim(line);
-
-        if (*cmd == '\0') {
-            continue; // empty line
-        }
-
-        // Normalize first token uppercase for simple matching
-        // We’ll compare only first few chars anyway.
-        if (strncasecmp(cmd, "HELP", 4) == 0) {
-            print_help();
-            continue;
-        }
-
-        if (strncasecmp(cmd, "SHOW", 4) == 0) {
-            if (!key_id_set) {
-                printf("Key ID is not set.\n");
-            } else {
-                printf("Current Key ID: ");
-                for (int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
-                    printf("%02X", current_key_id[i]);
+        for (;;) {
+            // Check for incoming UART challenges from Pi4
+            if (uart_is_readable(UART_ID)) {
+                static uint8_t uart_byte;
+                static int challenge_state = 0;
+                static uint8_t challenge_buffer[CHALLENGE_SIZE];
+                
+                uart_byte = uart_getc(UART_ID);
+                
+                switch (challenge_state) {
+                    case 0:
+                        if (uart_byte == PREAMBLE_BYTE_1) challenge_state = 1;
+                        break;
+                    case 1:
+                        if (uart_byte == PREAMBLE_BYTE_2) challenge_state = 2;
+                        else challenge_state = 0;
+                        break;
+                    case 2:
+                        if (uart_byte == MSG_TYPE_CHALLENGE) {
+                            // Read challenge nonce
+                            uart_read_blocking(UART_ID, challenge_buffer, CHALLENGE_SIZE);
+                            
+                            printf("\n[Received HMAC challenge from Pi4]\n");
+                            
+                            // Compute HMAC response
+                            uint8_t hmac[HMAC_SIZE];
+                            int hmac_ret = sst_hmac_sha256(session_key, challenge_buffer, 
+                                                     CHALLENGE_SIZE, hmac);
+                            
+                            if (hmac_ret == 0) {
+                                // Convert HMAC to hex string
+                                char hmac_msg[5 + HMAC_SIZE * 2 + 1];  // "HMAC:" + hex + null
+                                strcpy(hmac_msg, "HMAC:");
+                                for (int i = 0; i < HMAC_SIZE; i++) {
+                                    sprintf(hmac_msg + 5 + (i * 2), "%02X", hmac[i]);
+                                }
+                                
+                                // Send HMAC response as encrypted LiFi message
+                                uint8_t nonce[SST_NONCE_SIZE];
+                                pico_nonce_generate(nonce);
+                                
+                                uint8_t ciphertext_hmac[sizeof(hmac_msg)];
+                                uint8_t tag_hmac[SST_TAG_SIZE];
+                                
+                                hmac_ret = sst_encrypt_gcm(session_key, nonce, 
+                                                     (uint8_t*)hmac_msg, strlen(hmac_msg),
+                                                     ciphertext_hmac, tag_hmac);
+                                
+                                if (hmac_ret == 0) {
+                                    // Send encrypted HMAC response
+                                    uart_putc_raw(UART_ID, PREAMBLE_BYTE_1);
+                                    uart_putc_raw(UART_ID, PREAMBLE_BYTE_2);
+                                    uart_putc_raw(UART_ID, MSG_TYPE_ENCRYPTED);
+                                    uart_write_blocking(UART_ID, nonce, SST_NONCE_SIZE);
+                                    uint8_t len_bytes_hmac[2] = {(strlen(hmac_msg) >> 8) & 0xFF, 
+                                                           strlen(hmac_msg) & 0xFF};
+                                    uart_write_blocking(UART_ID, len_bytes_hmac, 2);
+                                    uart_write_blocking(UART_ID, ciphertext_hmac, strlen(hmac_msg));
+                                    uart_write_blocking(UART_ID, tag_hmac, SST_TAG_SIZE);
+                                    
+                                    printf("[Sent HMAC response via LiFi]\n");
+                                    printf("Enter a message to send over LiFi:\n");
+                                }
+                                
+                                secure_zero(ciphertext_hmac, sizeof(ciphertext_hmac));
+                                secure_zero(tag_hmac, sizeof(tag_hmac));
+                                secure_zero(hmac, sizeof(hmac));
+                            }
+                            
+                            secure_zero(challenge_buffer, sizeof(challenge_buffer));
+                        }
+                        challenge_state = 0;
+                        break;
                 }
-                printf("\n");
             }
+            
+            ch = getchar_timeout_us(1000);  // poll USB CDC every 1 ms
+            if (ch == PICO_ERROR_TIMEOUT) {
+                // watchdog_update(); //when enabled
+                continue;
+            }
+
+            if (ch == '\r' || ch == '\n') {
+                // User pressed Enter: end of input
+                message_buffer[msg_len] = '\0';
+                putchar('\n');
+                break;
+            }
+            if ((ch == 127 || ch == 8) && msg_len > 0) {
+                // Handle backspace
+                msg_len--;
+                printf("\b \b");  // visually erase the character in terminal
+                continue;
+            }
+            if (msg_len < sizeof(message_buffer) - 1 && ch >= 32 && ch < 127) {
+                // Accept only printable ASCII characters
+                message_buffer[msg_len++] = ch;
+                putchar(ch);
+            }
+        }
+
+        // Check if the message is actually a command (starts with "CMD:")
+        if (strncmp(message_buffer, "CMD:", 4) == 0) {
+            // Extract the command part (skip the "CMD:" prefix)
+            const char *cmd = message_buffer + 4;
+
+            // Run the command handler and check if it modified the active
+            // session key (e.g., load new key, clear key, or switch slots).
+            bool key_changed = handle_commands(cmd, session_key, &current_slot);
+
+            // If the key was changed, reset the nonce generator so future
+            // messages start fresh with a new salt+counter sequence tied to the
+            // new key.
+            if (key_changed) {
+                pico_nonce_on_key_change();
+            }
+
+            // Clear out the message buffer so stale command data isn’t reused.
+            memset(message_buffer, 0, sizeof(message_buffer));
+
+            // Skip the normal "send over LiFi" logic since this was a command.
             continue;
         }
 
-        if (strncasecmp(cmd, "ID", 2) == 0) {
-            // Expect: ID <16 hex chars>
-            cmd += 2;
-            cmd = ltrim(cmd);
-
-            if (*cmd == '\0') {
-                printf("Usage: ID <16 hex chars>\n");
-                continue;
-            }
-
-            // Take exactly first 16 non-space chars as hex
-            char hexbuf[17] = {0};
-            int hlen = 0;
-            while (*cmd && *cmd != ' ' && *cmd != '\t' && hlen < 16) {
-                hexbuf[hlen++] = *cmd++;
-            }
-            hexbuf[hlen] = '\0';
-
-            if (hlen != 16) {
-                printf("Expected exactly 16 hex characters, got %d.\n", hlen);
-                printf("Example: ID A1B2C3D4E5F60708\n");
-                continue;
-            }
-
-            bool ok = true;
-            for (int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
-                if (!hexpair_to_byte(&hexbuf[i * 2], &current_key_id[i])) {
-                    ok = false;
-                    break;
-                }
-            }
-
-            if (!ok) {
-                printf("Invalid hex in Key ID. Use 0-9, A-F.\n");
-                continue;
-            }
-
-            key_id_set = true;
-            printf("Key ID set to: ");
-            for (int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
-                printf("%02X", current_key_id[i]);
-            }
-            printf("\n");
+        // Check if message exceeds the encryption buffer size
+        if (msg_len > sizeof(ciphertext)) {
+            printf("Message too long!\n");
+            continue;
+        }
+        // Ensure session key is valid before proceeding with encryption
+        if (is_key_zeroed(session_key)) {
+            printf("No valid key in the current slot. Cannot send message.\n");
+            printf("Use 'CMD: new key' or switch to a valid slot.\n");
             continue;
         }
 
-        if (strncasecmp(cmd, "SEND", 4) == 0) {
-            if (!key_id_set) {
-                printf("No Key ID set. Use: ID <16 hex chars>\n");
-                continue;
-            }
+        uint8_t nonce[SST_NONCE_SIZE];
+        pico_nonce_generate(
+            nonce);  // 96-bit nonce = boot_salt||counter (unique per message)
 
-            printf("Sending LiFi frame: AB CD 03 <KeyID>\n");
-            printf("Bytes: ");
-            printf("%02X %02X %02X ", PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_KEY_ID);
-            for (int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
-                printf("%02X ", current_key_id[i]);
-            }
-            printf("\n");
-
-            // Send over UART1 to LiFi LED path
-            uart_putc_raw(UART_ID, PREAMBLE_BYTE_1);
-            uart_putc_raw(UART_ID, PREAMBLE_BYTE_2);
-            uart_putc_raw(UART_ID, MSG_TYPE_KEY_ID);
-            uart_write_blocking(UART_ID, current_key_id, SESSION_KEY_ID_SIZE);
-
-            // Blink LED as confirmation
-            gpio_put(LED_PIN, 1);
-            sleep_ms(100);
-            gpio_put(LED_PIN, 0);
-
-            printf("Frame sent.\n");
+        int ret =
+            sst_encrypt_gcm(session_key, nonce, (const uint8_t *)message_buffer,
+                            msg_len, ciphertext, tag);
+        if (ret != 0) {
+            printf("Encryption failed! ret=%d\n", ret);
             continue;
         }
 
-        // Unknown command
-        printf("Unknown command. Type HELP for options.\n");
+        uart_putc_raw(UART_ID, PREAMBLE_BYTE_1);
+        uart_putc_raw(UART_ID, PREAMBLE_BYTE_2);
+        uart_putc_raw(UART_ID, MSG_TYPE_ENCRYPTED);
+        uart_write_blocking(UART_ID, nonce, SST_NONCE_SIZE);
+        uint8_t len_bytes[2] = {(msg_len >> 8) & 0xFF, msg_len & 0xFF};
+        uart_write_blocking(UART_ID, len_bytes, 2);
+        uart_write_blocking(UART_ID, ciphertext, msg_len);
+        uart_write_blocking(UART_ID, tag, SST_TAG_SIZE);
+
+        gpio_put(25, 1);
+        sleep_ms(100);
+        gpio_put(25, 0);
+
+        // Clear sensitive data from memory
+        secure_zero(ciphertext, sizeof(ciphertext));
+        secure_zero(tag, sizeof(tag));
+        secure_zero(nonce, sizeof(nonce));
+        secure_zero(message_buffer, sizeof(message_buffer));
     }
 
     return 0;
