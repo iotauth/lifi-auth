@@ -69,6 +69,13 @@ static int get_keypress(void) {
 }
 
 int main(int argc, char* argv[]) {
+
+    bool cmd_mode = false;
+    char cmd_buf[256];
+    size_t cmd_len = 0;
+    (void)cmd_buf;
+    (void)cmd_len;
+
     const char* config_path = NULL;
 
     if (argc > 2) {
@@ -159,25 +166,45 @@ int main(int argc, char* argv[]) {
         // --- Handle Keyboard Shortcuts ---
         int key = get_keypress();
         if (key != -1) {
-            switch (key) {
-                case '1':
-                    printf("\n[Shortcut] Sending session key to Pico...\n");
-                    if (write_all(fd, preamble, sizeof preamble) < 0 ||
-                        write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
-                        printf("Error: Failed to send session key.\n");
-                    } else {
-                        tcdrain(fd);
-                        printf("✓ Session key sent.\n");
+            if (!cmd_mode) {
+                switch (key) {
+                    case '1': {
+                        printf("\n[Shortcut] Sending session key to Pico...\n");
+                        if (fd < 0) {
+                            printf("Serial not open. Press 'r' to retry.\n");
+                            break;
+                        }
+                        if (!key_valid) {
+                            printf("No valid session key loaded. (Fix SST key fetch first.)\n");
+                            break;
+                        }
+                        if (write_all(fd, preamble, sizeof preamble) < 0 ||
+                            write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+                            printf("Error: Failed to send session key.\n");
+                        } else {
+                            tcdrain(fd);
+                            printf("✓ Session key sent.\n");
+                        }
+                        break;
                     }
-                    break;
-                
-                case '2':
-                    printf("\n[Shortcut] Initiating HMAC challenge...\n");
-                    if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
-                        printf("Error: Failed to generate challenge nonce.\n");
-                    } else {
+
+                    case '2': {
+                        printf("\n[Shortcut] Initiating HMAC challenge...\n");
+                        if (fd < 0) {
+                            printf("Serial not open. Press 'r' to retry.\n");
+                            break;
+                        }
+                        if (!key_valid) {
+                            printf("No valid session key loaded. Cannot challenge.\n");
+                            break;
+                        }
+                        if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
+                            printf("Error: Failed to generate challenge nonce.\n");
+                            break;
+                        }
+
                         uint8_t msg[] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_CHALLENGE};
-                        if (write_all(fd, msg, sizeof(msg)) < 0 ||
+                        if (write_all(fd, msg, sizeof msg) < 0 ||
                             write_all(fd, pending_challenge, CHALLENGE_SIZE) < 0) {
                             printf("Error: Failed to send challenge.\n");
                         } else {
@@ -187,40 +214,52 @@ int main(int argc, char* argv[]) {
                             challenge_active = true;
                             printf("✓ Challenge sent. Waiting for HMAC response...\n");
                         }
+                        break;
                     }
-                    break;
 
-                case 's':
-                case 'S':
-                    printf("\n--- Status Report ---\n");
-                    print_hex("Key ID: ", s_key.key_id, SESSION_KEY_ID_SIZE);
-                    print_hex("Session Key: ", s_key.cipher_key, SESSION_KEY_SIZE);
-                    printf("State: %d\n", state);
-                    printf("UART Device: %s\n", UART_DEVICE);
-                    printf("---------------------\n");
-                    break;
+                    case 's':
+                    case 'S': {
+                        printf("\n--- Status Report ---\n");
+                        printf("Serial: %s\n", (fd >= 0) ? "OPEN" : "CLOSED");
+                        printf("UART Device: %s\n", UART_DEVICE);
+                        printf("Key valid: %s\n", key_valid ? "YES" : "NO");
+                        if (key_valid) {
+                            print_hex("Key ID: ", s_key.key_id, SESSION_KEY_ID_SIZE);
+                            print_hex("Session Key: ", s_key.cipher_key, SESSION_KEY_SIZE);
+                        }
+                        printf("State: %d\n", state);
+                        printf("---------------------\n");
+                        break;
+                    }
 
-                case 'r':
-                case 'R':
-                    if (fd >= 0) close(fd);
-                    fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);
-                    if (fd >= 0) printf("✓ Serial opened.\n");
-                    else printf("Still failed to open serial.\n");
-                    break;
+                    case 'r':
+                    case 'R': {
+                        if (fd >= 0) {
+                            close(fd);
+                            fd = -1;
+                        }
+                        fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);
+                        if (fd >= 0) printf("✓ Serial opened.\n");
+                        else printf("Still failed to open serial.\n");
+                        break;
+                    }
 
-                case 'q':
-                case 'Q':
-                    printf("\nExiting...\n");
-                    close(fd);
-                    free_session_key_list_t(key_list);
-                    free_SST_ctx_t(sst);
-                    return 0;
-                
-                default:
-                    // Ignore other keys
-                    break;
+                    case 'q':
+                    case 'Q': {
+                        printf("\nExiting...\n");
+                        if (fd >= 0) close(fd);
+                        free_session_key_list_t(key_list);
+                        free_SST_ctx_t(sst);
+                        return 0;
+                    }
+
+                    default:
+                        // Ignore other keys
+                        break;
+                }   
             }
         }
+
 
         // --- Handle State Timeouts ---
         if (state != STATE_IDLE && timespec_passed(&state_deadline)) {
