@@ -7,6 +7,7 @@
 #include <termios.h>  // Linux serial
 #include <time.h>
 #include <unistd.h>
+#include <fcntl.h>  // for open()
 
 // Project headers (use -I include dirs instead of ../../../)
 #include "c_api.h"
@@ -17,6 +18,8 @@
 #include "serial_linux.h"
 #include "sst_crypto_embedded.h"  // brings in sst_decrypt_gcm prototype and sizes
 #include "utils.h"
+
+
 
 static inline int timespec_passed(const struct timespec* dl) {
     struct timespec now;
@@ -131,6 +134,12 @@ int main(int argc, char* argv[]) {
     fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);
     if (fd < 0) {
         fprintf(stderr, "Warning: serial not open (%s). Press 'r' to retry.\n", UART_DEVICE);
+    }
+    if (fd >= 0) {
+        int flags = fcntl(fd, F_GETFL, 0);
+        if (flags >= 0) {
+            fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+        }
     }
 
     // Initial key push retry machinery
@@ -283,7 +292,7 @@ int main(int argc, char* argv[]) {
             state_deadline = (struct timespec){0, 0};
         }
 
-        if (read(fd, &byte, 1) == 1) {
+        if (fd >= 0 && read(fd, &byte, 1) == 1) {
             switch (uart_state) {
                 case 0:
                     if (byte == PREAMBLE_BYTE_1) {
@@ -525,6 +534,7 @@ int main(int argc, char* argv[]) {
                     uart_state = 0;
             }
         }
+        usleep(1000); // 1ms
     }
 
     close(fd);
