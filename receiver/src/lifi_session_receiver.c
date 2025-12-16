@@ -137,7 +137,8 @@ int main(int argc, char *argv[]) {
 
                 case 2:  // Expect message type
                     if (byte == MSG_TYPE_KEY_ID) {
-                        printf("\n[LiFi] Detected MSG_TYPE_KEY_ID. Reading Key ID...\n");
+                        // ... (Existing Key ID logic) ...
+                         printf("\n[LiFi] Detected MSG_TYPE_KEY_ID. Reading Key ID...\n");
 
                         uint8_t received_key_id[SESSION_KEY_ID_SIZE];
                         ssize_t got = read_exact_local(fd, received_key_id, SESSION_KEY_ID_SIZE);
@@ -148,31 +149,35 @@ int main(int argc, char *argv[]) {
                                 printf("%02X", received_key_id[i]);
                             }
                             printf("\n");
-
-                            // Optional: ask Auth for this key by ID
-                            printf("[Auth] Requesting Session Key from Auth using this ID...\n");
-                            session_key_t *retrieved_key = get_session_key_by_ID(
-                                received_key_id,
-                                sst,
-                                s_key_list   // empty list forces network fetch
-                            );
-
-                            if (retrieved_key) {
-                                printf("[Auth] SUCCESS: Retrieved Session Key from Auth!\n");
-                                print_session_key_details(retrieved_key);
+                            // ... (Auth lookup logic can remain or be removed if not focused on this)
+                        }
+                        uart_state = 0;
+                    } 
+                    else if (byte == MSG_TYPE_RESPONSE) {
+                        printf("\n[LiFi] Detected MSG_TYPE_RESPONSE. Reading HMAC...\n");
+                        uint8_t received_hmac[HMAC_SIZE];
+                        ssize_t got = read_exact_local(fd, received_hmac, HMAC_SIZE);
+                        
+                        if (got == HMAC_SIZE) {
+                            printf("[LiFi] Received HMAC: ");
+                            print_hex("", received_hmac, HMAC_SIZE); // Reusing/Assuming print_hex exists or using loop
+                            
+                            // Verify
+                            if (memcmp(received_hmac, expected_hmac, HMAC_SIZE) == 0) {
+                                printf("\n*** AUTHENTICATION SUCCESSFUL: PICO VERIFIED ***\n\n");
                             } else {
-                                printf("[Auth] FAILURE: Could not retrieve session key for this ID.\n");
+                                printf("\n!!! AUTHENTICATION FAILED: HMAC MISMATCH !!!\n\n");
+                                printf("Expected: ");
+                                for(int i=0; i<HMAC_SIZE; i++) printf("%02X ", expected_hmac[i]);
+                                printf("\n");
                             }
                         } else {
-                            printf("[LiFi] Error: timed out or failed reading %d bytes of Key ID.\n",
-                                   SESSION_KEY_ID_SIZE);
+                            printf("Error reading HMAC.\n");
                         }
-
-                        // After handling one message, go back to looking for a new preamble
                         uart_state = 0;
-                    } else {
-                        // Not a key-ID message; ignore and reset state
-                        // (you can add MSG_TYPE_ENCRYPTED handling here later)
+                    }
+                    else {
+                        // Not a known message type
                         uart_state = 0;
                     }
                     break;

@@ -40,3 +40,9 @@
 #if NONCE_SIZE != 12
 #error "This project assumes a 12-byte GCM nonce."
 #endif
+
+// HMAC Handshake
+#define MSG_TYPE_CHALLENGE  0x04
+#define MSG_TYPE_RESPONSE   0x05
+#define CHALLENGE_SIZE      32
+#define HMAC_SIZE           32

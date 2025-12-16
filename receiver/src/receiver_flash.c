@@ -41,6 +41,20 @@ static int write_all(int fd, const void* buf, size_t len) {
     return (sent == len) ? 0 : -1;
 }
 
+static ssize_t read_exact_local(int fd, uint8_t *buf, size_t len) {
+    size_t got = 0;
+    while (got < len) {
+        ssize_t n = read(fd, buf + got, len - got);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
+        if (n == 0) break;
+        got += (size_t)n;
+    }
+    return (ssize_t)got;
+}
+
 int main(int argc, char* argv[]) {
     const char* config_path = NULL;
 
@@ -114,8 +128,71 @@ int main(int argc, char* argv[]) {
     uint8_t byte = 0;
     int uart_state = 0;
 
-    printf("Listening for encrypted message...\n");
     tcflush(fd, TCIFLUSH);
+
+    // --- Challenge-Response Verification ---
+    printf("Starting HMAC Challenge-Response Handshake...\n");
+    uint8_t challenge[CHALLENGE_SIZE];
+    uint8_t expected_hmac[HMAC_SIZE];
+    
+    // Generate random challenge (In production, use a better RNG)
+    srand(time(NULL));
+    for(int i=0; i<CHALLENGE_SIZE; i++) challenge[i] = rand() & 0xFF;
+    
+    // Compute expected HMAC using the session key
+    sst_hmac_sha256(s_key.cipher_key, challenge, CHALLENGE_SIZE, expected_hmac);
+
+    // Send Challenge
+    uint8_t chal_pkt[2 + 1 + CHALLENGE_SIZE];
+    chal_pkt[0] = PREAMBLE_BYTE_1;
+    chal_pkt[1] = PREAMBLE_BYTE_2;
+    chal_pkt[2] = MSG_TYPE_CHALLENGE;
+    memcpy(&chal_pkt[3], challenge, CHALLENGE_SIZE);
+    
+    write_all(fd, chal_pkt, sizeof(chal_pkt));
+    printf("Challenge sent (Type 0x04). Waiting for HMAC response (Type 0x05)...\n");
+
+    // Wait loop for authentication
+    // We reuse the fd reading logic but focusing on the auth handshake first
+    printf("Waiting for Auth Response...\n");
+    int auth_state = 0;
+    bool authenticated = false;
+    time_t auth_start = time(NULL);
+    
+    while (!authenticated && (time(NULL) - auth_start < 5)) { // 5s timeout
+        if (read(fd, &byte, 1) == 1) {
+             switch (auth_state) {
+                 case 0: if (byte == PREAMBLE_BYTE_1) auth_state = 1; break;
+                 case 1: 
+                     if (byte == PREAMBLE_BYTE_2) auth_state = 2; 
+                     else auth_state = 0; 
+                     break;
+                 case 2:
+                     if (byte == MSG_TYPE_RESPONSE) {
+                         uint8_t received_hmac[HMAC_SIZE];
+                         ssize_t got = read_exact_local(fd, received_hmac, HMAC_SIZE);
+                         if (got == HMAC_SIZE) {
+                             if (memcmp(received_hmac, expected_hmac, HMAC_SIZE) == 0) {
+                                  printf("\n*** AUTHENTICATION SUCCESSFUL: PICO VERIFIED ***\n\n");
+                                  authenticated = true;
+                             } else {
+                                  printf("\n!!! AUTHENTICATION FAILED: HMAC MISMATCH !!!\n");
+                                  exit(1);
+                             }
+                         }
+                     }
+                     auth_state = 0;
+                     break;
+                 default: auth_state = 0;
+             }
+        }
+    }
+    
+    if (!authenticated) {
+        printf("Authentication timed out.\n");
+    }
+
+    printf("Listening for encrypted message...\n");
 
     while (1) {
         // --- Handle State Timeouts ---
