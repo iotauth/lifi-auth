@@ -42,6 +42,8 @@ static void log_printf(const char *fmt, ...) {
     va_end(ap);
     wprintw(win_log, "\n");
     wrefresh(win_log);
+
+    redraw_frames();
 }
 
 static void cmd_printf(const char *fmt, ...) {
@@ -57,6 +59,8 @@ static void cmd_printf(const char *fmt, ...) {
     va_end(ap);
     wprintw(win_cmd, "\n");
     wrefresh(win_cmd);
+
+    redraw_frames();
 }
 
 static void ui_init(void) {
@@ -95,6 +99,19 @@ static void ui_init(void) {
     wrefresh(win_cmd);
 }
 
+static void redraw_frames(void) {
+    if (win_log) {
+        box(win_log, 0, 0);
+        mvwprintw(win_log, 0, 2, " RX / Photodiode Log ");
+        wrefresh(win_log);
+    }
+    if (win_cmd) {
+        box(win_cmd, 0, 0);
+        mvwprintw(win_cmd, 0, 2, " Commands / Status ");
+        wrefresh(win_cmd);
+    }
+}
+
 static void cmd_hex(const char* label, const uint8_t* b, size_t n) {
     if (!win_cmd) return;
     int y, x;
@@ -106,6 +123,8 @@ static void cmd_hex(const char* label, const uint8_t* b, size_t n) {
     for (size_t i = 0; i < n; i++) wprintw(win_cmd, "%02X ", b[i]);
     wprintw(win_cmd, "\n");
     wrefresh(win_cmd);
+
+    redraw_frames();
 }
 
 static void ui_shutdown(void) {
