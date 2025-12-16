@@ -41,6 +41,33 @@ static int write_all(int fd, const void* buf, size_t len) {
     return (sent == len) ? 0 : -1;
 }
 
+// Set stdin to non-blocking mode for keyboard shortcuts
+static void set_nonblocking_stdin(void) {
+    struct termios tty;
+    tcgetattr(STDIN_FILENO, &tty);
+    tty.c_lflag &= ~(ICANON | ECHO);  // Disable canonical mode and echo
+    tty.c_cc[VMIN] = 0;   // Non-blocking read
+    tty.c_cc[VTIME] = 0;  // No timeout
+    tcsetattr(STDIN_FILENO, TCSANOW, &tty);
+}
+
+// Restore stdin to normal mode on exit
+static void restore_stdin(void) {
+    struct termios tty;
+    tcgetattr(STDIN_FILENO, &tty);
+    tty.c_lflag |= (ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &tty);
+}
+
+// Check if a key was pressed (non-blocking)
+static int get_keypress(void) {
+    char ch;
+    if (read(STDIN_FILENO, &ch, 1) == 1) {
+        return ch;
+    }
+    return -1;  // No key pressed
+}
+
 int main(int argc, char* argv[]) {
     const char* config_path = NULL;
 
@@ -114,6 +141,20 @@ int main(int argc, char* argv[]) {
     tcdrain(fd);  // ensure bytes actually leave the UART
     printf("Sent preamble + session key over UART.\n");
 
+    // Setup non-blocking keyboard input for shortcuts
+    set_nonblocking_stdin();
+    atexit(restore_stdin);  // Restore terminal on exit
+
+    printf("\n");
+    printf("╔════════════════════════════════════════════════════════╗\n");
+    printf("║          LiFi Receiver - Keyboard Shortcuts           ║\n");
+    printf("╠════════════════════════════════════════════════════════╣\n");
+    printf("║  [1] Send Session Key to Pico                         ║\n");
+    printf("║  [2] Send HMAC Challenge (verify key)                 ║\n");
+    printf("║  [q] Quit                                              ║\n");
+    printf("╚════════════════════════════════════════════════════════╝\n");
+    printf("\n");
+
     // UART framing state
     uint8_t byte = 0;
     int uart_state = 0;
@@ -122,6 +163,54 @@ int main(int argc, char* argv[]) {
     tcflush(fd, TCIFLUSH);
 
     while (1) {
+        // --- Handle Keyboard Shortcuts ---
+        int key = get_keypress();
+        if (key != -1) {
+            switch (key) {
+                case '1':
+                    printf("\n[Shortcut] Sending session key to Pico...\n");
+                    if (write_all(fd, preamble, sizeof preamble) < 0 ||
+                        write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+                        printf("Error: Failed to send session key.\n");
+                    } else {
+                        tcdrain(fd);
+                        printf("✓ Session key sent.\n");
+                    }
+                    break;
+                
+                case '2':
+                    printf("\n[Shortcut] Initiating HMAC challenge...\n");
+                    if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
+                        printf("Error: Failed to generate challenge nonce.\n");
+                    } else {
+                        uint8_t msg[] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_CHALLENGE};
+                        if (write_all(fd, msg, sizeof(msg)) < 0 ||
+                            write_all(fd, pending_challenge, CHALLENGE_SIZE) < 0) {
+                            printf("Error: Failed to send challenge.\n");
+                        } else {
+                            state = STATE_WAITING_FOR_HMAC_RESP;
+                            clock_gettime(CLOCK_MONOTONIC, &state_deadline);
+                            state_deadline.tv_sec += 5;
+                            challenge_active = true;
+                            printf("✓ Challenge sent. Waiting for HMAC response...\n");
+                        }
+                    }
+                    break;
+                
+                case 'q':
+                case 'Q':
+                    printf("\nExiting...\n");
+                    close(fd);
+                    free_session_key_list_t(key_list);
+                    free_SST_ctx_t(sst);
+                    return 0;
+                
+                default:
+                    // Ignore other keys
+                    break;
+            }
+        }
+
         // --- Handle State Timeouts ---
         if (state != STATE_IDLE && timespec_passed(&state_deadline)) {
             if (state == STATE_WAITING_FOR_YES) {
