@@ -29,6 +29,8 @@
 static WINDOW *win_log = NULL;
 static WINDOW *win_cmd = NULL;
 
+static void redraw_frames(void); 
+
 static void log_printf(const char *fmt, ...) {
     if (!win_log) return;
     int y, x;
