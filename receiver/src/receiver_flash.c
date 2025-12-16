@@ -12,7 +12,7 @@
 #include "c_api.h"
 #include "config_handler.h"  // change_directory_to_config_path, get_config_path
 #include "key_exchange.h"
-#include "protocol.h"  // protocol constants & sizes
+#include "../../include/protocol.h"
 #include "replay_window.h"
 #include "serial_linux.h"
 #include "sst_crypto_embedded.h"  // brings in sst_decrypt_gcm prototype and sizes
@@ -41,18 +41,31 @@ static int write_all(int fd, const void* buf, size_t len) {
     return (sent == len) ? 0 : -1;
 }
 
-static ssize_t read_exact_local(int fd, uint8_t *buf, size_t len) {
-    size_t got = 0;
-    while (got < len) {
-        ssize_t n = read(fd, buf + got, len - got);
-        if (n < 0) {
-            if (errno == EINTR) continue;
-            return -1;
-        }
-        if (n == 0) break;
-        got += (size_t)n;
+// Set stdin to non-blocking mode for keyboard shortcuts
+static void set_nonblocking_stdin(void) {
+    struct termios tty;
+    tcgetattr(STDIN_FILENO, &tty);
+    tty.c_lflag &= ~(ICANON | ECHO);  // Disable canonical mode and echo
+    tty.c_cc[VMIN] = 0;   // Non-blocking read
+    tty.c_cc[VTIME] = 0;  // No timeout
+    tcsetattr(STDIN_FILENO, TCSANOW, &tty);
+}
+
+// Restore stdin to normal mode on exit
+static void restore_stdin(void) {
+    struct termios tty;
+    tcgetattr(STDIN_FILENO, &tty);
+    tty.c_lflag |= (ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &tty);
+}
+
+// Check if a key was pressed (non-blocking)
+static int get_keypress(void) {
+    char ch;
+    if (read(STDIN_FILENO, &ch, 1) == 1) {
+        return ch;
     }
-    return (ssize_t)got;
+    return -1;  // No key pressed
 }
 
 int main(int argc, char* argv[]) {
@@ -102,99 +115,113 @@ int main(int argc, char* argv[]) {
     replay_window_t rwin;
     replay_window_init(&rwin, NONCE_SIZE, NONCE_HISTORY_SIZE);
 
+    // Challenge tracking for HMAC verification
+    uint8_t pending_challenge[CHALLENGE_SIZE] = {0};
+    bool challenge_active = false;
+    
     // --- Serial setup ---
-    int fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);  // termios for
-                                                               // pi4
-    if (fd < 0) return 1;
+    int fd = -1;
+    fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);
+    if (fd < 0) {
+        fprintf(stderr, "Warning: serial not open (%s). Press 'r' to retry.\n", UART_DEVICE);
+    }
 
     // Initial key push retry machinery
     struct timespec next_send = {0};
     clock_gettime(CLOCK_MONOTONIC, &next_send);  // send immediately
 
     const uint8_t preamble[2] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2};
-    // Send preamble + session key (robust, handles partial writes)
-    if (write_all(fd, preamble, sizeof preamble) < 0) {
-        perror("write preamble");
-        // handle error (return -1; or set a flag)
-    }
-    if (write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
-        perror("write session key");
-        // handle error
-    }
-    tcdrain(fd);  // ensure bytes actually leave the UART
-    printf("Sent preamble + session key over UART.\n");
+    // Automatic handshake REMOVED - waitForUser to press [1]
+
+    // Setup non-blocking keyboard input for shortcuts
+    set_nonblocking_stdin();
+    atexit(restore_stdin);  // Restore terminal on exit
+
+    printf("\n");
+    printf("╔════════════════════════════════════════════════════════╗\n");
+    printf("║          LiFi Receiver - Interactive Mode             ║\n");
+    printf("╠════════════════════════════════════════════════════════╣\n");
+    printf("║  [1] Send Session Key to Pico                         ║\n");
+    printf("║  [2] Send HMAC Challenge (verify key)                 ║\n");
+    printf("║  [s] Show Status (Key & Connection)                   ║\n");
+    printf("║  [q] Quit                                              ║\n");
+    printf("╚════════════════════════════════════════════════════════╝\n");
+    printf("\n");
 
     // UART framing state
     uint8_t byte = 0;
     int uart_state = 0;
 
+    printf("Listening for encrypted message...\n");
     tcflush(fd, TCIFLUSH);
 
-    // --- Challenge-Response Verification ---
-    printf("Starting HMAC Challenge-Response Handshake...\n");
-    uint8_t challenge[CHALLENGE_SIZE];
-    uint8_t expected_hmac[HMAC_SIZE];
-    
-    // Generate random challenge (In production, use a better RNG)
-    srand(time(NULL));
-    for(int i=0; i<CHALLENGE_SIZE; i++) challenge[i] = rand() & 0xFF;
-    
-    // Compute expected HMAC using the session key
-    sst_hmac_sha256(s_key.cipher_key, challenge, CHALLENGE_SIZE, expected_hmac);
-
-    // Send Challenge
-    uint8_t chal_pkt[2 + 1 + CHALLENGE_SIZE];
-    chal_pkt[0] = PREAMBLE_BYTE_1;
-    chal_pkt[1] = PREAMBLE_BYTE_2;
-    chal_pkt[2] = MSG_TYPE_CHALLENGE;
-    memcpy(&chal_pkt[3], challenge, CHALLENGE_SIZE);
-    
-    write_all(fd, chal_pkt, sizeof(chal_pkt));
-    printf("Challenge sent (Type 0x04). Waiting for HMAC response (Type 0x05)...\n");
-
-    // Wait loop for authentication
-    // We reuse the fd reading logic but focusing on the auth handshake first
-    printf("Waiting for Auth Response...\n");
-    int auth_state = 0;
-    bool authenticated = false;
-    time_t auth_start = time(NULL);
-    
-    while (!authenticated && (time(NULL) - auth_start < 5)) { // 5s timeout
-        if (read(fd, &byte, 1) == 1) {
-             switch (auth_state) {
-                 case 0: if (byte == PREAMBLE_BYTE_1) auth_state = 1; break;
-                 case 1: 
-                     if (byte == PREAMBLE_BYTE_2) auth_state = 2; 
-                     else auth_state = 0; 
-                     break;
-                 case 2:
-                     if (byte == MSG_TYPE_RESPONSE) {
-                         uint8_t received_hmac[HMAC_SIZE];
-                         ssize_t got = read_exact_local(fd, received_hmac, HMAC_SIZE);
-                         if (got == HMAC_SIZE) {
-                             if (memcmp(received_hmac, expected_hmac, HMAC_SIZE) == 0) {
-                                  printf("\n*** AUTHENTICATION SUCCESSFUL: PICO VERIFIED ***\n\n");
-                                  authenticated = true;
-                             } else {
-                                  printf("\n!!! AUTHENTICATION FAILED: HMAC MISMATCH !!!\n");
-                                  exit(1);
-                             }
-                         }
-                     }
-                     auth_state = 0;
-                     break;
-                 default: auth_state = 0;
-             }
-        }
-    }
-    
-    if (!authenticated) {
-        printf("Authentication timed out.\n");
-    }
-
-    printf("Listening for encrypted message...\n");
-
     while (1) {
+        // --- Handle Keyboard Shortcuts ---
+        int key = get_keypress();
+        if (key != -1) {
+            switch (key) {
+                case '1':
+                    printf("\n[Shortcut] Sending session key to Pico...\n");
+                    if (write_all(fd, preamble, sizeof preamble) < 0 ||
+                        write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+                        printf("Error: Failed to send session key.\n");
+                    } else {
+                        tcdrain(fd);
+                        printf("✓ Session key sent.\n");
+                    }
+                    break;
+                
+                case '2':
+                    printf("\n[Shortcut] Initiating HMAC challenge...\n");
+                    if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
+                        printf("Error: Failed to generate challenge nonce.\n");
+                    } else {
+                        uint8_t msg[] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_CHALLENGE};
+                        if (write_all(fd, msg, sizeof(msg)) < 0 ||
+                            write_all(fd, pending_challenge, CHALLENGE_SIZE) < 0) {
+                            printf("Error: Failed to send challenge.\n");
+                        } else {
+                            state = STATE_WAITING_FOR_HMAC_RESP;
+                            clock_gettime(CLOCK_MONOTONIC, &state_deadline);
+                            state_deadline.tv_sec += 5;
+                            challenge_active = true;
+                            printf("✓ Challenge sent. Waiting for HMAC response...\n");
+                        }
+                    }
+                    break;
+
+                case 's':
+                case 'S':
+                    printf("\n--- Status Report ---\n");
+                    print_hex("Key ID: ", s_key.key_id, SESSION_KEY_ID_SIZE);
+                    print_hex("Session Key: ", s_key.cipher_key, SESSION_KEY_SIZE);
+                    printf("State: %d\n", state);
+                    printf("UART Device: %s\n", UART_DEVICE);
+                    printf("---------------------\n");
+                    break;
+
+                case 'r':
+                case 'R':
+                    if (fd >= 0) close(fd);
+                    fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);
+                    if (fd >= 0) printf("✓ Serial opened.\n");
+                    else printf("Still failed to open serial.\n");
+                    break;
+
+                case 'q':
+                case 'Q':
+                    printf("\nExiting...\n");
+                    close(fd);
+                    free_session_key_list_t(key_list);
+                    free_SST_ctx_t(sst);
+                    return 0;
+                
+                default:
+                    // Ignore other keys
+                    break;
+            }
+        }
+
         // --- Handle State Timeouts ---
         if (state != STATE_IDLE && timespec_passed(&state_deadline)) {
             if (state == STATE_WAITING_FOR_YES) {
@@ -208,6 +235,10 @@ int main(int argc, char* argv[]) {
                     "key.\n");
                 explicit_bzero(pending_key, sizeof pending_key);
                 // keep old key; key_valid stays true
+            } else if (state == STATE_WAITING_FOR_HMAC_RESP) {
+                printf("HMAC challenge timed out. Pico did not respond.\n");
+                explicit_bzero(pending_challenge, sizeof(pending_challenge));
+                challenge_active = false;
             }
             state = STATE_IDLE;
             state_deadline = (struct timespec){0, 0};
@@ -315,7 +346,7 @@ int main(int argc, char* argv[]) {
                                     free_session_key_list_t(key_list);
                                     key_list = get_session_key(
                                         sst, init_empty_session_key_list());
-
+                                    
                                     if (!key_list || key_list->num_key == 0) {
                                         fprintf(stderr,
                                                 "Failed to fetch new session "
@@ -383,6 +414,58 @@ int main(int argc, char* argv[]) {
                                     print_hex("New key is now active: ",
                                               s_key.cipher_key,
                                               SESSION_KEY_SIZE);
+                                    state = STATE_IDLE;
+                                }
+
+                                // Handle "verify key" command - initiate HMAC challenge
+                                else if (strcmp((char*)decrypted, "verify key") == 0) {
+                                    printf("Initiating HMAC challenge to verify Pico has session key...\n");
+                                    
+                                    // Generate random challenge
+                                    if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
+                                        printf("Failed to generate challenge nonce.\n");
+                                    } else {
+                                        // Send challenge via UART
+                                        uint8_t msg[] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_CHALLENGE};
+                                        write_all(fd, msg, sizeof(msg));
+                                        write_all(fd, pending_challenge, CHALLENGE_SIZE);
+                                        
+                                        // Set state to wait for response
+                                        state = STATE_WAITING_FOR_HMAC_RESP;
+                                        clock_gettime(CLOCK_MONOTONIC, &state_deadline);
+                                        state_deadline.tv_sec += 5;  // 5 second timeout
+                                        challenge_active = true;
+                                        
+                                        printf("Challenge sent. Waiting for HMAC response...\n");
+                                    }
+                                }
+
+                                // Handle HMAC response verification
+                                else if (challenge_active && 
+                                         strncmp((char*)decrypted, HMAC_RESPONSE_PREFIX, 5) == 0) {
+                                    // Extract HMAC from message (format: "HMAC:HEXSTRING")
+                                    const char* hmac_hex = (char*)decrypted + 5;
+                                    
+                                    // Convert hex string to bytes
+                                    uint8_t received_hmac[HMAC_SIZE];
+                                    for (int i = 0; i < HMAC_SIZE; i++) {
+                                        sscanf(hmac_hex + (i * 2), "%2hhx", &received_hmac[i]);
+                                    }
+                                    
+                                    // Compute expected HMAC
+                                    uint8_t expected_hmac[HMAC_SIZE];
+                                    int ret = sst_hmac_sha256(s_key.cipher_key, pending_challenge, 
+                                                              CHALLENGE_SIZE, expected_hmac);
+                                    
+                                    if (ret == 0 && memcmp(received_hmac, expected_hmac, HMAC_SIZE) == 0) {
+                                        printf("✅ HMAC VERIFICATION SUCCESSFUL: Pico has correct session key!\n");
+                                    } else {
+                                        printf("❌ HMAC VERIFICATION FAILED: Pico does not have correct key!\n");
+                                    }
+                                    
+                                    // Clear challenge state
+                                    explicit_bzero(pending_challenge, sizeof(pending_challenge));
+                                    challenge_active = false;
                                     state = STATE_IDLE;
                                 }
 

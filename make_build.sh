@@ -128,6 +128,13 @@ if [[ "$BUILD_TARGET" == "pico" ]]; then
 fi
 
 # CONFIGURE BUILD (after picotool export)
+# Set PICO_SDK_PATH for Pico builds (always use local submodule)
+if [[ "$BUILD_TARGET" == "pico" ]]; then
+  PICO_SDK_PATH="$here/lib/pico-sdk"
+  export PICO_SDK_PATH
+  echo "🔧 Using PICO_SDK_PATH: $PICO_SDK_PATH"
+fi
+
 cmake -S "$here" -B "$build_dir"
 jobs=4; command -v nproc >/dev/null 2>&1 && jobs="$(nproc)"
 cmake --build "$build_dir" -j"$jobs"
