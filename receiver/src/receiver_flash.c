@@ -66,15 +66,26 @@ static void ui_init(void) {
     noecho();
     nodelay(stdscr, TRUE);
     keypad(stdscr, TRUE);
+    curs_set(0); // Hide cursor
+
+    if (has_colors()) {
+        start_color();
+        use_default_colors();
+        init_pair(1, COLOR_GREEN, -1);
+        init_pair(2, COLOR_RED, -1);
+        init_pair(3, COLOR_CYAN, -1);
+        init_pair(4, COLOR_YELLOW, -1);
+        init_pair(5, COLOR_MAGENTA, -1);
+    }
 
     int rows, cols;
     getmaxyx(stdscr, rows, cols);
 
-    int mid_h = 7;                 // key panel height (tweak 6-10)
+    int mid_h = 9;                 // Increased height for better spacing
     int top_h = (rows - mid_h) / 2;
     int bot_h = rows - mid_h - top_h;
 
-    if (top_h < 6) top_h = 6;      // safety
+    if (top_h < 6) top_h = 6;
     if (bot_h < 6) bot_h = 6;
 
     int top_y = 0;
@@ -96,9 +107,18 @@ static void ui_init(void) {
     box(win_mid, 0, 0);
     box(win_cmd, 0, 0);
 
+    // Titles with bold
+    wattron(win_log, A_BOLD);
     mvwprintw(win_log, 0, 2, " RX / Photodiode Log ");
+    wattroff(win_log, A_BOLD);
+
+    wattron(win_mid, A_BOLD | COLOR_PAIR(4));
     mvwprintw(win_mid, 0, 2, " Key / Security ");
+    wattroff(win_mid, A_BOLD | COLOR_PAIR(4));
+
+    wattron(win_cmd, A_BOLD);
     mvwprintw(win_cmd, 0, 2, " Commands / Status ");
+    wattroff(win_cmd, A_BOLD);
 
     wrefresh(win_log);
     wrefresh(win_mid);
@@ -121,31 +141,57 @@ static void mid_draw_keypanel(const session_key_t* s_key,
 
     werase(win_mid);
     box(win_mid, 0, 0);
+    
+    wattron(win_mid, A_BOLD | COLOR_PAIR(4));
     mvwprintw(win_mid, 0, 2, " Key / Security ");
+    wattroff(win_mid, A_BOLD | COLOR_PAIR(4));
 
-    mvwprintw(win_mid, 1, 2, "Serial: %s   Dev: %s   State: %d",
-              serial_open ? "OPEN" : "CLOSED", uart_dev, (int)state);
+    // Serial Status
+    mvwprintw(win_mid, 2, 2, "Serial: ");
+    if (serial_open) {
+        wattron(win_mid, A_BOLD | COLOR_PAIR(1));
+        wprintw(win_mid, "OPEN");
+        wattroff(win_mid, A_BOLD | COLOR_PAIR(1));
+    } else {
+        wattron(win_mid, A_BOLD | COLOR_PAIR(2));
+        wprintw(win_mid, "CLOSED");
+        wattroff(win_mid, A_BOLD | COLOR_PAIR(2));
+    }
+    wprintw(win_mid, "   Dev: %s   State: %d", uart_dev, (int)state);
 
-    // Key ID + key (fits best if you print ID always, and key optionally)
-    mvwprintw(win_mid, 2, 2, "Key valid: %s", key_valid ? "YES" : "NO");
+    // Key Valid Status
+    mvwprintw(win_mid, 3, 2, "Key valid: ");
+    if (key_valid) {
+        wattron(win_mid, A_BOLD | COLOR_PAIR(1));
+        wprintw(win_mid, "YES");
+        wattroff(win_mid, A_BOLD | COLOR_PAIR(1));
+    } else {
+        wattron(win_mid, A_BOLD | COLOR_PAIR(2));
+        wprintw(win_mid, "NO");
+        wattroff(win_mid, A_BOLD | COLOR_PAIR(2));
+    }
 
     if (key_valid && s_key) {
-        wmove(win_mid, 3, 2);
-        wprintw(win_mid, "Key ID: ");
-        for (size_t i = 0; i < SESSION_KEY_ID_SIZE; i++) wprintw(win_mid, "%02X ", s_key->key_id[i]);
-
         wmove(win_mid, 4, 2);
+        wprintw(win_mid, "Key ID: ");
+        wattron(win_mid, COLOR_PAIR(3));
+        for (size_t i = 0; i < SESSION_KEY_ID_SIZE; i++) wprintw(win_mid, "%02X ", s_key->key_id[i]);
+        wattroff(win_mid, COLOR_PAIR(3));
+
+        wmove(win_mid, 5, 2);
         wprintw(win_mid, "Key:    ");
+        wattron(win_mid, COLOR_PAIR(3)); // Same Cyan for Key
         for (size_t i = 0; i < SESSION_KEY_SIZE; i++) wprintw(win_mid, "%02X ", s_key->cipher_key[i]);
+        wattroff(win_mid, COLOR_PAIR(3));
     } else {
-        mvwprintw(win_mid, 3, 2, "Key ID: (none)");
-        mvwprintw(win_mid, 4, 2, "Key:    (none)");
+        mvwprintw(win_mid, 4, 2, "Key ID: (none)");
+        mvwprintw(win_mid, 5, 2, "Key:    (none)");
     }
 
     // Shortcuts menu at bottom of mid panel
-    int menu_r = h - 3;
-    if (menu_r < 5) menu_r = 5;
-    mvwprintw(win_mid, menu_r + 0, 2, "[1] Send Key   [2] HMAC Challenge   [s] Status   [r] Reopen Serial   [q] Quit");
+    int menu_r = h - 2;
+    // Use A_DIM or just normal
+    mvwprintw(win_mid, menu_r, 2, "[1] Send Key  [2] Challenge  [s] Status  [r] Reopen  [q] Quit");
 
     wrefresh(win_mid);
 }
@@ -224,26 +270,36 @@ int main(int argc, char* argv[]) {
 
     session_key_list_t* key_list = get_session_key(sst, NULL);
 
-    ui_init();
-    atexit(ui_shutdown);
-
-    if (!key_list || key_list->num_key == 0) {
-        log_printf("No session key.\n");
-        return 1;
-    }
-
-    session_key_t s_key = key_list->s_key[0];
-    bool key_valid = true;
-    receiver_state_t state = STATE_IDLE;
-
+    // --- Serial Init (Before UI) ---
+    // Initialize serial first so any perror/printf issues don't corrupt the ncurses window
+    // and so we know the state immediately.
     int fd = -1;
     fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);
-    if (fd < 0) {
-        log_printf("Warning: serial not open (%s). Press 'r' to retry.", UART_DEVICE);
-    } else {
+    if (fd >= 0) {
         int flags = fcntl(fd, F_GETFL, 0);
         if (flags >= 0) fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     }
+
+    ui_init();
+    atexit(ui_shutdown);
+
+    if (fd < 0) {
+        log_printf("Warning: serial not open (%s). Press 'r' to retry.", UART_DEVICE);
+    }
+
+    if (!key_list || key_list->num_key == 0) {
+        log_printf("No session key.\n");
+        // Don't return 1 here, let the UI stay up so user can see error
+        // return 1; 
+    }
+
+    session_key_t s_key = {0}; 
+    if (key_list && key_list->num_key > 0) {
+        s_key = key_list->s_key[0];
+    }
+    
+    bool key_valid = (key_list && key_list->num_key > 0);
+    receiver_state_t state = STATE_IDLE;
 
     mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
 
