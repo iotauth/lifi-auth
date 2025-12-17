@@ -30,34 +30,52 @@ static WINDOW *win_log = NULL;
 static WINDOW *win_mid = NULL;
 static WINDOW *win_cmd = NULL;
 
+// Helper to print with color highlights based on keywords
+static void wprint_styled(WINDOW *win, const char *fmt, va_list ap) {
+    if (!win) return;
+    
+    char buf[512];
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+
+    // Simple keyword matching for styling
+    // (This is a basic implementation; for more complex needs, parse token by token)
+    int color = 0;
+    int attr = 0;
+
+    if (strstr(buf, "Error") || strstr(buf, "Failed") || strstr(buf, "Closed") || 
+        strstr(buf, "NO") || strstr(buf, "Warning")) {
+        color = 2; // Red
+        attr = A_BOLD;
+    } else if (strstr(buf, "Success") || strstr(buf, "OPEN") || strstr(buf, "YES") || 
+               strstr(buf, "✓") || strstr(buf, "ACK")) {
+        color = 1; // Green
+        attr = A_BOLD;
+    } else if (strstr(buf, "Challenge")) {
+        color = 3; // Cyan
+    }
+
+    if (color != 0) wattron(win, COLOR_PAIR(color) | attr);
+    wprintw(win, "%s", buf);
+    if (color != 0) wattroff(win, COLOR_PAIR(color) | attr);
+    
+    wprintw(win, "\n");
+    wrefresh(win);
+}
+
 static void log_printf(const char *fmt, ...) {
     if (!win_log) return;
-    int y, x;
-    getyx(win_log, y, x);
-    (void)x;
-    if (y == 0) wmove(win_log, 1, 1);
-
     va_list ap;
     va_start(ap, fmt);
-    vw_printw(win_log, fmt, ap);
+    wprint_styled(win_log, fmt, ap);
     va_end(ap);
-    wprintw(win_log, "\n");
-    wrefresh(win_log);
 }
 
 static void cmd_printf(const char *fmt, ...) {
     if (!win_cmd) return;
-    int y, x;
-    getyx(win_cmd, y, x);
-    (void)x;
-    if (y == 0) wmove(win_cmd, 1, 1);
-
     va_list ap;
     va_start(ap, fmt);
-    vw_printw(win_cmd, fmt, ap);
+    wprint_styled(win_cmd, fmt, ap);
     va_end(ap);
-    wprintw(win_cmd, "\n");
-    wrefresh(win_cmd);
 }
 
 static void ui_init(void) {
@@ -120,6 +138,7 @@ static void ui_init(void) {
     mvwprintw(win_cmd, 0, 2, " Commands / Status ");
     wattroff(win_cmd, A_BOLD);
 
+    refresh(); // Refresh stdscr to clear garbage
     wrefresh(win_log);
     wrefresh(win_mid);
     wrefresh(win_cmd);
@@ -191,7 +210,7 @@ static void mid_draw_keypanel(const session_key_t* s_key,
     // Shortcuts menu at bottom of mid panel
     int menu_r = h - 2;
     // Use A_DIM or just normal
-    mvwprintw(win_mid, menu_r, 2, "[1] Send Key  [2] Challenge  [s] Status  [r] Reopen  [q] Quit");
+    mvwprintw(win_mid, menu_r, 2, "[1] Send Key  [2] Challenge  [s] Status  [f] Force Key  [r] Reopen  [q] Quit");
 
     wrefresh(win_mid);
 }
@@ -349,6 +368,40 @@ int main(int argc, char* argv[]) {
                     } else {
                         tcdrain(fd);
                         cmd_printf("✓ Session key sent.");
+                    }
+                    mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
+                    break;
+                }
+
+                case 'f':
+                case 'F': {
+                    cmd_printf("[Shortcut] Force Fetch New Key from SST...");
+                    // Free old list
+                    free_session_key_list_t(key_list);
+                    
+                    // Fetch new
+                    key_list = get_session_key(sst, init_empty_session_key_list());
+                    if (!key_list || key_list->num_key == 0) {
+                         cmd_printf("Error: Failed to fetch new key from SST.");
+                         key_valid = false;
+                         memset(&s_key, 0, sizeof(s_key));
+                    } else {
+                        s_key = key_list->s_key[0];
+                        key_valid = true;
+                        cmd_printf("✓ New key fetched from SST.");
+                        
+                        // Auto-send like '1'
+                        if (fd >= 0) {
+                            if (write_all(fd, preamble, sizeof preamble) < 0 ||
+                                write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+                                cmd_printf("Error: Failed to send new key to Pico.");
+                            } else {
+                                tcdrain(fd);
+                                cmd_printf("✓ New session key sent to Pico.");
+                            }
+                        } else {
+                            cmd_printf("Warning: Serial closed. Key updated locally but not sent.");
+                        }
                     }
                     mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
                     break;
