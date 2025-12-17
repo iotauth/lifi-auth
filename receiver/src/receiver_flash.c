@@ -78,6 +78,9 @@ static void cmd_printf(const char *fmt, ...) {
     va_end(ap);
 }
 
+static WINDOW *win_log_border = NULL;
+static WINDOW *win_cmd_border = NULL;
+
 static void ui_init(void) {
     initscr();
     cbreak();
@@ -103,48 +106,51 @@ static void ui_init(void) {
     int top_h = (rows - mid_h) / 2;
     int bot_h = rows - mid_h - top_h;
 
-    if (top_h < 6) top_h = 6;
-    if (bot_h < 6) bot_h = 6;
+    // Minimum check
+    if (top_h < 4) top_h = 4;
+    if (bot_h < 4) bot_h = 4;
 
     int top_y = 0;
     int mid_y = top_y + top_h;
     int bot_y = mid_y + mid_h;
 
-    win_log = newwin(top_h, cols, top_y, 0);
-    win_mid = newwin(mid_h, cols, mid_y, 0);
-    win_cmd = newwin(bot_h, cols, bot_y, 0);
+    // Create Border Windows
+    win_log_border = newwin(top_h, cols, top_y, 0);
+    win_mid        = newwin(mid_h, cols, mid_y, 0);
+    win_cmd_border = newwin(bot_h, cols, bot_y, 0);
+
+    // Create Inner Content Windows (derived from borders)
+    // 1 char offset from top/left, height-2, width-2 to stay inside box
+    win_log = derwin(win_log_border, top_h - 2, cols - 2, 1, 1);
+    win_cmd = derwin(win_cmd_border, bot_h - 2, cols - 2, 1, 1);
 
     scrollok(win_log, TRUE);
     scrollok(win_cmd, TRUE);
 
-    // Keep text inside borders
-    wsetscrreg(win_log, 1, top_h - 2);
-    wsetscrreg(win_cmd, 1, bot_h - 2);
-
-    box(win_log, 0, 0);
+    // Draw parameters on borders
+    box(win_log_border, 0, 0);
     box(win_mid, 0, 0);
-    box(win_cmd, 0, 0);
+    box(win_cmd_border, 0, 0);
 
-    // Titles with bold
-    wattron(win_log, A_BOLD);
-    mvwprintw(win_log, 0, 2, " RX / Photodiode Log ");
-    wattroff(win_log, A_BOLD);
+    // Titles with bold on borders
+    wattron(win_log_border, A_BOLD);
+    mvwprintw(win_log_border, 0, 2, " RX / Photodiode Log ");
+    wattroff(win_log_border, A_BOLD);
 
     wattron(win_mid, A_BOLD | COLOR_PAIR(4));
     mvwprintw(win_mid, 0, 2, " Key / Security ");
     wattroff(win_mid, A_BOLD | COLOR_PAIR(4));
 
-    wattron(win_cmd, A_BOLD);
-    mvwprintw(win_cmd, 0, 2, " Commands / Status ");
-    wattroff(win_cmd, A_BOLD);
+    wattron(win_cmd_border, A_BOLD);
+    mvwprintw(win_cmd_border, 0, 2, " Commands / Status ");
+    wattroff(win_cmd_border, A_BOLD);
 
-    refresh(); // Refresh stdscr to clear garbage
-    wrefresh(win_log);
+    refresh(); // Refresh stdscr
+    wrefresh(win_log_border);
     wrefresh(win_mid);
-    wrefresh(win_cmd);
-
-    wmove(win_log, 1, 1);
-    wmove(win_cmd, 1, 1);
+    wrefresh(win_cmd_border);
+    wrefresh(win_log); // Inner
+    wrefresh(win_cmd); // Inner
 }
 
 static void mid_draw_keypanel(const session_key_t* s_key,
@@ -231,6 +237,8 @@ static void cmd_hex(const char* label, const uint8_t* b, size_t n) {
 static void ui_shutdown(void) {
     if (win_log) delwin(win_log);
     if (win_cmd) delwin(win_cmd);
+    if (win_log_border) delwin(win_log_border);
+    if (win_cmd_border) delwin(win_cmd_border);
     if (win_mid) delwin(win_mid);
     endwin();
 }
@@ -376,16 +384,25 @@ int main(int argc, char* argv[]) {
                 case 'f':
                 case 'F': {
                     cmd_printf("[Shortcut] Force Fetch New Key from SST...");
-                    // Free old list
-                    free_session_key_list_t(key_list);
+                    // Try fetch new list first without freeing old one
+                    session_key_list_t* new_key_list = get_session_key(sst, NULL);
                     
-                    // Fetch new
-                    key_list = get_session_key(sst, init_empty_session_key_list());
-                    if (!key_list || key_list->num_key == 0) {
+                    if (!new_key_list || new_key_list->num_key == 0) {
+                         // Failed.
                          cmd_printf("Error: Failed to fetch new key from SST.");
-                         key_valid = false;
-                         memset(&s_key, 0, sizeof(s_key));
+                         
+                         if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                             cmd_printf("Error detail: Resource temporary unavailable (EAGAIN).");
+                             cmd_printf("Try again in a moment.");
+                         }
+                         
+                         cmd_printf("Keeping current session key.");
+                         if (new_key_list) free_session_key_list_t(new_key_list);
                     } else {
+                        // Success, replace old list
+                        if (key_list) free_session_key_list_t(key_list);
+                        key_list = new_key_list;
+                        
                         s_key = key_list->s_key[0];
                         key_valid = true;
                         cmd_printf("✓ New key fetched from SST.");
