@@ -11,6 +11,7 @@
 bool handle_commands(const char *cmd, uint8_t *session_key, int *current_slot) {
     if (strcmp(cmd, " print slot key") == 0) {
         print_hex("slot's session key: ", session_key, SST_KEY_SIZE);
+        // Note: we can't easily print ID here without passing it in or reading from RAM global if we exposed it
         return false;
     } else if (strcmp(cmd, " slot status") == 0) {
         pico_print_slot_status(*current_slot);
@@ -41,11 +42,40 @@ bool handle_commands(const char *cmd, uint8_t *session_key, int *current_slot) {
         memset(session_key, 0, SST_KEY_SIZE);
         return true;
 
+    } else if (strcmp(cmd, " switch slot") == 0) {
+        int target_slot = (*current_slot == 0) ? 1 : 0;
+        *current_slot = target_slot;
+        uint8_t k[SST_KEY_SIZE];
+        uint8_t id[SST_KEY_ID_SIZE];
+        
+        if (pico_read_key_pair_from_slot(target_slot, id, k)) {
+            keyram_set_with_id(id, k);
+            memcpy(session_key, k, SST_KEY_SIZE);
+            store_last_used_slot((uint8_t)*current_slot);
+            
+            printf("Switched to Key ID: ");
+            for(int i=0; i<4; i++) printf("%02X", id[i]);
+            printf("...\n");
+            print_hex("RAM key: ", k, SST_KEY_SIZE);
+            
+            secure_zero(k, sizeof(k));
+            printf("Current slot: %c\n", target_slot == 0 ? 'A' : 'B');
+            return true;
+        } else {
+            keyram_clear();
+            memset(session_key, 0, SST_KEY_SIZE);
+            store_last_used_slot((uint8_t)*current_slot);
+            printf("Switched to Slot %c (invalid/empty). Ready for new key.\n", target_slot == 0 ? 'A' : 'B');
+            return true;
+        }
+
     } else if (strcmp(cmd, " use slot A") == 0) {
         *current_slot = 0;
         uint8_t k[SST_KEY_SIZE];
-        if (pico_read_key_from_slot(0, k)) {
-            keyram_set(k);
+        uint8_t id[SST_KEY_ID_SIZE];
+        
+        if (pico_read_key_pair_from_slot(0, id, k)) {
+            keyram_set_with_id(id, k);
             memcpy(session_key, k, SST_KEY_SIZE);
             store_last_used_slot((uint8_t)*current_slot);
             print_hex("Using key from Slot A. RAM key: ", k, SST_KEY_SIZE);
@@ -62,8 +92,10 @@ bool handle_commands(const char *cmd, uint8_t *session_key, int *current_slot) {
     } else if (strcmp(cmd, " use slot B") == 0) {
         *current_slot = 1;
         uint8_t k[SST_KEY_SIZE];
-        if (pico_read_key_from_slot(1, k)) {
-            keyram_set(k);
+        uint8_t id[SST_KEY_ID_SIZE];
+        
+        if (pico_read_key_pair_from_slot(1, id, k)) {
+            keyram_set_with_id(id, k);
             memcpy(session_key, k, SST_KEY_SIZE);
             store_last_used_slot((uint8_t)*current_slot);
             print_hex("Using key from Slot B. RAM key: ", k, SST_KEY_SIZE);
@@ -80,11 +112,13 @@ bool handle_commands(const char *cmd, uint8_t *session_key, int *current_slot) {
     } else if (strcmp(cmd, " new key -f") == 0) {
         printf("Waiting 3 seconds for new key (forced)...\n");
         uint8_t newk[SST_KEY_SIZE] = {0};
-        if (!receive_new_key_with_timeout(newk, 3000)) {
+        uint8_t newid[SST_KEY_ID_SIZE] = {0};
+        
+        if (!receive_new_key_with_timeout(newid, newk, 3000)) {
             printf("No key received.\n");
             return false;
         }
-        if (!store_session_key(newk)) {
+        if (!store_session_key(newid, newk)) {
             printf("Flash write failed.\n");
             secure_zero(newk, sizeof(newk));
             return false;
@@ -92,25 +126,32 @@ bool handle_commands(const char *cmd, uint8_t *session_key, int *current_slot) {
 
         // Figure out which slot now holds the new key
         int written_slot = -1;
-        uint8_t tmp[SST_KEY_SIZE];
-        if (pico_read_key_from_slot(0, tmp) &&
-            memcmp(tmp, newk, SST_KEY_SIZE) == 0)
+        uint8_t tmp_k[SST_KEY_SIZE];
+        uint8_t tmp_i[SST_KEY_ID_SIZE];
+        
+        if (pico_read_key_pair_from_slot(0, tmp_i, tmp_k) &&
+            memcmp(tmp_k, newk, SST_KEY_SIZE) == 0)
             written_slot = 0;
-        else if (pico_read_key_from_slot(1, tmp) &&
-                 memcmp(tmp, newk, SST_KEY_SIZE) == 0)
+        else if (pico_read_key_pair_from_slot(1, tmp_i, tmp_k) &&
+                 memcmp(tmp_k, newk, SST_KEY_SIZE) == 0)
             written_slot = 1;
-        secure_zero(tmp, sizeof(tmp));
+        secure_zero(tmp_k, sizeof(tmp_k));
 
         if (written_slot >= 0) {
             *current_slot = written_slot;
             store_last_used_slot((uint8_t)*current_slot);
         }
 
-        keyram_set(newk);
+        keyram_set_with_id(newid, newk);
         memcpy(session_key, newk, SST_KEY_SIZE);
         printf("New key stored (forced) and loaded to RAM (slot %c).\n",
                *current_slot ? 'B' : 'A');
+        
+        printf("Received Key ID: ");
+        for(int i=0; i<SST_KEY_ID_SIZE; i++) printf("%02X", newid[i]);
+        printf("\n");
         print_hex("Received new key: ", newk, SST_KEY_SIZE);
+        
         secure_zero(newk, sizeof(newk));
         return true;
 
@@ -127,11 +168,13 @@ bool handle_commands(const char *cmd, uint8_t *session_key, int *current_slot) {
 
         printf("Waiting 3 seconds for new key...\n");
         uint8_t newk[SST_KEY_SIZE] = {0};
-        if (!receive_new_key_with_timeout(newk, 3000)) {
+        uint8_t newid[SST_KEY_ID_SIZE] = {0};
+        
+        if (!receive_new_key_with_timeout(newid, newk, 3000)) {
             printf("No key received.\n");
             return false;
         }
-        if (!store_session_key(newk)) {
+        if (!store_session_key(newid, newk)) {
             printf("Flash write failed.\n");
             secure_zero(newk, sizeof(newk));
             return false;
@@ -139,23 +182,30 @@ bool handle_commands(const char *cmd, uint8_t *session_key, int *current_slot) {
 
         // Determine which slot took it
         int written_slot = -1;
-        if (pico_read_key_from_slot(0, tmp) &&
-            memcmp(tmp, newk, SST_KEY_SIZE) == 0)
+        uint8_t tmp_k[SST_KEY_SIZE];
+        uint8_t tmp_i[SST_KEY_ID_SIZE];
+        
+        if (pico_read_key_pair_from_slot(0, tmp_i, tmp_k) &&
+            memcmp(tmp_k, newk, SST_KEY_SIZE) == 0)
             written_slot = 0;
-        else if (pico_read_key_from_slot(1, tmp) &&
-                 memcmp(tmp, newk, SST_KEY_SIZE) == 0)
+        else if (pico_read_key_pair_from_slot(1, tmp_i, tmp_k) &&
+                 memcmp(tmp_k, newk, SST_KEY_SIZE) == 0)
             written_slot = 1;
-        secure_zero(tmp, sizeof(tmp));
+        secure_zero(tmp_k, sizeof(tmp_k));
 
         if (written_slot >= 0) {
             *current_slot = written_slot;
             store_last_used_slot((uint8_t)*current_slot);
         }
 
-        keyram_set(newk);
+        keyram_set_with_id(newid, newk);
         memcpy(session_key, newk, SST_KEY_SIZE);
         printf("New key stored and loaded to RAM (slot %c).\n",
                *current_slot ? 'B' : 'A');
+               
+        printf("Received Key ID: ");
+        for(int i=0; i<SST_KEY_ID_SIZE; i++) printf("%02X", newid[i]);
+        printf("\n");       
         print_hex("Received new key: ", newk, SST_KEY_SIZE);
         secure_zero(newk, sizeof(newk));
         return true;

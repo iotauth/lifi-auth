@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #define SST_KEY_SIZE 16
+#define SST_KEY_ID_SIZE 8
 #define SST_NONCE_SIZE 12
 #define SST_TAG_SIZE 16
 

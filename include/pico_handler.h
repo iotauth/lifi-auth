@@ -20,10 +20,11 @@ void print_hex(const char *label, const uint8_t *data, size_t len);
 void get_random_bytes(uint8_t *buffer, size_t len);
 
 // Waits for a new key to be received over UART with a specified timeout.
-// @param key_out Buffer to store the key
+// @param id_out Buffer to store the key ID (8 bytes)
+// @param key_out Buffer to store the key (16 bytes)
 // @param timeout_ms Timeout in milliseconds
 // @return true if key received, false otherwise
-bool receive_new_key_with_timeout(uint8_t *key_out, uint32_t timeout_ms);
+bool receive_new_key_with_timeout(uint8_t *id_out, uint8_t *key_out, uint32_t timeout_ms);
 
 // Fills a key buffer with zeros.
 // @param key Key buffer to clear
@@ -53,30 +54,41 @@ void pico_clear_slot(int slot);
 // @return true if verification succeeds
 bool pico_clear_slot_verify(int slot);
 
-// Reads a key from a specific slot in flash.
+// Reads a key from a specific slot in flash (Legacy: assumes dummy ID).
 // @param slot Slot index to read
 // @param out Output buffer for key
 // @return true if successful
 bool pico_read_key_from_slot(int slot, uint8_t *out);
 
-// Writes a key to a specific slot in flash.
+// Reads both ID and Key from a specific slot.
+// @param slot Slot index to read
+// @param out_id Output buffer for ID
+// @param out_key Output buffer for Key
+// @return true if successful
+bool pico_read_key_pair_from_slot(int slot, uint8_t *out_id, uint8_t *out_key);
+
+// Writes a key pair to a specific slot in flash.
 // @param slot Slot index to write
+// @param id Key ID to store
 // @param key Key to store
 // @return true if successful
-bool pico_write_key_to_slot(int slot, const uint8_t *key);
+bool pico_write_key_to_slot(int slot, const uint8_t *id, const uint8_t *key);
+
 // Prints the key stored in a specific slot.
 // @param slot Slot index to print
 void pico_print_key_from_slot(int slot);
 
 // Loads a session key from the first valid flash slot found.
-// @param out Output buffer to store the session key
+// @param out_id Output buffer to store the session key ID
+// @param out_key Output buffer to store the session key
 // @return true if a valid key was loaded, false otherwise
-bool load_session_key(uint8_t *out);
+bool load_session_key(uint8_t *out_id, uint8_t *out_key);
 
 // Stores a session key into the next available flash slot.
+// @param id Session key ID to store
 // @param key Session key to store
 // @return true if the key was successfully stored
-bool store_session_key(const uint8_t *key);
+bool store_session_key(const uint8_t *id, const uint8_t *key);
 
 // Checks if a key buffer is all zeros.
 // @param key Pointer to key buffer
@@ -98,6 +110,9 @@ bool keyram_valid(void);
 // Copies SST_KEY_SIZE bytes of the given key into volatile RAM.
 // @param k Key buffer to copy
 void keyram_set(const uint8_t *k);
+
+// Copies ID and Key into volatile RAM.
+void keyram_set_with_id(const uint8_t *id, const uint8_t *k);
 
 // Returns pointer to key in RAM, or NULL if not set.
 // @return Key pointer or NULL

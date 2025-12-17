@@ -63,6 +63,7 @@ static uint32_t g_msg_counter = 0;
 #define SLOT_DATA_OFFSET(slot) SLOT_SECTOR_OFFSET(slot)
 
 static uint8_t g_session_key[SST_KEY_SIZE];
+static uint8_t g_session_key_id[SST_KEY_ID_SIZE]; // New: 8 bytes
 static bool g_key_valid = false;
 
 static mbedtls_ctr_drbg_context ctr_drbg;
@@ -107,8 +108,9 @@ static inline uint32_t slot_to_sector_offset(int slot) {
 }
 // CORRECTLY LINKING
 typedef struct {
-    uint8_t key[SST_KEY_SIZE];
-    uint8_t hash[32];  // SHA-256 hash
+    uint8_t key_id[SST_KEY_ID_SIZE]; // 8 bytes
+    uint8_t key[SST_KEY_SIZE];       // 16 bytes
+    uint8_t hash[32];                // SHA-256 hash of (ID + Key)
     uint32_t magic;
 } key_flash_block_t;
 
@@ -124,8 +126,14 @@ typedef struct {
 _Static_assert(sizeof(slot_index_page_t) == 256,
                "Index page must be exactly 256 bytes");
 
-void compute_key_hash(const uint8_t *data, size_t len, uint8_t *out_hash) {
-    mbedtls_sha256(data, len, out_hash, 0);  // 0 = SHA-256, not SHA-224
+void compute_key_hash(const uint8_t *id, const uint8_t *key, uint8_t *out_hash) {
+    mbedtls_sha256_context ctx;
+    mbedtls_sha256_init(&ctx);
+    mbedtls_sha256_starts(&ctx, 0); // 0 = SHA-256
+    mbedtls_sha256_update(&ctx, id, SST_KEY_ID_SIZE);
+    mbedtls_sha256_update(&ctx, key, SST_KEY_SIZE);
+    mbedtls_sha256_finish(&ctx, out_hash);
+    mbedtls_sha256_free(&ctx);
 }
 
 // Validates a flash key block by checking its magic value and hash.
@@ -137,32 +145,30 @@ bool validate_flash_block(const key_flash_block_t *block) {
     if (block->magic != FLASH_KEY_MAGIC) return false;
 
     uint8_t expected_hash[32];
-    compute_key_hash(block->key, SST_KEY_SIZE, expected_hash);
+    compute_key_hash(block->key_id, block->key, expected_hash);
 
     // Compare the stored hash with the computed hash.
     return memcmp(block->hash, expected_hash, 32) == 0;
 }
 
-// Reads a key from the specified flash memory slot and validates it.
-// @param offset Offset from XIP_BASE where the key block is stored
-// @param out Output buffer to copy the valid key into (must be SST_KEY_SIZE
-// bytes)
-// @return true if a valid key was found and copied, false otherwise
-// Set to static.
-static bool read_key_from_slot(uint32_t offset, uint8_t *out) {
+// Reads a key pair from the specified flash memory slot and validates it.
+static bool read_key_from_slot(uint32_t offset, uint8_t *out_id, uint8_t *out_key) {
     const key_flash_block_t *slot =
         (const key_flash_block_t *)(XIP_BASE + offset);
     if (validate_flash_block(slot)) {
-        memcpy(out, slot->key, SST_KEY_SIZE);
+        if(out_id) memcpy(out_id, slot->key_id, SST_KEY_ID_SIZE);
+        if(out_key) memcpy(out_key, slot->key, SST_KEY_SIZE);
         return true;
     }
     return false;
 }
 
-bool write_key_to_slot(uint32_t offset, const uint8_t *key) {
+bool write_key_to_slot(uint32_t offset, const uint8_t *id, const uint8_t *key) {
     key_flash_block_t block = (key_flash_block_t){0};
+    memcpy(block.key_id, id, SST_KEY_ID_SIZE);
     memcpy(block.key, key, SST_KEY_SIZE);
-    compute_key_hash(block.key, SST_KEY_SIZE, block.hash);
+    
+    compute_key_hash(block.key_id, block.key, block.hash);
     block.magic = FLASH_KEY_MAGIC;
 
     // Stage into a 256-byte page
@@ -184,19 +190,22 @@ bool write_key_to_slot(uint32_t offset, const uint8_t *key) {
     return true;
 }
 
-bool load_session_key(uint8_t *out) {
-    if (read_key_from_slot(FLASH_SLOT_B_OFFSET, out)) return true;
-    if (read_key_from_slot(FLASH_SLOT_A_OFFSET, out)) return true;
+bool load_session_key(uint8_t *out_id, uint8_t *out_key) {
+    if (read_key_from_slot(FLASH_SLOT_B_OFFSET, out_id, out_key)) return true;
+    if (read_key_from_slot(FLASH_SLOT_A_OFFSET, out_id, out_key)) return true;
     return false;
 }
 
-bool store_session_key(const uint8_t *key) {
+bool store_session_key(const uint8_t *id, const uint8_t *key) {
     // Write to the slot not currently valid
-    uint8_t temp[SST_KEY_SIZE];
-    bool a_valid = read_key_from_slot(FLASH_SLOT_A_OFFSET, temp);
-    bool ok = a_valid ? write_key_to_slot(FLASH_SLOT_B_OFFSET, key)
-                      : write_key_to_slot(FLASH_SLOT_A_OFFSET, key);
-    secure_zero(temp, sizeof(temp));
+    uint8_t temp_k[SST_KEY_SIZE];
+    uint8_t temp_i[SST_KEY_ID_SIZE];
+    
+    bool a_valid = read_key_from_slot(FLASH_SLOT_A_OFFSET, temp_i, temp_k);
+    bool ok = a_valid ? write_key_to_slot(FLASH_SLOT_B_OFFSET, id, key)
+                      : write_key_to_slot(FLASH_SLOT_A_OFFSET, id, key);
+                      
+    secure_zero(temp_k, sizeof(temp_k));
     return ok;
 }
 
@@ -279,25 +288,31 @@ void print_hex(const char *label, const uint8_t *data, size_t len) {
     printf("\n");
 }
 
-bool receive_new_key_with_timeout(uint8_t *key_out, uint32_t timeout_ms) {
+bool receive_new_key_with_timeout(uint8_t *id_out, uint8_t *key_out, uint32_t timeout_ms) {
     absolute_time_t deadline = make_timeout_time_ms(timeout_ms);
     while (absolute_time_diff_us(get_absolute_time(), deadline) > 0) {
         if (uart_is_readable(UART_ID) &&
             uart_getc(UART_ID) == PREAMBLE_BYTE_1) {
-            while (!uart_is_readable(UART_ID)) {
-            }  // spin until byte available
-
-            if (uart_getc(UART_ID) == PREAMBLE_BYTE_2) {
-                printf("Receiving new session key...\n");
-                size_t received = 0;
-                while (received < SST_KEY_SIZE &&
-                       absolute_time_diff_us(get_absolute_time(), deadline) >
-                           0) {
-                    if (uart_is_readable(UART_ID)) {
-                        key_out[received++] = uart_getc(UART_ID);
-                    }
+            
+            // Spin wait
+            while (!uart_is_readable(UART_ID) && absolute_time_diff_us(get_absolute_time(), deadline) > 0) {}
+            
+            if (uart_is_readable(UART_ID) && uart_getc(UART_ID) == PREAMBLE_BYTE_2) {
+                printf("Receiving new session key (ID+Key)...\n");
+                size_t recv_id = 0;
+                size_t recv_key = 0;
+                
+                // Read ID first
+                while (recv_id < SST_KEY_ID_SIZE && absolute_time_diff_us(get_absolute_time(), deadline) > 0) {
+                     if (uart_is_readable(UART_ID)) id_out[recv_id++] = uart_getc(UART_ID);
                 }
-                return (received == SST_KEY_SIZE);
+                
+                // Read Key second
+                while (recv_key < SST_KEY_SIZE && absolute_time_diff_us(get_absolute_time(), deadline) > 0) {
+                     if (uart_is_readable(UART_ID)) key_out[recv_key++] = uart_getc(UART_ID);
+                }
+                
+                return (recv_id == SST_KEY_ID_SIZE && recv_key == SST_KEY_SIZE);
             }
         }
     }
@@ -332,18 +347,29 @@ void pico_reboot(void) { watchdog_reboot(0, 0, 0); }
 void pico_print_slot_status(int current_slot) {
     printf("Slot Status:\n");
     printf("  Current slot: %c\n", current_slot == 0 ? 'A' : 'B');
-    uint8_t tmp[SST_KEY_SIZE];
-    if (read_key_from_slot(FLASH_SLOT_A_OFFSET, tmp)) {
-        printf("  Slot A: Valid\n");
+    
+    uint8_t tmp_k[SST_KEY_SIZE];
+    uint8_t tmp_i[SST_KEY_ID_SIZE];
+    
+    // Check A
+    if (read_key_from_slot(FLASH_SLOT_A_OFFSET, tmp_i, tmp_k)) {
+        printf("  Slot A: Valid (ID: ");
+        for(int i=0; i<4; i++) printf("%02X", tmp_i[i]);
+        printf("...)\n");
     } else {
         printf("  Slot A: Invalid\n");
     }
-    if (read_key_from_slot(FLASH_SLOT_B_OFFSET, tmp)) {
-        printf("  Slot B: Valid\n");
+
+    // Check B
+    if (read_key_from_slot(FLASH_SLOT_B_OFFSET, tmp_i, tmp_k)) {
+        printf("  Slot B: Valid (ID: ");
+        for(int i=0; i<4; i++) printf("%02X", tmp_i[i]);
+        printf("...)\n");
     } else {
         printf("  Slot B: Invalid\n");
     }
-    secure_zero(tmp, sizeof(tmp));
+    
+    secure_zero(tmp_k, sizeof(tmp_k));
 }
 
 void pico_clear_slot(int slot) {
@@ -369,31 +395,51 @@ bool pico_clear_slot_verify(int slot) {
     return true;
 }
 
-bool pico_read_key_from_slot(int slot, uint8_t *out) {
+// Helper wrappers
+bool pico_read_key_from_slot(int slot, uint8_t *out_key) {
+    uint8_t dummy_id[SST_KEY_ID_SIZE];
     uint32_t offset = (slot == 0) ? FLASH_SLOT_A_OFFSET : FLASH_SLOT_B_OFFSET;
-    return read_key_from_slot(offset, out);
+    return read_key_from_slot(offset, dummy_id, out_key);
 }
 
-bool pico_write_key_to_slot(int slot, const uint8_t *key) {
+bool pico_read_key_pair_from_slot(int slot, uint8_t *out_id, uint8_t *out_key) {
     uint32_t offset = (slot == 0) ? FLASH_SLOT_A_OFFSET : FLASH_SLOT_B_OFFSET;
-    return write_key_to_slot(offset, key);
+    return read_key_from_slot(offset, out_id, out_key);
+}
+
+bool pico_write_key_to_slot(int slot, const uint8_t *id, const uint8_t *key) {
+    uint32_t offset = (slot == 0) ? FLASH_SLOT_A_OFFSET : FLASH_SLOT_B_OFFSET;
+    return write_key_to_slot(offset, id, key);
 }
 
 void pico_print_key_from_slot(int slot) {
-    uint8_t tmp[SST_KEY_SIZE];
-    if (pico_read_key_from_slot(slot, tmp)) {
-        char label[20];
-        sprintf(label, "Slot %c key: ", slot == 0 ? 'A' : 'B');
-        print_hex(label, tmp, SST_KEY_SIZE);
+    uint8_t k[SST_KEY_SIZE];
+    uint8_t id[SST_KEY_ID_SIZE];
+    
+    if (pico_read_key_pair_from_slot(slot, id, k)) {
+        char label[40];
+        
+        sprintf(label, "Slot %c Key ID: ", slot == 0 ? 'A' : 'B');
+        print_hex(label, id, SST_KEY_ID_SIZE);
+        
+        sprintf(label, "Slot %c Key:    ", slot == 0 ? 'A' : 'B');
+        print_hex(label, k, SST_KEY_SIZE);
     } else {
         printf("Slot %c is invalid.\n", slot == 0 ? 'A' : 'B');
     }
-    secure_zero(tmp, sizeof(tmp));
+    secure_zero(k, sizeof(k));
 }
 
 bool keyram_valid(void) { return g_key_valid; }
 
 void keyram_set(const uint8_t *k) {
+    // This function is dangerous now as it doesn't take ID
+    memcpy(g_session_key, k, SST_KEY_SIZE);
+    g_key_valid = true;
+}
+
+void keyram_set_with_id(const uint8_t *id, const uint8_t *k) {
+    memcpy(g_session_key_id, id, SST_KEY_ID_SIZE);
     memcpy(g_session_key, k, SST_KEY_SIZE);
     g_key_valid = true;
 }

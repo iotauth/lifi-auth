@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiFi Sender Control</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Sidebar: Controls -->
+        <aside class="sidebar">
+            <h1 class="logo">LIFI SENDER <span class="blink">_</span></h1>
+
+            <div class="status-panel">
+                <div class="status-item">
+                    <span class="label">STATUS:</span>
+                    <span id="conn-status" class="value offline">DISCONNECTED</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">PORT:</span>
+                    <span class="value">/dev/ttyACM0</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>SESSION INFO</h3>
+                <div class="status-item">
+                    <span class="label">ACTIVE SLOT:</span>
+                    <div class="slot-toggles">
+                        <button class="btn-mini" id="btn-slot-a" onclick="sendCommand('CMD: use slot A')">A</button>
+                        <button class="btn-mini" id="btn-slot-B" onclick="sendCommand('CMD: use slot B')">B</button>
+                    </div>
+                </div>
+                <div class="status-item column-flex">
+                    <span class="label">KEY:</span>
+                    <span id="key-id" class="value dim tiny-text">--</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>COMMANDS</h3>
+                <button class="btn-cmd" onclick="confirmGenerateKey()">Generate New Key (Force)</button>
+                <button class="btn-cmd warning" onclick="sendCommand('CMD: clear flash')">Clear Flash</button>
+                <button class="btn-cmd" onclick="reconnectSerial()">Reconnect Serial</button>
+            </div>
+
+            <div class="control-group">
+                <h3>FILE TRANSMIT</h3>
+                <div class="file-row">
+                    <input type="file" id="file-input" class="file-input-hidden" accept=".txt,.c,.py,.h"
+                        onchange="updateFileName()">
+                    <label for="file-input" class="btn-file" id="file-label">
+                        📁 Select
+                    </label>
+                    <button class="btn-cmd btn-send-file" onclick="sendFile()">Send</button>
+                    <button class="btn-cmd btn-stop-file warning" onclick="stopFile()">Stop</button>
+                </div>
+                <div id="selected-filename" class="tiny-text dim" style="margin-top: 4px; display: none;">No file
+                    selected</div>
+            </div>
+
+            <div class="control-group">
+                <h3>DEBUG LOG</h3>
+                <div id="log-console" class="console-box">
+                    <!-- Logs go here -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content: Chat Interface -->
+        <main class="chat-interface">
+            <div class="chat-header">
+                <h2>SECURE TRANSMISSION STREAM</h2>
+            </div>
+
+            <div id="chat-history" class="chat-history">
+                <div class="message system">
+                    <span class="timestamp">[SYSTEM]</span> Welcome to LiFi Sender Dashboard.
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="message-input" placeholder="Type message to transmit..." autocomplete="off">
+                <button id="send-btn" onclick="sendMessage()">TRANSMIT</button>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>

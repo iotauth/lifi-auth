@@ -72,30 +72,40 @@ int main() {
     }
 
     uint8_t session_key[SST_KEY_SIZE] = {0};
+    uint8_t session_key_id[SST_KEY_ID_SIZE] = {0};
 
     // Try to load an existing valid session key from flash
-    if (!load_session_key(session_key)) {
+    if (!load_session_key(session_key_id, session_key)) {
         printf("No valid session key found. Waiting for one...\n");
 
         // Wait up to 20 seconds to receive a new session key over UART
         if (receive_new_key_with_timeout(
+                session_key_id,
                 session_key,
                 20000)) {  // changed to a long time for testing
+            
+            printf("Received ID: ");
+            for(int i=0; i<SST_KEY_ID_SIZE; i++) printf("%02X", session_key_id[i]);
+            printf("\n");
+            
             print_hex("Received session key: ", session_key, SST_KEY_SIZE);
+            
             // Attempt to save the newly received key to flash
-            if (store_session_key(session_key)) {
-                uint8_t tmp[SST_KEY_SIZE];
+            if (store_session_key(session_key_id, session_key)) {
+                uint8_t tmp_k[SST_KEY_SIZE];
+                uint8_t tmp_i[SST_KEY_ID_SIZE];
                 int written_slot = -1;
 
                 // Find which flash slot (A or B) the key was written to
                 for (int slot = 0; slot <= 1; slot++) {
-                    if (pico_read_key_from_slot(slot, tmp) &&
-                        memcmp(tmp, session_key, SST_KEY_SIZE) == 0) {
+                    if (pico_read_key_pair_from_slot(slot, tmp_i, tmp_k) &&
+                        memcmp(tmp_k, session_key, SST_KEY_SIZE) == 0 &&
+                        memcmp(tmp_i, session_key_id, SST_KEY_ID_SIZE) == 0) {
                         written_slot = slot;
                         break;
                     }
                 }
-                secure_zero(tmp, sizeof(tmp));
+                secure_zero(tmp_k, sizeof(tmp_k));
 
                 if (written_slot >= 0) {
                     current_slot = written_slot;
@@ -120,6 +130,9 @@ int main() {
             return 1;
         }
     } else {
+        printf("Using Key ID: ");
+        for(int i=0; i<SST_KEY_ID_SIZE; i++) printf("%02X", session_key_id[i]);
+        printf("\n");
         print_hex("Using session key: ", session_key, SST_KEY_SIZE);
     }
 
@@ -166,14 +179,18 @@ int main() {
             const char *cmd = message_buffer + 4;
 
             // Run the command handler and check if it modified the active
-            // session key (e.g., load new key, clear key, or switch slots).
+            // session key/slot.
             bool key_changed = handle_commands(cmd, session_key, &current_slot);
 
-            // If the key was changed, reset the nonce generator so future
-            // messages start fresh with a new salt+counter sequence tied to the
-            // new key.
+            pico_nonce_on_key_change(); 
+            
+            // If the key was changed or reloaded by a command, we must ensure
+            // the local session_key_id variable is also updated to match.
+            // We reload both from the active flash slot to ensure full consistency.
             if (key_changed) {
-                pico_nonce_on_key_change();
+                if (current_slot == 0 || current_slot == 1) {
+                    pico_read_key_pair_from_slot(current_slot, session_key_id, session_key);
+                }
             }
 
             // Clear out the message buffer so stale command data isn’t reused.
