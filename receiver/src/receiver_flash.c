@@ -371,6 +371,7 @@ int main(int argc, char* argv[]) {
                     if (!key_valid) { cmd_printf("No valid session key loaded."); break; }
 
                     if (write_all(fd, preamble, sizeof preamble) < 0 ||
+                        write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
                         write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
                         cmd_printf("Error: Failed to send session key.");
                     } else {
@@ -410,6 +411,7 @@ int main(int argc, char* argv[]) {
                         // Auto-send like '1'
                         if (fd >= 0) {
                             if (write_all(fd, preamble, sizeof preamble) < 0 ||
+                                write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
                                 write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
                                 cmd_printf("Error: Failed to send new key to Pico.");
                             } else {
@@ -529,6 +531,7 @@ int main(int argc, char* argv[]) {
                         log_printf(
                             "Waiting: got 0x%02X, expecting PREAMBLE_BYTE_1\n",
                             byte);
+                        log_printf("Hint: Check optical alignment.\n");
                     }
                     break;
                 case 1:
@@ -637,6 +640,7 @@ int main(int argc, char* argv[]) {
 
                                         uint8_t preamble[2] = {0xAB, 0xCD};
                                         write(fd, preamble, 2);
+                                        write(fd, key_list->s_key[0].key_id, SESSION_KEY_ID_SIZE);
                                         write(fd, pending_key,
                                               SESSION_KEY_SIZE);
                                         usleep(5000);  // 5ms sleep to let
