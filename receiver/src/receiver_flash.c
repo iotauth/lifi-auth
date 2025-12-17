@@ -27,9 +27,8 @@
 // ncurses for ui on pi4
 
 static WINDOW *win_log = NULL;
+static WINDOW *win_mid = NULL;
 static WINDOW *win_cmd = NULL;
-
-static void redraw_frames(void); 
 
 static void log_printf(const char *fmt, ...) {
     if (!win_log) return;
@@ -44,8 +43,6 @@ static void log_printf(const char *fmt, ...) {
     va_end(ap);
     wprintw(win_log, "\n");
     wrefresh(win_log);
-
-    redraw_frames();
 }
 
 static void cmd_printf(const char *fmt, ...) {
@@ -61,57 +58,96 @@ static void cmd_printf(const char *fmt, ...) {
     va_end(ap);
     wprintw(win_cmd, "\n");
     wrefresh(win_cmd);
-
-    redraw_frames();
 }
 
 static void ui_init(void) {
     initscr();
     cbreak();
     noecho();
-    nodelay(stdscr, TRUE);     // getch nonblocking
+    nodelay(stdscr, TRUE);
     keypad(stdscr, TRUE);
 
     int rows, cols;
     getmaxyx(stdscr, rows, cols);
-    int cmd_h = 6;
-    int log_h = rows - cmd_h;
 
-    win_log = newwin(log_h, cols, 0, 0);
-    win_cmd = newwin(cmd_h, cols, log_h, 0);
+    int mid_h = 7;                 // key panel height (tweak 6-10)
+    int top_h = (rows - mid_h) / 2;
+    int bot_h = rows - mid_h - top_h;
 
+    if (top_h < 6) top_h = 6;      // safety
+    if (bot_h < 6) bot_h = 6;
+
+    int top_y = 0;
+    int mid_y = top_y + top_h;
+    int bot_y = mid_y + mid_h;
+
+    win_log = newwin(top_h, cols, top_y, 0);
+    win_mid = newwin(mid_h, cols, mid_y, 0);
+    win_cmd = newwin(bot_h, cols, bot_y, 0);
 
     scrollok(win_log, TRUE);
     scrollok(win_cmd, TRUE);
 
+    // Keep text inside borders
+    wsetscrreg(win_log, 1, top_h - 2);
+    wsetscrreg(win_cmd, 1, bot_h - 2);
+
     box(win_log, 0, 0);
+    box(win_mid, 0, 0);
     box(win_cmd, 0, 0);
-    wsetscrreg(win_log, 1, log_h - 2);
-    wsetscrreg(win_cmd, 1, cmd_h - 2);
 
     mvwprintw(win_log, 0, 2, " RX / Photodiode Log ");
+    mvwprintw(win_mid, 0, 2, " Key / Security ");
     mvwprintw(win_cmd, 0, 2, " Commands / Status ");
+
     wrefresh(win_log);
+    wrefresh(win_mid);
     wrefresh(win_cmd);
 
-    // Put cursor in cmd window
-    wmove(win_cmd, 1, 1);
     wmove(win_log, 1, 1);
-    wrefresh(win_log);
-    wrefresh(win_cmd);
+    wmove(win_cmd, 1, 1);
 }
 
-static void redraw_frames(void) {
-    if (win_log) {
-        box(win_log, 0, 0);
-        mvwprintw(win_log, 0, 2, " RX / Photodiode Log ");
-        wrefresh(win_log);
+static void mid_draw_keypanel(const session_key_t* s_key,
+                              bool key_valid,
+                              receiver_state_t state,
+                              const char* uart_dev,
+                              bool serial_open) {
+    if (!win_mid) return;
+
+    int h, w;
+    getmaxyx(win_mid, h, w);
+    (void)w;
+
+    werase(win_mid);
+    box(win_mid, 0, 0);
+    mvwprintw(win_mid, 0, 2, " Key / Security ");
+
+    mvwprintw(win_mid, 1, 2, "Serial: %s   Dev: %s   State: %d",
+              serial_open ? "OPEN" : "CLOSED", uart_dev, (int)state);
+
+    // Key ID + key (fits best if you print ID always, and key optionally)
+    mvwprintw(win_mid, 2, 2, "Key valid: %s", key_valid ? "YES" : "NO");
+
+    if (key_valid && s_key) {
+        wmove(win_mid, 3, 2);
+        wprintw(win_mid, "Key ID: ");
+        for (size_t i = 0; i < SESSION_KEY_ID_SIZE; i++) wprintw(win_mid, "%02X ", s_key->key_id[i]);
+
+        wmove(win_mid, 4, 2);
+        wprintw(win_mid, "Key:    ");
+        for (size_t i = 0; i < SESSION_KEY_SIZE; i++) wprintw(win_mid, "%02X ", s_key->cipher_key[i]);
+    } else {
+        mvwprintw(win_mid, 3, 2, "Key ID: (none)");
+        mvwprintw(win_mid, 4, 2, "Key:    (none)");
     }
-    if (win_cmd) {
-        box(win_cmd, 0, 0);
-        mvwprintw(win_cmd, 0, 2, " Commands / Status ");
-        wrefresh(win_cmd);
-    }
+
+    // Shortcuts menu at bottom of mid panel
+    int menu_r = h - 3;
+    if (menu_r < 5) menu_r = 5;
+    mvwprintw(win_mid, menu_r + 0, 2, "[1] Send Key   [2] HMAC Challenge   [s] Status   [r] Reopen Serial   [q] Quit");
+
+    wrefresh(win_mid);
 }
 
 static void cmd_hex(const char* label, const uint8_t* b, size_t n) {
@@ -125,13 +161,12 @@ static void cmd_hex(const char* label, const uint8_t* b, size_t n) {
     for (size_t i = 0; i < n; i++) wprintw(win_cmd, "%02X ", b[i]);
     wprintw(win_cmd, "\n");
     wrefresh(win_cmd);
-
-    redraw_frames();
 }
 
 static void ui_shutdown(void) {
     if (win_log) delwin(win_log);
     if (win_cmd) delwin(win_cmd);
+    if (win_mid) delwin(win_mid);
     endwin();
 }
 
@@ -198,13 +233,21 @@ int main(int argc, char* argv[]) {
     }
 
     session_key_t s_key = key_list->s_key[0];
-    cmd_hex("Session Key: ", s_key.cipher_key, SESSION_KEY_SIZE);
+    bool key_valid = true;
+    receiver_state_t state = STATE_IDLE;
 
-    bool key_valid = true;                        // track if current key usable
-    uint8_t pending_key[SESSION_KEY_SIZE] = {0};  // for rotations
+    int fd = -1;
+    fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);
+    if (fd < 0) {
+        log_printf("Warning: serial not open (%s). Press 'r' to retry.", UART_DEVICE);
+    } else {
+        int flags = fcntl(fd, F_GETFL, 0);
+        if (flags >= 0) fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    }
+
+    mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
 
     // --- Receiver state + replay window ---
-    receiver_state_t state = STATE_IDLE;
     struct timespec state_deadline = (struct timespec){0, 0};
     time_t last_key_req_time = 0;
 
@@ -215,19 +258,6 @@ int main(int argc, char* argv[]) {
     // Challenge tracking for HMAC verification
     uint8_t pending_challenge[CHALLENGE_SIZE] = {0};
     bool challenge_active = false;
-    
-    // --- Serial setup ---
-    int fd = -1;
-    fd = init_serial(UART_DEVICE, UART_BAUDRATE_TERMIOS);
-    if (fd < 0) {
-        log_printf("Warning: serial not open (%s). Press 'r' to retry.", UART_DEVICE);
-    }
-    if (fd >= 0) {
-        int flags = fcntl(fd, F_GETFL, 0);
-        if (flags >= 0) {
-            fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-        }
-    }
 
     // Initial key push retry machinery
     struct timespec next_send = {0};
@@ -236,23 +266,14 @@ int main(int argc, char* argv[]) {
     const uint8_t preamble[2] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2};
     // Automatic handshake REMOVED - waitForUser to press [1]
 
-    cmd_printf("\n");
-    cmd_printf("╔════════════════════════════════════════════════════════╗\n");
-    cmd_printf("║          LiFi Receiver - Interactive Mode             ║\n");
-    cmd_printf("╠════════════════════════════════════════════════════════╣\n");
-    cmd_printf("║  [1] Send Session Key to Pico                         ║\n");
-    cmd_printf("║  [2] Send HMAC Challenge (verify key)                 ║\n");
-    cmd_printf("║  [s] Show Status (Key & Connection)                   ║\n");
-    cmd_printf("║  [q] Quit                                              ║\n");
-    cmd_printf("╚════════════════════════════════════════════════════════╝\n");
-    cmd_printf("\n");
-
     // UART framing state
     uint8_t byte = 0;
     int uart_state = 0;
 
     log_printf("Listening for encrypted message...\n");
     if (fd >= 0) tcflush(fd, TCIFLUSH);
+
+    uint8_t pending_key[SESSION_KEY_SIZE] = {0};
 
     while (1) {
         // --- Handle Keyboard Shortcuts ---
@@ -273,6 +294,7 @@ int main(int argc, char* argv[]) {
                         tcdrain(fd);
                         cmd_printf("✓ Session key sent.");
                     }
+                    mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
                     break;
                 }
 
@@ -297,6 +319,7 @@ int main(int argc, char* argv[]) {
                         challenge_active = true;
                         cmd_printf("✓ Challenge sent. Waiting for HMAC response...");
                     }
+                    mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
                     break;
                 }
 
@@ -331,6 +354,7 @@ int main(int argc, char* argv[]) {
                     } else {
                         cmd_printf("Still failed to open serial.");
                     }
+                    mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
                     break;
                 }
 
@@ -347,8 +371,6 @@ int main(int argc, char* argv[]) {
                     break;
             }
         }
-
-
 
         // --- Handle State Timeouts ---
         if (state != STATE_IDLE && timespec_passed(&state_deadline)) {
