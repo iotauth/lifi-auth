@@ -177,22 +177,23 @@ int main(int argc, char* argv[]) {
     change_directory_to_config_path(config_path);
     config_path = get_config_path(config_path);
 
-    ui_init();
-    atexit(ui_shutdown);
-
-    cmd_printf("Using config file: %s", config_path);
+    printf("Using config file: %s\n", config_path);
 
     // --- Fetch session key from SST ---
-    cmd_printf("Retrieving session key from SST...");
+    printf("Retrieving session key from SST...\n");
     SST_ctx_t* sst = init_SST(config_path);
     if (!sst) {
-        log_printf("SST init failed.");
+        printf("SST init failed.\n");
         return 1;
     }
 
     session_key_list_t* key_list = get_session_key(sst, NULL);
+
+    ui_init();
+    atexit(ui_shutdown);
+
     if (!key_list || key_list->num_key == 0) {
-        log_printf("No session key.");
+        log_printf("No session key.\n");
         return 1;
     }
 
