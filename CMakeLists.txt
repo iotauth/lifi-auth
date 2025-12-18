@@ -17,6 +17,14 @@ if(BUILD_TARGET STREQUAL "pi4" OR BUILD_TARGET STREQUAL "host")
 endif()
 
 
+
+# === Heatshrink Compression ===
+add_library(heatshrink STATIC
+    lib/heatshrink/heatshrink_encoder.c
+    lib/heatshrink/heatshrink_decoder.c
+)
+target_include_directories(heatshrink PUBLIC lib/heatshrink)
+
 # === mbedTLS (submodule) ===
 set(MBEDTLS_DIR "${CMAKE_CURRENT_LIST_DIR}/lib/mbedtls" CACHE PATH "Path to vendored mbedTLS" FORCE)
 if(NOT EXISTS "${MBEDTLS_DIR}/library/aes.c")

@@ -44,6 +44,7 @@ target_include_directories(lifi_session_receiver PRIVATE
 target_link_libraries(lifi_session_receiver PRIVATE
   receiver_common
   sst_embedded         # <-- provides sst_decrypt_gcm
+  heatshrink
   mbedcrypto           # <-- mbedTLS crypto objs
   OpenSSL::Crypto
   ${CURSES_LIBRARIES}

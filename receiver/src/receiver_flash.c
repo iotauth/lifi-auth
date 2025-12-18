@@ -22,6 +22,7 @@
 #include "replay_window.h"
 #include "serial_linux.h"
 #include "sst_crypto_embedded.h"  // brings in sst_decrypt_gcm prototype and sizes
+#include "heatshrink_decoder.h"
 #include "utils.h"
 
 // ncurses for ui on pi4
@@ -684,19 +685,48 @@ int main(int argc, char* argv[]) {
 
                                 // Handle File Transfer
                                 if (packet_type == MSG_TYPE_FILE) {
-                                    log_printf("[FILE] %s", decrypted); // content
-                                    
-                                    FILE *f_out = fopen("received_file.txt", "a");
-                                    if (f_out) {
-                                        fprintf(f_out, "%s\n", decrypted);
-                                        fclose(f_out);
+                                    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 8, 4);
+                                    if (hsd) {
+                                        size_t sunk = 0;
+                                        heatshrink_decoder_sink(hsd, decrypted, msg_len, &sunk);
+                                        
+                                        uint8_t decompressed[4096];
+                                        size_t total_decomp = 0;
+                                        HSD_poll_res pres;
+                                        
+                                        do {
+                                            size_t p = 0;
+                                            pres = heatshrink_decoder_poll(hsd, &decompressed[total_decomp], 
+                                                                           sizeof(decompressed) - total_decomp, &p);
+                                            total_decomp += p;
+                                        } while (pres == HSDR_POLL_MORE && total_decomp < sizeof(decompressed));
+                                        
+                                        heatshrink_decoder_finish(hsd);
+                                        heatshrink_decoder_free(hsd);
+                                        
+                                        // Null terminate for safer printing (if text)
+                                        if (total_decomp < sizeof(decompressed)) decompressed[total_decomp] = '\0';
+                                        
+                                        log_printf("[FILE] Decompressed %d -> %zu bytes\n", msg_len, total_decomp);
+                                        log_printf("[FILE] Content: %s\n", decompressed);
+
+                                        FILE *f_out = fopen("received_file.txt", "a");
+                                        if (f_out) {
+                                            if (total_decomp > 0) {
+                                                fwrite(decompressed, 1, total_decomp, f_out);
+                                                fprintf(f_out, "\n");
+                                            }
+                                            fclose(f_out);
+                                        } else {
+                                            log_printf(" (Save failed)\n");
+                                        }
                                     } else {
-                                        log_printf(" (Save failed)");
+                                        log_printf("[FILE] Decompression alloc failed.\n");
                                     }
                                 } 
                                 // Handle Normal Chat / Commands
                                 else {
-                                    log_printf("%s", decrypted);
+                                    log_printf("%s\n", decrypted);
                                     
                                     // If waiting for HMAC response, check prefix
                                     if (challenge_active && 
