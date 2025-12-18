@@ -60,6 +60,7 @@ static void wprint_styled_core(WINDOW *win, bool newline, const char *fmt, va_li
     wprintw(win, "%s", buf);
     if (color != 0) wattroff(win, COLOR_PAIR(color) | attr);
     
+    // If newline is requested, print it. Otherwise, rely on format string.
     if (newline) wprintw(win, "\n");
     wrefresh(win);
 }
@@ -68,7 +69,7 @@ static void log_printf(const char *fmt, ...) {
     if (!win_log) return;
     va_list ap;
     va_start(ap, fmt);
-    wprint_styled_core(win_log, true, fmt, ap);
+    wprint_styled_core(win_log, false, fmt, ap);
     va_end(ap);
 }
 
@@ -575,10 +576,7 @@ int main(int argc, char* argv[]) {
                     if (byte == PREAMBLE_BYTE_1) {
                         uart_state = 1;
                     } else {
-                        log_printf(
-                            "Waiting: got 0x%02X, expecting PREAMBLE_BYTE_1\n",
-                            byte);
-                        log_printf("Hint: Check optical alignment.\n");
+                        log_printf("Waiting: got 0x%02X (Hint: Check optical alignment)\n", byte);
                     }
                     break;
                 case 1:
