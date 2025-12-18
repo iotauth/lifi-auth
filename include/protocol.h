@@ -26,7 +26,7 @@
 #define NONCE_SIZE 12        // 96-bit GCM IV
 #define TAG_SIZE 16
 #define NONCE_HISTORY_SIZE 64
-#define MAX_MSG_LEN 1024
+#define MAX_MSG_LEN 8192
 #define CRC16_SIZE 2
 
 /* -------- Shared tokens -------- */
