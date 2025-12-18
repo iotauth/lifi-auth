@@ -52,6 +52,9 @@ static void wprint_styled(WINDOW *win, const char *fmt, va_list ap) {
         attr = A_BOLD;
     } else if (strstr(buf, "Challenge")) {
         color = 3; // Cyan
+    } else if (strstr(buf, "timed out")) {
+        color = 4; // Yellow (Orange)
+        attr = A_BOLD;
     }
 
     if (color != 0) wattron(win, COLOR_PAIR(color) | attr);
