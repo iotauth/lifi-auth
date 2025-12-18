@@ -227,7 +227,7 @@ static void mid_draw_keypanel(const session_key_t* s_key,
     // Shortcuts menu at bottom of mid panel
     int menu_r = h - 2;
     // Use A_DIM or just normal
-    mvwprintw(win_mid, menu_r, 2, "[1] Send Key  [2] Challenge  [s] Stats  [c] Clear logs  [f] Force Key  [r] Reopen  [q] Quit");
+    mvwprintw(win_mid, menu_r, 2, "[1] Send Key  [2] Challenge  [s] Stats  [c] Clear  [p] Save  [f] Force Key  [r] Reopen  [q] Quit");
 
     wrefresh(win_mid);
 }
@@ -286,6 +286,7 @@ typedef struct {
     unsigned long replay_blocked;
     unsigned long timeouts;
     unsigned long bad_preamble;
+    unsigned long key_rotations;
 } SessionStats;
 
 int main(int argc, char* argv[]) {
@@ -432,6 +433,7 @@ int main(int argc, char* argv[]) {
                         
                         s_key = key_list->s_key[0];
                         key_valid = true;
+                        stats.key_rotations++;
                         cmd_printf("✓ New key fetched from SST.");
                         
                         // Auto-send like '1'
@@ -487,6 +489,7 @@ int main(int argc, char* argv[]) {
                     cmd_printf("Replays Blocked: %lu", stats.replay_blocked);
                     cmd_printf("Timeouts:        %lu", stats.timeouts);
                     cmd_printf("Bad Preambles:   %lu", stats.bad_preamble);
+                    cmd_printf("Key Rotations:   %lu", stats.key_rotations);
                     if (key_valid) {
                          cmd_hex("Key ID: ", s_key.key_id, SESSION_KEY_ID_SIZE);
                     }
@@ -498,7 +501,33 @@ int main(int argc, char* argv[]) {
                 case 'C': {
                     werase(win_log);
                     wrefresh(win_log);
-                    cmd_printf("Logs cleared.");
+                    memset(&stats, 0, sizeof(stats));
+                    cmd_printf("Logs and Statistics cleared.");
+                    break;
+                }
+
+                case 'p':
+                case 'P': {
+                    FILE *f = fopen("session_stats.txt", "a");
+                    if (f) {
+                        time_t now = time(NULL);
+                        char *tstr = ctime(&now);
+                        if (tstr && strlen(tstr) > 0) tstr[strlen(tstr)-1] = '\0';
+
+                        fprintf(f, "[%s] Stats Snapshot\n", tstr ? tstr : "Unknown");
+                        fprintf(f, "Packets RX:      %lu\n", stats.total_pkts);
+                        fprintf(f, "Decrypt Success: %lu\n", stats.decrypt_success);
+                        fprintf(f, "Decrypt Fail:    %lu\n", stats.decrypt_fail);
+                        fprintf(f, "Replays Blocked: %lu\n", stats.replay_blocked);
+                        fprintf(f, "Timeouts:        %lu\n", stats.timeouts);
+                        fprintf(f, "Bad Preambles:   %lu\n", stats.bad_preamble);
+                        fprintf(f, "Key Rotations:   %lu\n", stats.key_rotations);
+                        fprintf(f, "--------------------------\n");
+                        fclose(f);
+                        cmd_printf("Stats saved to session_stats.txt");
+                    } else {
+                        cmd_printf("Error: Failed to write stats.");
+                    }
                     break;
                 }
 
@@ -683,6 +712,7 @@ int main(int argc, char* argv[]) {
                                         memcpy(pending_key,
                                                key_list->s_key[0].cipher_key,
                                                SESSION_KEY_SIZE);
+                                        stats.key_rotations++;
                                         cmd_hex(
                                             "New Session Key (pending ACK): ",
                                             pending_key, SESSION_KEY_SIZE);
@@ -743,6 +773,7 @@ int main(int argc, char* argv[]) {
                                     cmd_hex("New key is now active: ",
                                               s_key.cipher_key,
                                               SESSION_KEY_SIZE);
+                                    
                                     state = STATE_IDLE;
                                 }
 
