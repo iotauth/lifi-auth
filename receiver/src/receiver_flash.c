@@ -286,7 +286,7 @@ typedef struct {
     unsigned long replay_blocked;
     unsigned long timeouts;
     unsigned long bad_preamble;
-    unsigned long key_rotations;
+    unsigned long keys_consumed;
 } SessionStats;
 
 int main(int argc, char* argv[]) {
@@ -433,7 +433,7 @@ int main(int argc, char* argv[]) {
                         
                         s_key = key_list->s_key[0];
                         key_valid = true;
-                        stats.key_rotations++;
+                        stats.keys_consumed++;
                         cmd_printf("✓ New key fetched from SST.");
                         
                         // Auto-send like '1'
@@ -489,10 +489,7 @@ int main(int argc, char* argv[]) {
                     cmd_printf("Replays Blocked: %lu", stats.replay_blocked);
                     cmd_printf("Timeouts:        %lu", stats.timeouts);
                     cmd_printf("Bad Preambles:   %lu", stats.bad_preamble);
-                    cmd_printf("Key Rotations:   %lu", stats.key_rotations);
-                    if (key_valid) {
-                         cmd_hex("Key ID: ", s_key.key_id, SESSION_KEY_ID_SIZE);
-                    }
+                    cmd_printf("Keys Consumed:   %lu", stats.keys_consumed);
                     cmd_printf("--------------------------");
                     break;
                 }
@@ -501,8 +498,10 @@ int main(int argc, char* argv[]) {
                 case 'C': {
                     werase(win_log);
                     wrefresh(win_log);
+                    unsigned long saved = stats.keys_consumed;
                     memset(&stats, 0, sizeof(stats));
-                    cmd_printf("Logs and Statistics cleared.");
+                    stats.keys_consumed = saved;
+                    cmd_printf("Logs and Statistics (except Keys Consumed) cleared.");
                     break;
                 }
 
@@ -521,7 +520,7 @@ int main(int argc, char* argv[]) {
                         fprintf(f, "Replays Blocked: %lu\n", stats.replay_blocked);
                         fprintf(f, "Timeouts:        %lu\n", stats.timeouts);
                         fprintf(f, "Bad Preambles:   %lu\n", stats.bad_preamble);
-                        fprintf(f, "Key Rotations:   %lu\n", stats.key_rotations);
+                        fprintf(f, "Keys Consumed:   %lu\n", stats.keys_consumed);
                         fprintf(f, "--------------------------\n");
                         fclose(f);
                         cmd_printf("Stats saved to session_stats.txt");
@@ -712,7 +711,7 @@ int main(int argc, char* argv[]) {
                                         memcpy(pending_key,
                                                key_list->s_key[0].cipher_key,
                                                SESSION_KEY_SIZE);
-                                        stats.key_rotations++;
+                                        stats.keys_consumed++;
                                         cmd_hex(
                                             "New Session Key (pending ACK): ",
                                             pending_key, SESSION_KEY_SIZE);
