@@ -102,15 +102,18 @@ int main() {
         print_hex("Using session key: ", session_key, SST_KEY_SIZE);
     }
 
-    char message_buffer[8192];  // Increased for whole-file transfer
+    // Static buffers - too large for Pico's 8KB stack
+    static char message_buffer[8192];
+    static uint8_t ciphertext[8192];
+    static uint8_t compressed_buf[8192];  // For FILEB/FILE compression
+    static uint8_t crc_buf[1 + 2 + 12 + 8192 + 16];  // TYPE + LEN + NONCE + CIPHERTEXT + TAG
 
     while (true) {
-        printf("Enter a message to send over LiFi:\n");
         // can add function to show A(VALID): or A(INVALID): or B(VALID): etc..
         //  in message preview -- show validity and which slot we are on !
         size_t msg_len = 0;
         int ch;  // character
-        uint8_t ciphertext[8192] = {0};  // Increased to match message buffer
+        memset(ciphertext, 0, sizeof(ciphertext));
         uint8_t tag[SST_TAG_SIZE] = {0};
 
         for (;;) {
@@ -313,146 +316,35 @@ int main() {
             // Unescape newlines: replace ␊ (UTF-8: E2 90 8A) with \n
             size_t write_idx = 0;
             for (size_t i = 0; i < payload_len; i++) {
-                // Check for UTF-8 sequence E2 90 8A (symbol for newline)
                 if (i + 2 < payload_len && 
                     (uint8_t)payload[i] == 0xE2 && 
                     (uint8_t)payload[i+1] == 0x90 && 
                     (uint8_t)payload[i+2] == 0x8A) {
                     payload[write_idx++] = '\n';
-                    i += 2; // Skip the next 2 bytes
+                    i += 2;
                 } else {
                     payload[write_idx++] = payload[i];
                 }
             }
             payload_len = write_idx;
             
-            printf("[FILEB] Received %zu bytes. Compressing...\n", payload_len);
+            printf("[FILEB] TEST MODE - NO COMPRESSION. Sending %zu raw bytes as regular message.\n", payload_len);
             
-            // Compress the entire file
-            heatshrink_encoder *hse = heatshrink_encoder_alloc(8, 4);
-            if (hse) {
-                uint8_t compressed[8192];
-                size_t total_sunk = 0;
-                size_t comp_sz = 0;
-                
-                // IMPORTANT: Must loop on sink() - it may not consume all bytes at once
-                while (total_sunk < payload_len) {
-                    size_t sunk = 0;
-                    HSE_sink_res sres = heatshrink_encoder_sink(hse, 
-                        (uint8_t*)payload + total_sunk, 
-                        payload_len - total_sunk, 
-                        &sunk);
-                    total_sunk += sunk;
-                    
-                    if (sres == HSER_SINK_ERROR_NULL) break;
-                    
-                    // Poll for output while sinking (encoder may need to flush)
-                    HSE_poll_res pres;
-                    do {
-                        size_t p = 0;
-                        pres = heatshrink_encoder_poll(hse, &compressed[comp_sz], 
-                                                       sizeof(compressed) - comp_sz, &p);
-                        comp_sz += p;
-                    } while (pres == HSER_POLL_MORE && comp_sz < sizeof(compressed));
-                }
-                
-                // Signal end of input
-                heatshrink_encoder_finish(hse);
-                
-                // Poll for remaining output after finish
-                HSE_poll_res pres;
-                do {
-                    size_t p = 0;
-                    pres = heatshrink_encoder_poll(hse, &compressed[comp_sz], 
-                                                   sizeof(compressed) - comp_sz, &p);
-                    comp_sz += p;
-                } while (pres == HSER_POLL_MORE && comp_sz < sizeof(compressed));
-                
-                heatshrink_encoder_free(hse);
-                
-                printf("[FILEB] Compressed %zu -> %zu bytes (%.1f%% reduction)\n", 
-                       payload_len, comp_sz, 
-                       100.0 * (1.0 - (double)comp_sz / payload_len));
-                
-                // Now transmit the compressed data as MSG_TYPE_FILE
-                if (comp_sz > 0) {
-                    memcpy(message_buffer, compressed, comp_sz);
-                    msg_len = comp_sz;
-                    current_msg_type = MSG_TYPE_FILE;
-                } else {
-                    printf("[FILEB] Compression produced 0 bytes. Sending raw.\n");
-                    memmove(message_buffer, payload, payload_len);
-                    msg_len = payload_len;
-                    current_msg_type = MSG_TYPE_FILE;
-                }
-            } else {
-                printf("[FILEB] Encoder alloc failed. Sending raw.\n");
-                memmove(message_buffer, payload, payload_len);
-                msg_len = payload_len;
-                current_msg_type = MSG_TYPE_FILE;
-            }
+            // Skip compression entirely - just send raw as MSG_TYPE_ENCRYPTED (like a normal message)
+            memmove(message_buffer, payload, payload_len);
+            msg_len = payload_len;
+            current_msg_type = MSG_TYPE_ENCRYPTED;  // Send as normal message, NO compression
         }
         // Check for FILE: prefix (legacy single-chunk)
         else if (strncmp(message_buffer, "FILE:", 5) == 0) {
             char *payload = message_buffer + 5;
             size_t payload_len = msg_len - 5;
             
-            // Try to compress
-            heatshrink_encoder *hse = heatshrink_encoder_alloc(8, 4);
-            if (hse) {
-                uint8_t compressed[8192];
-                size_t total_sunk = 0;
-                size_t comp_sz = 0;
-                
-                // Loop on sink() until all data consumed
-                while (total_sunk < payload_len) {
-                    size_t sunk = 0;
-                    HSE_sink_res sres = heatshrink_encoder_sink(hse, 
-                        (uint8_t*)payload + total_sunk, 
-                        payload_len - total_sunk, 
-                        &sunk);
-                    total_sunk += sunk;
-                    if (sres == HSER_SINK_ERROR_NULL) break;
-                    
-                    HSE_poll_res pres;
-                    do {
-                        size_t p = 0;
-                        pres = heatshrink_encoder_poll(hse, &compressed[comp_sz], 
-                                                       sizeof(compressed) - comp_sz, &p);
-                        comp_sz += p;
-                    } while (pres == HSER_POLL_MORE && comp_sz < sizeof(compressed));
-                }
-                
-                heatshrink_encoder_finish(hse);
-                
-                // Poll remaining output after finish
-                HSE_poll_res pres;
-                do {
-                    size_t p = 0;
-                    pres = heatshrink_encoder_poll(hse, &compressed[comp_sz], 
-                                                   sizeof(compressed) - comp_sz, &p);
-                    comp_sz += p;
-                } while (pres == HSER_POLL_MORE && comp_sz < sizeof(compressed));
-                
-                heatshrink_encoder_free(hse);
-                
-                if (comp_sz > 0) {
-                    printf("[FILE] Compressed %zu -> %zu bytes.\n", payload_len, comp_sz);
-                    memcpy(message_buffer, compressed, comp_sz);
-                    msg_len = comp_sz;
-                    current_msg_type = MSG_TYPE_FILE;
-                } else {
-                    printf("[FILE] Comp failed (0 bytes). Sending raw.\n");
-                    memmove(message_buffer, payload, payload_len);
-                    msg_len = payload_len;
-                    current_msg_type = MSG_TYPE_FILE;
-                }
-            } else {
-                printf("[FILE] Alloc failed. Sending raw.\n");
-                memmove(message_buffer, payload, payload_len);
-                msg_len = payload_len;
-                current_msg_type = MSG_TYPE_FILE;
-            }
+            // TEST MODE: Skip compression, send as regular encrypted message
+            printf("[FILE] TEST MODE - NO COMPRESSION. Sending %zu bytes as regular message.\n", payload_len);
+            memmove(message_buffer, payload, payload_len);
+            msg_len = payload_len;
+            current_msg_type = MSG_TYPE_ENCRYPTED;  // Send as regular message
         }
 
         if (strncmp(message_buffer, "CMD:", 4) == 0) {
@@ -511,8 +403,7 @@ int main() {
         size_t payload_len = SST_NONCE_SIZE + msg_len + SST_TAG_SIZE;
         uint8_t len_bytes[2] = {(payload_len >> 8) & 0xFF, payload_len & 0xFF};
         
-        // Build CRC buffer: TYPE + LEN + NONCE + CIPHERTEXT + TAG
-        uint8_t crc_buf[1 + 2 + SST_NONCE_SIZE + 8192 + SST_TAG_SIZE];  // Increased to match message buffer
+        // Build CRC buffer: TYPE + LEN + NONCE + CIPHERTEXT + TAG (uses static crc_buf)
         size_t crc_idx = 0;
         crc_buf[crc_idx++] = current_msg_type;
         crc_buf[crc_idx++] = len_bytes[0];
@@ -524,17 +415,44 @@ int main() {
         uint16_t crc = crc16_ccitt(crc_buf, crc_idx);
         uint8_t crc_bytes[2] = {(crc >> 8) & 0xFF, crc & 0xFF};
         
-        // Send frame
+        // Send frame with delays between ALL components for receiver stability
+        printf("[TX] Sending frame: type=0x%02X, payload_len=%zu, total=%zu bytes\n", 
+               current_msg_type, payload_len, 4 + 1 + 2 + payload_len + 2);
+        
+        // Send preamble and header
         uart_putc_raw(UART_ID, PREAMBLE_BYTE_1);
         uart_putc_raw(UART_ID, PREAMBLE_BYTE_2);
         uart_putc_raw(UART_ID, PREAMBLE_BYTE_3);
         uart_putc_raw(UART_ID, PREAMBLE_BYTE_4);
         uart_putc_raw(UART_ID, current_msg_type);
         uart_write_blocking(UART_ID, len_bytes, 2);
+        uart_tx_wait_blocking(UART_ID);
+        sleep_us(1000);  // 1ms after header
+        
+        // Send nonce in small chunks
         uart_write_blocking(UART_ID, nonce, SST_NONCE_SIZE);
-        uart_write_blocking(UART_ID, ciphertext, msg_len);
+        uart_tx_wait_blocking(UART_ID);
+        sleep_us(1000);  // 1ms after nonce
+        
+        // Send ciphertext in 32-byte chunks with delays
+        const size_t CHUNK_SIZE = 32;
+        for (size_t offset = 0; offset < msg_len; offset += CHUNK_SIZE) {
+            size_t chunk = (msg_len - offset > CHUNK_SIZE) ? CHUNK_SIZE : (msg_len - offset);
+            uart_write_blocking(UART_ID, ciphertext + offset, chunk);
+            uart_tx_wait_blocking(UART_ID);
+            sleep_us(1000);  // 1ms after each chunk
+        }
+        
+        // Send tag in chunks
         uart_write_blocking(UART_ID, tag, SST_TAG_SIZE);
+        uart_tx_wait_blocking(UART_ID);
+        sleep_us(1000);  // 1ms after tag
+        
+        // Send CRC
         uart_write_blocking(UART_ID, crc_bytes, 2);
+        uart_tx_wait_blocking(UART_ID);
+        
+        printf("[TX] Frame sent successfully\n");
 
         gpio_put(25, 1);
         sleep_ms(100);

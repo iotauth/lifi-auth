@@ -122,32 +122,46 @@ def handle_bulk_text(message):
     conn = serial_conn
     if conn and conn.is_open:
         try:
-            # Send the ENTIRE file with FILEB: prefix (File Blob)
-            # Pico will buffer until newline, then compress and send the whole thing
-            # Max size limited by Pico's buffer (we'll increase it to 8KB)
-            MAX_FILE_SIZE = 8000  # 8KB limit for Pico RAM safety
+            # Send in small chunks to fit within optical link's reliable window
+            # Keep chunks small - similar to manually typed messages
+            CHUNK_SIZE = 100  # Small chunks for reliability
             
-            if original_bytes > MAX_FILE_SIZE:
-                emit('log_message', {'data': f"Warning: File too large ({original_bytes} bytes). Truncating to {MAX_FILE_SIZE} bytes."})
-                data = data[:MAX_FILE_SIZE]
+            lines = data.split('\n')
+            current_chunk = ""
+            chunk_num = 0
+            total_chunks = (len(data) + CHUNK_SIZE - 1) // CHUNK_SIZE
             
-            # Replace internal newlines with a placeholder to send as single line
-            # Using ␊ (U+240A) as placeholder for newlines
-            data_escaped = data.replace('\n', '␊').replace('\r', '')
+            emit('log_message', {'data': f"Splitting into ~{total_chunks} chunks for reliability..."})
             
-            # Send single command: FILEB:<entire_file_content>\n
-            full_cmd = "FILEB:" + data_escaped + "\n"
-            
-            emit('log_message', {'data': f"Sending entire file as single blob ({len(data_escaped)} bytes)..."})
-            
-            with serial_lock:
-                if conn and conn.is_open:
-                    conn.write(full_cmd.encode('utf-8'))
-                    conn.flush()
+            for line in lines:
+                # If adding this line would exceed chunk size, send current chunk first
+                if len(current_chunk) + len(line) + 1 > CHUNK_SIZE and current_chunk:
+                    chunk_num += 1
+                    cmd = "FILE:" + current_chunk + "\n"
+                    with serial_lock:
+                        if conn and conn.is_open:
+                            conn.write(cmd.encode('utf-8'))
+                            conn.flush()
+                        else:
+                            raise Exception("Serial port closed")
+                    time.sleep(1.5)  # Longer delay for optical transmission reliability
+                    current_chunk = ""
+                
+                if current_chunk:
+                    current_chunk += "\n" + line
                 else:
-                    raise Exception("Serial port closed during transmission")
+                    current_chunk = line
             
-            emit('log_message', {'data': f"✓ File blob sent. Pico will compress and transmit."})
+            # Send remaining chunk
+            if current_chunk:
+                chunk_num += 1
+                cmd = "FILE:" + current_chunk + "\n"
+                with serial_lock:
+                    if conn and conn.is_open:
+                        conn.write(cmd.encode('utf-8'))
+                        conn.flush()
+            
+            emit('log_message', {'data': f"✓ File sent in {chunk_num} chunks"})
             
         except Exception as e:
             print(f"Serial Write Error (Bulk): {e}")
