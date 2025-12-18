@@ -498,10 +498,14 @@ int main(int argc, char* argv[]) {
                 case 'C': {
                     werase(win_log);
                     wrefresh(win_log);
+
+                    werase(win_cmd);
+                    wrefresh(win_cmd);
+
                     unsigned long saved = stats.keys_consumed;
                     memset(&stats, 0, sizeof(stats));
                     stats.keys_consumed = saved;
-                    cmd_printf("Logs and Statistics (except Keys Consumed) cleared.");
+                    cmd_printf("Logs and Statistics (except Keys) cleared.");
                     break;
                 }
 
