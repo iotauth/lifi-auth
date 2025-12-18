@@ -225,7 +225,7 @@ int main(int argc, char* argv[]) {
                 explicit_bzero(pending_key, sizeof pending_key);
                 // keep old key; key_valid stays true
             } else if (state == STATE_WAITING_FOR_HMAC_RESP) {
-                printf("HMAC challenge timed out. Pico did not respond.\n");
+                printf("\033[0;31mHMAC challenge timed out. Pico did not respond.\033[0m\n");
                 explicit_bzero(pending_challenge, sizeof(pending_challenge));
                 challenge_active = false;
             }
