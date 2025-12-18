@@ -25,7 +25,7 @@ int init_serial(const char* device, int baudrate) {
     opt.c_cflag &= ~(PARENB | CSTOPB | CSIZE);
     opt.c_cflag |= CS8;
     opt.c_cc[VMIN] = 1;
-    opt.c_cc[VTIME] = 1;
+    opt.c_cc[VTIME] = 30;  // 3 second timeout (was 0.1s) for large transfers
 
     if (tcsetattr(fd, TCSANOW, &opt) != 0) {
         perror("tcsetattr");
