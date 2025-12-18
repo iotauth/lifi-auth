@@ -40,7 +40,7 @@
 #define UART_DEVICE "/dev/serial0"
 #include <termios.h>
 #ifndef UART_BAUDRATE_TERMIOS
-#define UART_BAUDRATE_TERMIOS B115200  // Reduced from B1000000 for optical reliability
+#define UART_BAUDRATE_TERMIOS B1000000
 #endif
 #endif
 
