@@ -731,10 +731,12 @@ int main(int argc, char* argv[]) {
                                         size_t sunk = 0;
                                         heatshrink_decoder_sink(hsd, decrypted, ctext_len, &sunk);
                                         
-                                        uint8_t decompressed[4096];
+                                        // Increased buffer for large files
+                                        uint8_t decompressed[16384];
                                         size_t total_decomp = 0;
                                         HSD_poll_res pres;
                                         
+                                        // First poll to get initial output
                                         do {
                                             size_t p = 0;
                                             pres = heatshrink_decoder_poll(hsd, &decompressed[total_decomp], 
@@ -742,7 +744,15 @@ int main(int argc, char* argv[]) {
                                             total_decomp += p;
                                         } while (pres == HSDR_POLL_MORE && total_decomp < sizeof(decompressed));
                                         
+                                        // Finish decoder and poll remaining output
                                         heatshrink_decoder_finish(hsd);
+                                        do {
+                                            size_t p = 0;
+                                            pres = heatshrink_decoder_poll(hsd, &decompressed[total_decomp], 
+                                                                           sizeof(decompressed) - total_decomp, &p);
+                                            total_decomp += p;
+                                        } while (pres == HSDR_POLL_MORE && total_decomp < sizeof(decompressed));
+                                        
                                         heatshrink_decoder_free(hsd);
                                         
                                         // Null terminate for safer printing (if text)
