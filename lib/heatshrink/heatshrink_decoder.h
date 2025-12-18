@@ -41,6 +41,10 @@ typedef enum {
     (HEATSHRINK_STATIC_LOOKAHEAD_BITS)
 #endif
 
+/* Backref bit macros for decoder */
+#define BACKREF_INDEX_BITS(HSD) (HEATSHRINK_DECODER_WINDOW_BITS(HSD))
+#define BACKREF_COUNT_BITS(HSD) (HEATSHRINK_DECODER_LOOKAHEAD_BITS(HSD))
+
 typedef struct {
     uint16_t input_size;        /* bytes in input buffer */
     uint16_t input_index;       /* offset to next unprocessed input byte */

@@ -21,7 +21,7 @@ static const char *state_names[] = {
     "yield_backref",
 };
 
-#endif
+
 typedef struct {
     uint8_t *buf;               /* output buffer */
     size_t buf_size;            /* buffer size */

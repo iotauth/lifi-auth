@@ -1,6 +1,14 @@
 #ifndef HEATSHRINK_CONFIG_H
 #define HEATSHRINK_CONFIG_H
 
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <assert.h>
+#include <ctype.h>
+
 /* Should functionality assuming dynamic allocation be used? */
 #ifndef HEATSHRINK_DYNAMIC_ALLOC
 #define HEATSHRINK_DYNAMIC_ALLOC 1
@@ -19,6 +27,13 @@
 
 /* Turn on logging for debugging. */
 #define HEATSHRINK_DEBUGGING_LOGS 0
+
+#if HEATSHRINK_DEBUGGING_LOGS
+    #include <stdio.h>
+    #define LOG(...) fprintf(stderr, __VA_ARGS__)
+#else
+    #define LOG(...) /* no-op */
+#endif
 
 /* Use indexing for faster compression. (This requires additional space.) */
 #define HEATSHRINK_USE_INDEX 1

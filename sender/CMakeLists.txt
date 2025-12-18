@@ -5,7 +5,7 @@ project(sender_project C CXX ASM)
 # Don't import the SDK again here.
 
 add_executable(lifi_session_sender 
-  src/lifi_flash.c
+  src/lifi_session_sender.c
 )
 
 # Make sure the app sees mbedTLS config (not the SDK default)
@@ -24,6 +24,7 @@ target_link_libraries(lifi_session_sender PRIVATE
   pico_rand
   pico_platform
   sst_embedded
+  heatshrink
 )
 
 # stdio + binary artifacts

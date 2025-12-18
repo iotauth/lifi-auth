@@ -26,7 +26,7 @@ static const char *state_names[] = {
     "done",
 };
 
-#endif
+
 // Encoder flags
 enum {
     FLAG_IS_FINISHING = 0x01,
@@ -377,7 +377,7 @@ static void add_tag_bit(heatshrink_encoder *hse, output_info *oi, uint8_t tag) {
 static uint16_t get_input_offset(heatshrink_encoder *hse) {
     return get_input_buffer_size(hse);
 }
-#endif
+
 static uint16_t get_input_buffer_size(heatshrink_encoder *hse) {
     return (1 << HEATSHRINK_ENCODER_WINDOW_BITS(hse));
     (void)hse;
