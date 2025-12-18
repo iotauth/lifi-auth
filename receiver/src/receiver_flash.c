@@ -226,7 +226,7 @@ static void mid_draw_keypanel(const session_key_t* s_key,
     // Shortcuts menu at bottom of mid panel
     int menu_r = h - 2;
     // Use A_DIM or just normal
-    mvwprintw(win_mid, menu_r, 2, "[1] Send Key  [2] Challenge  [s] Status  [f] Force Key  [r] Reopen  [q] Quit");
+    mvwprintw(win_mid, menu_r, 2, "[1] Send Key  [2] Challenge  [s] Stats  [c] Clear logs  [f] Force Key  [r] Reopen  [q] Quit");
 
     wrefresh(win_mid);
 }
@@ -277,7 +277,18 @@ static int write_all(int fd, const void* buf, size_t len) {
     return (sent == len) ? 0 : -1;
 }
 
+// --- Session Statistics ---
+typedef struct {
+    unsigned long total_pkts;
+    unsigned long decrypt_success;
+    unsigned long decrypt_fail;
+    unsigned long replay_blocked;
+    unsigned long timeouts;
+    unsigned long bad_preamble;
+} SessionStats;
+
 int main(int argc, char* argv[]) {
+    SessionStats stats = {0};
 
     const char* config_path = NULL;
 
@@ -468,16 +479,25 @@ int main(int argc, char* argv[]) {
 
                 case 's':
                 case 'S': {
-                    cmd_printf("--- Status Report ---");
-                    cmd_printf("Serial: %s", (fd >= 0) ? "OPEN" : "CLOSED");
-                    cmd_printf("UART Device: %s", UART_DEVICE);
-                    cmd_printf("Key valid: %s", key_valid ? "YES" : "NO");
+                    cmd_printf("--- Session Statistics ---");
+                    cmd_printf("Packets RX:      %lu", stats.total_pkts);
+                    cmd_printf("Decrypt Success: %lu", stats.decrypt_success);
+                    cmd_printf("Decrypt Fail:    %lu", stats.decrypt_fail);
+                    cmd_printf("Replays Blocked: %lu", stats.replay_blocked);
+                    cmd_printf("Timeouts:        %lu", stats.timeouts);
+                    cmd_printf("Bad Preambles:   %lu", stats.bad_preamble);
                     if (key_valid) {
-                        cmd_hex("Key ID: ", s_key.key_id, SESSION_KEY_ID_SIZE);
-                        cmd_hex("Session Key: ", s_key.cipher_key, SESSION_KEY_SIZE);
+                         cmd_hex("Key ID: ", s_key.key_id, SESSION_KEY_ID_SIZE);
                     }
-                    cmd_printf("State: %d", state);
-                    cmd_printf("---------------------");
+                    cmd_printf("--------------------------");
+                    break;
+                }
+
+                case 'c':
+                case 'C': {
+                    werase(win_log);
+                    wrefresh(win_log);
+                    cmd_printf("Logs cleared.");
                     break;
                 }
 
@@ -541,6 +561,7 @@ int main(int argc, char* argv[]) {
             } else if (state == STATE_WAITING_FOR_HMAC_RESP) {
                 // The partial line "3.. 2.. 1.. 0.." needs a newline before the error
                 cmd_printf("\nHMAC challenge timed out. Pico did not respond.\n");
+                stats.timeouts++;
                 explicit_bzero(pending_challenge, sizeof(pending_challenge));
                 challenge_active = false;
             }
@@ -565,12 +586,14 @@ int main(int argc, char* argv[]) {
                         uart_state = 2;
                     } else {
                         log_printf("Bad second preamble byte: 0x%02X\n", byte);
+                        stats.bad_preamble++;
                         uart_state = 0;
                     }
                     break;
 
                 case 2:
                     if (byte == MSG_TYPE_ENCRYPTED) {
+                        stats.total_pkts++;
                         uint8_t nonce[NONCE_SIZE];
                         uint8_t len_bytes[2];
 
@@ -585,6 +608,7 @@ int main(int argc, char* argv[]) {
                         // --- Nonce Replay Check ---
                         if (replay_window_seen(&rwin, nonce)) {
                             log_printf("Nonce replayed! Rejecting message.\n");
+                            stats.replay_blocked++;
                             uart_state = 0;
                             continue;
                         }
@@ -628,6 +652,7 @@ int main(int argc, char* argv[]) {
                                     '\0';  // Null-terminate the decrypted
                                            // message
                                 log_printf("%s\n", decrypted);
+                                stats.decrypt_success++;
 
                                 // If the decrypted message is "I have the key",
                                 // stop sending the key.
@@ -777,6 +802,7 @@ int main(int argc, char* argv[]) {
                             } else {
                                 // AES-GCM decryption failed
                                 log_printf("AES-GCM decryption failed: %d\n", ret);
+                                stats.decrypt_fail++;
                             }
 
                         } else {
