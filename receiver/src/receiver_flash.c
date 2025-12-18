@@ -727,21 +727,70 @@ int main(int argc, char* argv[]) {
                                         state = STATE_IDLE;
                                     }
 
-                                    // ... Other commands (I have the key, new key, etc) ...
+                                    // ... Other commands ...
                                     else if (strcmp((char*)decrypted, "I have the key") == 0) {
                                          log_printf("Pico has confirmed receiving the key.\n");
                                     }
+                                    
+                                    // Handle "new key -f" (Force Update)
                                     else if (strcmp((char*)decrypted, "new key -f") == 0) {
-                                         // ... logic ...
-                                         cmd_printf("Received 'new key -f'. Requesting new key...\n");
-                                         // Trigger 'f' logic internally or set flag
-                                         // Simplified for brevity:
-                                         free_session_key_list_t(key_list);
-                                         key_list = get_session_key(sst, init_empty_session_key_list());
-                                         // ... (send key logic duplicated from main loop or use goto)
-                                         // For now, let's just print.
+                                        cmd_printf("Received 'new key -f' command. Requesting new key...\n");
+
+                                        free_session_key_list_t(key_list);
+                                        key_list = get_session_key(sst, init_empty_session_key_list());
+                                        
+                                        if (!key_list || key_list->num_key == 0) {
+                                            cmd_printf("Failed to fetch new session key.\n");
+                                        } else {
+                                            memcpy(pending_key, key_list->s_key[0].cipher_key, SESSION_KEY_SIZE);
+                                            stats.keys_consumed++;
+                                            cmd_hex("New Session Key (pending ACK): ", pending_key, SESSION_KEY_SIZE);
+                                            key_valid = true;
+
+                                            uint8_t preamble[2] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2};
+                                            write_all(fd, preamble, 2);
+                                            write_all(fd, key_list->s_key[0].key_id, SESSION_KEY_ID_SIZE);
+                                            write_all(fd, pending_key, SESSION_KEY_SIZE);
+                                            
+                                            // 5ms sleep to let transmission complete
+                                            usleep(5000);  
+                                            
+                                            cmd_printf("Sent new session key to Pico. Waiting 5s for ACK...\n");
+                                            state = STATE_WAITING_FOR_ACK;
+                                            clock_gettime(CLOCK_MONOTONIC, &state_deadline);
+                                            state_deadline.tv_sec += 5;
+                                        }
                                     }
-                                    // ... etc ...
+                                    
+                                    // Handle "new key" (Rate Limited Request)
+                                    else if (strcmp((char*)decrypted, "new key") == 0) {
+                                        time_t now = time(NULL);    
+                                        if (now - last_key_req_time < KEY_UPDATE_COOLDOWN_S) {
+                                            cmd_printf("Rate limit: another new key request too soon. Ignoring.\n");
+                                        } else {
+                                            last_key_req_time = now;
+                                            cmd_printf("Received 'new key' command. Waiting 5s for 'yes' confirmation...\n");
+                                            state = STATE_WAITING_FOR_YES;
+                                            clock_gettime(CLOCK_MONOTONIC, &state_deadline);
+                                            state_deadline.tv_sec += 5;
+                                        }
+                                    }
+                                    
+                                    // Handle key confirmation ACK
+                                    else if (state == STATE_WAITING_FOR_ACK && strcmp((char*)decrypted, "ACK") == 0) {
+                                        cmd_printf("ACK received. Finalizing key update.\n");
+                                        memcpy(s_key.cipher_key, pending_key, SESSION_KEY_SIZE);
+                                        // Also copy ID if we tracked pending ID, but for now assuming list[0] is source of truth
+                                        if (key_list && key_list->num_key > 0) {
+                                            memcpy(s_key.key_id, key_list->s_key[0].key_id, SESSION_KEY_ID_SIZE);
+                                        }
+                                        
+                                        explicit_bzero(pending_key, sizeof(pending_key));
+                                        cmd_hex("New key is now active: ", s_key.cipher_key, SESSION_KEY_SIZE);
+                                        
+                                        state = STATE_IDLE;
+                                        mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
+                                    }
                                 }
                                 
                                 stats.decrypt_success++;
