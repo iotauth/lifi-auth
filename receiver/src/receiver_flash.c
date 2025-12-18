@@ -666,15 +666,22 @@ int main(int argc, char* argv[]) {
                         uint8_t tag[TAG_SIZE];
                         uint8_t crc_bytes[2];
                         
-                        // Read all payload components
-                        if (read_exact(fd, nonce, NONCE_SIZE) != NONCE_SIZE ||
-                            read_exact(fd, ciphertext, ctext_len) != (ssize_t)ctext_len ||
-                            read_exact(fd, tag, TAG_SIZE) != TAG_SIZE ||
-                            read_exact(fd, crc_bytes, 2) != 2) {
-                            log_printf("Failed to read frame data\\n");
+                        // Read all payload components with detailed logging
+                        ssize_t nonce_read = read_exact(fd, nonce, NONCE_SIZE);
+                        ssize_t cipher_read = read_exact(fd, ciphertext, ctext_len);
+                        ssize_t tag_read = read_exact(fd, tag, TAG_SIZE);
+                        ssize_t crc_read = read_exact(fd, crc_bytes, 2);
+                        
+                        if (nonce_read != NONCE_SIZE || cipher_read != (ssize_t)ctext_len ||
+                            tag_read != TAG_SIZE || crc_read != 2) {
+                            log_printf("Read fail: nonce=%zd/%d, cipher=%zd/%u, tag=%zd/%d, crc=%zd/2\n",
+                                       nonce_read, NONCE_SIZE, cipher_read, ctext_len, 
+                                       tag_read, TAG_SIZE, crc_read);
                             uart_state = 0;
                             continue;
                         }
+                        
+                        log_printf("Frame read OK: %u bytes payload\n", payload_len);
                         
                         // Validate CRC16
                         uint8_t crc_buf[1 + 2 + NONCE_SIZE + MAX_MSG_LEN + TAG_SIZE];
