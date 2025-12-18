@@ -4,9 +4,19 @@
 #define PROTO_VERSION 1
 
 /* -------- Framing -------- */
+/* New 4-byte preamble (1 in 4 billion false positive rate) */
 #define PREAMBLE_BYTE_1 0xAB
 #define PREAMBLE_BYTE_2 0xCD
+#define PREAMBLE_BYTE_3 0xEF
+#define PREAMBLE_BYTE_4 0x12
+#define PREAMBLE_SIZE   4
+
+/* Message types */
 #define MSG_TYPE_ENCRYPTED 0x02
+#define MSG_TYPE_CHALLENGE 0x04
+#define MSG_TYPE_RESPONSE  0x05
+#define MSG_TYPE_FILE      0x06
+#define MSG_TYPE_KEY       0x10  /* Key provisioning */
 
 /* Cooldown to avoid thrashing key updates */
 #define KEY_UPDATE_COOLDOWN_S 15
@@ -17,6 +27,7 @@
 #define TAG_SIZE 16
 #define NONCE_HISTORY_SIZE 64
 #define MAX_MSG_LEN 1024
+#define CRC16_SIZE 2
 
 /* -------- Shared tokens -------- */
 #define KE_TOKEN_ACK_1 "ACK"
@@ -42,9 +53,6 @@
 #endif
 
 // HMAC Handshake
-#define MSG_TYPE_CHALLENGE  0x04
-#define MSG_TYPE_RESPONSE   0x05
-#define MSG_TYPE_FILE       0x06
 #define CHALLENGE_SIZE      32
 #define HMAC_SIZE           32
 

@@ -23,6 +23,7 @@
 #include "serial_linux.h"
 #include "sst_crypto_embedded.h"  // brings in sst_decrypt_gcm prototype and sizes
 #include "heatshrink_decoder.h"
+#include "../../include/crc16.h"
 #include "utils.h"
 
 // ncurses for ui on pi4
@@ -370,7 +371,7 @@ int main(int argc, char* argv[]) {
     struct timespec next_send = {0};
     clock_gettime(CLOCK_MONOTONIC, &next_send);  // send immediately
 
-    const uint8_t preamble[2] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2};
+    const uint8_t preamble[4] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4};
     // Automatic handshake REMOVED - waitForUser to press [1]
 
     // UART framing state
@@ -465,8 +466,11 @@ int main(int argc, char* argv[]) {
                         break;
                     }
 
-                    uint8_t msg[] = { PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_CHALLENGE };
+                    uint8_t msg[] = { PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4, MSG_TYPE_CHALLENGE };
+                    // For challenge, send: [PREAMBLE:4][TYPE:1][LEN:2][CHALLENGE:32]
+                    uint8_t len_bytes[2] = {0, CHALLENGE_SIZE};
                     if (write_all(fd, msg, sizeof msg) < 0 ||
+                        write_all(fd, len_bytes, 2) < 0 ||
                         write_all(fd, pending_challenge, CHALLENGE_SIZE) < 0) {
                         cmd_printf("Error: Failed to send challenge.");
                     } else {
@@ -608,87 +612,124 @@ int main(int argc, char* argv[]) {
                 case 0:
                     if (byte == PREAMBLE_BYTE_1) {
                         uart_state = 1;
-                    } else {
-                        log_printf("Waiting: got 0x%02X (Hint: Check optical alignment)\n", byte);
-                        stats.bad_preamble++;
                     }
                     break;
                 case 1:
                     if (byte == PREAMBLE_BYTE_2) {
                         uart_state = 2;
                     } else {
-                        log_printf("Bad second preamble byte: 0x%02X\n", byte);
-                        stats.bad_preamble++;
+                        uart_state = 0;
+                    }
+                    break;
+                case 2:
+                    if (byte == PREAMBLE_BYTE_3) {
+                        uart_state = 3;
+                    } else {
+                        uart_state = 0;
+                    }
+                    break;
+                case 3:
+                    if (byte == PREAMBLE_BYTE_4) {
+                        uart_state = 4; // Preamble complete, next is TYPE
+                    } else {
                         uart_state = 0;
                     }
                     break;
 
-                case 2:
+                case 4:
+                    // TYPE byte received
                     if (byte == MSG_TYPE_ENCRYPTED || byte == MSG_TYPE_FILE) {
                         uint8_t packet_type = byte; 
                         stats.total_pkts++;
-                        uint8_t nonce[NONCE_SIZE];
+                        
+                        // Read length (2 bytes)
                         uint8_t len_bytes[2];
-
-                        // Read nonce + length
-                        if (read_exact(fd, nonce, NONCE_SIZE) != NONCE_SIZE ||
-                            read_exact(fd, len_bytes, 2) != 2) {
-                            log_printf("Failed to read nonce or length\n");
+                        if (read_exact(fd, len_bytes, 2) != 2) {
+                            log_printf("Failed to read length\\n");
                             uart_state = 0;
                             continue;
                         }
-
+                        
+                        // Length = NONCE + CIPHERTEXT + TAG
+                        uint16_t payload_len = ((uint16_t)len_bytes[0] << 8) | len_bytes[1];
+                        if (payload_len < NONCE_SIZE + TAG_SIZE || payload_len > MAX_MSG_LEN) {
+                            log_printf("Invalid payload length: %u bytes\\n", payload_len);
+                            uart_state = 0;
+                            continue;
+                        }
+                        
+                        // Calculate ciphertext length
+                        uint16_t ctext_len = payload_len - NONCE_SIZE - TAG_SIZE;
+                        
+                        uint8_t nonce[NONCE_SIZE];
+                        uint8_t ciphertext[ctext_len];
+                        uint8_t tag[TAG_SIZE];
+                        uint8_t crc_bytes[2];
+                        
+                        // Read all payload components
+                        if (read_exact(fd, nonce, NONCE_SIZE) != NONCE_SIZE ||
+                            read_exact(fd, ciphertext, ctext_len) != (ssize_t)ctext_len ||
+                            read_exact(fd, tag, TAG_SIZE) != TAG_SIZE ||
+                            read_exact(fd, crc_bytes, 2) != 2) {
+                            log_printf("Failed to read frame data\\n");
+                            uart_state = 0;
+                            continue;
+                        }
+                        
+                        // Validate CRC16
+                        uint8_t crc_buf[1 + 2 + NONCE_SIZE + MAX_MSG_LEN + TAG_SIZE];
+                        size_t crc_idx = 0;
+                        crc_buf[crc_idx++] = packet_type;
+                        crc_buf[crc_idx++] = len_bytes[0];
+                        crc_buf[crc_idx++] = len_bytes[1];
+                        memcpy(&crc_buf[crc_idx], nonce, NONCE_SIZE); crc_idx += NONCE_SIZE;
+                        memcpy(&crc_buf[crc_idx], ciphertext, ctext_len); crc_idx += ctext_len;
+                        memcpy(&crc_buf[crc_idx], tag, TAG_SIZE); crc_idx += TAG_SIZE;
+                        
+                        uint16_t computed_crc = crc16_ccitt(crc_buf, crc_idx);
+                        uint16_t received_crc = ((uint16_t)crc_bytes[0] << 8) | crc_bytes[1];
+                        
+                        if (computed_crc != received_crc) {
+                            log_printf("CRC16 mismatch! computed=0x%04X received=0x%04X\\n", 
+                                       computed_crc, received_crc);
+                            stats.decrypt_fail++;
+                            uart_state = 0;
+                            continue;
+                        }
+                        
                         // --- Nonce Replay Check ---
                         if (replay_window_seen(&rwin, nonce)) {
-                            log_printf("Nonce replayed! Rejecting message.\n");
+                            log_printf("Nonce replayed! Rejecting message.\\n");
                             stats.replay_blocked++;
                             uart_state = 0;
                             continue;
                         }
                         replay_window_add(&rwin, nonce);
+                        
+                        uint8_t decrypted[ctext_len + 1];  // for null-terminator
 
-                        // Length -> host order + bounds check
-                        uint16_t msg_len =
-                            ((uint16_t)len_bytes[0] << 8) | len_bytes[1];
-                        if (msg_len == 0 ||
-                            msg_len >
-                                1024) {  // or use MAX_MSG_LEN from protocol.h
-                            log_printf("Message too long: %u bytes\n", msg_len);
+                        if (!key_valid) {  // Skip decryption if key was
+                                           // cleared and not yet rotated
+                            log_printf(
+                                "No valid session key. Rejecting encrypted "
+                                "message.\\n");
                             uart_state = 0;
                             continue;
                         }
 
-                        // read payload
-                        uint8_t ciphertext[msg_len];
-                        uint8_t tag[TAG_SIZE];
-                        uint8_t decrypted[msg_len + 1];  // for null-terminator
+                        int ret = sst_decrypt_gcm(s_key.cipher_key, nonce,
+                                                  ciphertext, ctext_len, tag,
+                                                  decrypted);
 
-                        ssize_t c = read_exact(fd, ciphertext, msg_len);
-                        ssize_t t = read_exact(fd, tag, TAG_SIZE);
-
-                        if (c == msg_len && t == TAG_SIZE) {
-                            if (!key_valid) {  // Skip decryption if key was
-                                               // cleared and not yet rotated
-                                log_printf(
-                                    "No valid session key. Rejecting encrypted "
-                                    "message.\n");
-                                uart_state = 0;
-                                continue;
-                            }
-
-                            int ret = sst_decrypt_gcm(s_key.cipher_key, nonce,
-                                                      ciphertext, msg_len, tag,
-                                                      decrypted);
-
-                            if (ret == 0) {  // Successful decryption
-                                decrypted[msg_len] = '\0';  // Null-terminate
+                        if (ret == 0) {  // Successful decryption
+                            decrypted[ctext_len] = '\0';  // Null-terminate
 
                                 // Handle File Transfer
                                 if (packet_type == MSG_TYPE_FILE) {
                                     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 8, 4);
                                     if (hsd) {
                                         size_t sunk = 0;
-                                        heatshrink_decoder_sink(hsd, decrypted, msg_len, &sunk);
+                                        heatshrink_decoder_sink(hsd, decrypted, ctext_len, &sunk);
                                         
                                         uint8_t decompressed[4096];
                                         size_t total_decomp = 0;
@@ -707,7 +748,7 @@ int main(int argc, char* argv[]) {
                                         // Null terminate for safer printing (if text)
                                         if (total_decomp < sizeof(decompressed)) decompressed[total_decomp] = '\0';
                                         
-                                        log_printf("[FILE] Decompressed %d -> %zu bytes\n", msg_len, total_decomp);
+                                        log_printf("[FILE] Decompressed %u -> %zu bytes\n", ctext_len, total_decomp);
                                         log_printf("[FILE] Content: %s\n", decompressed);
 
                                         FILE *f_out = fopen("received_file.txt", "a");
@@ -831,12 +872,7 @@ int main(int argc, char* argv[]) {
                                 stats.decrypt_fail++;
                             }
 
-                        } else {
-                            log_printf("Incomplete ciphertext or tag.\n");
-                        }
                         uart_state = 0;  // Reset uart_state machine
-                    } else {
-                        uart_state = 0;
                     }
                     break;
                 default:
