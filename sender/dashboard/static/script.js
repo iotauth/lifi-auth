@@ -80,7 +80,10 @@ socket.on('log_message', function (msg) {
     }
 });
 
+var currentActiveSlot = null;
+
 function updateActiveSlot(slot) {
+    currentActiveSlot = slot;
     // Update button states
     document.getElementById('btn-slot-a').classList.remove('active');
     document.getElementById('btn-slot-B').classList.remove('active'); // Note ID capitalization in HTML
@@ -89,19 +92,22 @@ function updateActiveSlot(slot) {
     if (slot === 'B') document.getElementById('btn-slot-B').classList.add('active');
 }
 
-function updateKeyID(keyHex) {
-    // If exact 8-byte ID (16 hex chars), display as is (maybe add ... to indicate it's an ID for a longer key?)
-    // User requested "display the Key ID".
-    // Let's display it as "ID: [8 bytes]"
-    // But previous logic was "substring(0,16) + '...'".
-    // If input is 16 chars, substring(0,16) is the whole thing.
-    // So "1234...CDEF..."
-    // Let's just use it up to 16 chars.
-    let display = keyHex;
-    if (display.length > 16) {
-        display = display.substring(0, 16);
+function switchSlot(slot) {
+    // If already on this slot, do not send command
+    if (currentActiveSlot === slot) {
+        return;
     }
-    document.getElementById('key-id').textContent = display + '...';
+
+    // Send command and optimistically update UI
+    sendCommand('CMD: use slot ' + slot);
+    updateActiveSlot(slot);
+}
+
+function updateKeyID(keyHex) {
+    // format as XX XX XX XX
+    // "00112233" -> "00 11 22 33"
+    const formatted = keyHex.match(/.{1,2}/g).join(' ');
+    document.getElementById('key-id').textContent = formatted;
 }
 
 function updateStatus(text, isOnline) {
@@ -224,3 +230,20 @@ document.getElementById('message-input').addEventListener('keypress', function (
         sendMessage();
     }
 });
+
+function clearLogs() {
+    // Clear Debug Console
+    document.getElementById('log-console').innerHTML = '';
+
+    // Clear Chat History (preserve system welcome message if desired, or nuke all)
+    // User asked to clear "secure transmission stream chat AND Debug log section"
+    // So distinct clear.
+    const history = document.getElementById('chat-history');
+    history.innerHTML = '';
+
+    // Optionally restore the system message
+    const msgDiv = document.createElement('div');
+    msgDiv.classList.add('message', 'system');
+    msgDiv.innerHTML = '<span class="timestamp">[SYSTEM]</span> Logs cleared.';
+    history.appendChild(msgDiv);
+}

@@ -96,7 +96,7 @@ body {
     cursor: pointer;
     padding: 2px 8px;
     font-size: 0.8rem;
-    min-width: 30px;
+    min-width: 60px;
 }
 
 .btn-mini.active {
@@ -127,6 +127,14 @@ body {
 
 .status-item .value.offline {
     color: var(--accent-red);
+}
+
+#key-id {
+    font-size: 1.1rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: var(--accent-green);
+    margin-top: 4px;
 }
 
 .control-group h3 {

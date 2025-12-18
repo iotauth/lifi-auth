@@ -29,24 +29,29 @@
 
             <div class="control-group">
                 <h3>SESSION INFO</h3>
-                <div class="status-item">
+                <div class="status-item" style="justify-content: flex-start; gap: 15px;">
                     <span class="label">ACTIVE SLOT:</span>
                     <div class="slot-toggles">
-                        <button class="btn-mini" id="btn-slot-a" onclick="sendCommand('CMD: use slot A')">A</button>
-                        <button class="btn-mini" id="btn-slot-B" onclick="sendCommand('CMD: use slot B')">B</button>
+                        <button class="btn-mini" id="btn-slot-a" onclick="switchSlot('A')">A</button>
+                        <button class="btn-mini" id="btn-slot-B" onclick="switchSlot('B')">B</button>
                     </div>
                 </div>
                 <div class="status-item column-flex">
-                    <span class="label">KEY:</span>
+                    <span class="label">KEY ID:</span>
                     <span id="key-id" class="value dim tiny-text">--</span>
                 </div>
             </div>
 
             <div class="control-group">
                 <h3>COMMANDS</h3>
-                <button class="btn-cmd" onclick="confirmGenerateKey()">Generate New Key (Force)</button>
-                <button class="btn-cmd warning" onclick="sendCommand('CMD: clear flash')">Clear Flash</button>
-                <button class="btn-cmd" onclick="reconnectSerial()">Reconnect Serial</button>
+                <div class="btn-row">
+                    <button class="btn-cmd half" onclick="confirmGenerateKey()">New Key</button>
+                    <button class="btn-cmd half" onclick="reconnectSerial()">Reconnect</button>
+                </div>
+                <div class="btn-row">
+                    <button class="btn-cmd half warning" onclick="sendCommand('CMD: clear flash')">Clear Flash</button>
+                    <button class="btn-cmd half" onclick="clearLogs()">Clear Log</button>
+                </div>
             </div>
 
             <div class="control-group">

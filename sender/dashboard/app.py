@@ -34,6 +34,10 @@ def read_from_serial():
                 if conn.in_waiting > 0:
                     line = conn.readline().decode('utf-8', errors='replace').rstrip()
                     if line:
+                        # Suppress command echo from Pico (redundant with > CMD:)
+                        if line.startswith("CMD:"):
+                            continue
+                            
                         print(f"[RX] {line}")
                         socketio.emit('log_message', {'data': line})
             except (OSError, serial.SerialException) as e:
@@ -47,15 +51,22 @@ def read_from_serial():
             time.sleep(0.1)
 
 def init_serial():
-    global serial_conn
-    try:
-        new_conn = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
-        serial_conn = new_conn # Atomic assignment
-        print(f"Connected to {SERIAL_PORT}")
-        return True
-    except serial.SerialException as e:
-        print(f"Could not open serial port {SERIAL_PORT}: {e}")
-        return False
+    global serial_conn, SERIAL_PORT
+    ports = ["/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2"]
+    
+    for port in ports:
+        try:
+            print(f"Trying {port}...")
+            new_conn = serial.Serial(port, BAUD_RATE, timeout=1)
+            serial_conn = new_conn
+            SERIAL_PORT = port
+            print(f"Connected to {SERIAL_PORT}")
+            return True
+        except serial.SerialException:
+            pass
+    
+    print(f"Could not open any serial port from {ports}")
+    return False
 
 @app.route('/')
 def index():
@@ -101,51 +112,46 @@ def handle_bulk_text(message):
     
     if not data:
         return
-        
-    lines = data.splitlines()
-    total_lines = len(lines)
-    emit('log_message', {'data': f"Starting file upload: {filename} ({total_lines} lines)"})
+    
+    original_lines = len(data.splitlines())
+    original_bytes = len(data.encode('utf-8'))
+    emit('log_message', {'data': f"Starting file upload: {filename} ({original_lines} lines, {original_bytes} bytes)"})
     
     transmission_running = True
     
-    transmission_running = True
-    
-    # Local ref
     conn = serial_conn
     if conn and conn.is_open:
-        count = 0
         try:
-            for line in lines:
-                if not transmission_running:
-                    emit('log_message', {'data': f"Transmission stopped by user."})
-                    break
-                    
-                # Skip empty lines if desired, or send them as just newline
-                to_send = line.strip()
-                if to_send:
-                    full_cmd = to_send + "\n"
-                    
-                    # Lock for write
-                    with serial_lock: 
-                         # Verify still open and valid inside lock
-                         if conn and conn.is_open:
-                            conn.write(full_cmd.encode('utf-8'))
-                         else:
-                            raise Exception("Serial port closed during transmission")
-
-                    # Small delay to let receiver process and avoid buffer overflow
-                    # 100ms is conservative but safe for simple UART
-                    time.sleep(0.1) 
-                    
-                    count += 1
-                    if count % 10 == 0:
-                       emit('log_message', {'data': f"Sent {count}/{total_lines} lines..."})
+            # Send the ENTIRE file with FILEB: prefix (File Blob)
+            # Pico will buffer until newline, then compress and send the whole thing
+            # Max size limited by Pico's buffer (we'll increase it to 8KB)
+            MAX_FILE_SIZE = 8000  # 8KB limit for Pico RAM safety
             
-            if transmission_running:
-                emit('log_message', {'data': f"File transmission complete: {filename}"})
+            if original_bytes > MAX_FILE_SIZE:
+                emit('log_message', {'data': f"Warning: File too large ({original_bytes} bytes). Truncating to {MAX_FILE_SIZE} bytes."})
+                data = data[:MAX_FILE_SIZE]
+            
+            # Replace internal newlines with a placeholder to send as single line
+            # Using ␊ (U+240A) as placeholder for newlines
+            data_escaped = data.replace('\n', '␊').replace('\r', '')
+            
+            # Send single command: FILEB:<entire_file_content>\n
+            full_cmd = "FILEB:" + data_escaped + "\n"
+            
+            emit('log_message', {'data': f"Sending entire file as single blob ({len(data_escaped)} bytes)..."})
+            
+            with serial_lock:
+                if conn and conn.is_open:
+                    conn.write(full_cmd.encode('utf-8'))
+                    conn.flush()
+                else:
+                    raise Exception("Serial port closed during transmission")
+            
+            emit('log_message', {'data': f"✓ File blob sent. Pico will compress and transmit."})
+            
         except Exception as e:
-             print(f"Serial Write Error (Bulk): {e}")
-             emit('log_message', {'data': f"Error during transmission: {e}"})
+            print(f"Serial Write Error (Bulk): {e}")
+            emit('log_message', {'data': f"Error during transmission: {e}"})
     else:
         emit('log_message', {'data': "Error: Serial port not open"})
     
