@@ -577,6 +577,7 @@ int main(int argc, char* argv[]) {
                         uart_state = 1;
                     } else {
                         log_printf("Waiting: got 0x%02X (Hint: Check optical alignment)\n", byte);
+                        stats.bad_preamble++;
                     }
                     break;
                 case 1:
