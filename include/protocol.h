@@ -44,6 +44,7 @@
 // HMAC Handshake
 #define MSG_TYPE_CHALLENGE  0x04
 #define MSG_TYPE_RESPONSE   0x05
+#define MSG_TYPE_FILE       0x06
 #define CHALLENGE_SIZE      32
 #define HMAC_SIZE           32
 

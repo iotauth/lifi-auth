@@ -354,8 +354,8 @@ void pico_print_slot_status(int current_slot) {
     // Check A
     if (read_key_from_slot(FLASH_SLOT_A_OFFSET, tmp_i, tmp_k)) {
         printf("  Slot A: Valid (ID: ");
-        for(int i=0; i<4; i++) printf("%02X", tmp_i[i]);
-        printf("...)\n");
+        for(int i=0; i<SST_KEY_ID_SIZE; i++) printf("%02X", tmp_i[i]);
+        printf(")\n");
     } else {
         printf("  Slot A: Invalid\n");
     }
@@ -363,8 +363,8 @@ void pico_print_slot_status(int current_slot) {
     // Check B
     if (read_key_from_slot(FLASH_SLOT_B_OFFSET, tmp_i, tmp_k)) {
         printf("  Slot B: Valid (ID: ");
-        for(int i=0; i<4; i++) printf("%02X", tmp_i[i]);
-        printf("...)\n");
+        for(int i=0; i<SST_KEY_ID_SIZE; i++) printf("%02X", tmp_i[i]);
+        printf(")\n");
     } else {
         printf("  Slot B: Invalid\n");
     }
