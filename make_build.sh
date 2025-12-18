@@ -32,7 +32,7 @@ dir_populated() {
 }
 
 if [[ ! -f "$here/.build_target" ]]; then
-  echo "No build target selected. Run: ./set_build pico | pi4 | host"
+  echo "No build target selected. Run: ./set_build pico | pi4"
   exit 1
 fi
 # shellcheck disable=SC1090
@@ -156,9 +156,9 @@ ver_tag="${git_desc:-unknown}"
 art_dir="$here/artifacts/$BUILD_TARGET"
 mkdir -p "$art_dir"
 
-ts="$(date +%Y%m%d-%H%M%S)"
+ts="$(date +%m%d-%H_%M)"
 repo_dir="$(git -C "$here" rev-parse --show-toplevel 2>/dev/null || echo "$here")"
-git_desc="$(git -C "$repo_dir" describe --always --dirty --tags 2>/dev/null \
+git_desc="$(git -C "$repo_dir" describe --always --tags 2>/dev/null \
         || git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null \
         || date +%Y%m%d)"
 echo "Version: $git_desc"
@@ -173,56 +173,45 @@ write_manifest() {
 if [[ "$BUILD_TARGET" == "pico" ]]; then
   uf2="$(find "$build_dir/sender" -maxdepth 1 -name '*.uf2' -print -quit)"
   if [[ -n "$uf2" ]]; then
-    fname="pico-${ver_tag}-${ts}.uf2"
+    fname="${ts}_pico_sender.uf2"
     cp -f -- "$uf2" "$art_dir/$fname"
     (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
-    manifest="$art_dir/pico-${ver_tag}-${ts}.json"
+    manifest="$art_dir/${ts}_pico_sender.json"
     write_manifest "$manifest" "pico" "$ver_tag" "$ts" "$fname"
-    ln -sfn "$art_dir/$fname"        "$art_dir/latest.uf2"
-    ln -sfn "$art_dir/$fname.sha256" "$art_dir/latest.uf2.sha256"
-    ln -sfn "$manifest"              "$art_dir/latest.json"
     echo "📦 UF2: $art_dir/$fname"
   fi
 
 elif [[ "$BUILD_TARGET" == "pi4" ]]; then
   exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -executable -print -quit)"
   if [[ -n "$exe" ]]; then
-    exename="$(basename "$exe")"
-    fname="${exename}-${ver_tag}-${ts}"
+    fname="${ts}_pi4_receiver"
     install -m 0755 -- "$exe" "$art_dir/$fname"
     (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
-    manifest="$art_dir/${exename}-${ver_tag}-${ts}.json"
+    manifest="$art_dir/${ts}_pi4_receiver.json"
     write_manifest "$manifest" "pi4" "$ver_tag" "$ts" "$fname"
-    ln -sfn "$art_dir/$fname"        "$art_dir/latest"
-    ln -sfn "$art_dir/$fname.sha256" "$art_dir/latest.sha256"
-    ln -sfn "$manifest"              "$art_dir/latest.json"
     echo "📦 EXE: $art_dir/$fname"
     echo "ℹ️  Binary info: $(file "$art_dir/$fname" | sed 's/.*: //')"
   fi
 
-elif [[ "$BUILD_TARGET" == "host" ]]; then
-  # sender_host is the host-side binary; locate it anywhere under build_dir.
-  exe="$(find "$build_dir" -type f -name 'sender_host' -executable -print -quit)"
-
-  if [[ -z "$exe" ]]; then
-    echo "⚠️ sender_host executable not found under $build_dir"
-  else
-    exename="$(basename "$exe")"    # sender_host
-    fname="${exename}-${ver_tag}-${ts}"
-
-    install -m 0755 -- "$exe" "$art_dir/$fname"
-    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
-
-    manifest="$art_dir/${exename}-${ver_tag}-${ts}.json"
-    write_manifest "$manifest" "host" "$ver_tag" "$ts" "$fname"
-
-    ln -sfn "$art_dir/$fname"        "$art_dir/latest"
-    ln -sfn "$art_dir/$fname.sha256" "$art_dir/latest.sha256"
-    ln -sfn "$manifest"              "$art_dir/latest.json"
-
-    echo "📦 EXE (host): $art_dir/$fname"
-    echo "ℹ️  Binary info: $(file "$art_dir/$fname" | sed 's/.*: //')"
-  fi
+#elif [[ "$BUILD_TARGET" == "host" ]]; then
+#  # sender_host is the host-side binary; locate it anywhere under build_dir.
+#  exe="$(find "$build_dir" -type f -name 'sender_host' -executable -print -quit)"
+#
+#  if [[ -z "$exe" ]]; then
+#    echo "⚠️ sender_host executable not found under $build_dir"
+#  else
+#    exename="$(basename "$exe")"    # sender_host
+#    fname="${ts}_${exename}_${ver_tag}"
+#
+#    install -m 0755 -- "$exe" "$art_dir/$fname"
+#    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
+#
+#    manifest="$art_dir/${ts}_${exename}_${ver_tag}.json"
+#    write_manifest "$manifest" "host" "$ver_tag" "$ts" "$fname"
+#
+#    echo "📦 EXE (host): $art_dir/$fname"
+#    echo "ℹ️  Binary info: $(file "$art_dir/$fname" | sed 's/.*: //')"
+#  fi
 fi
 
 

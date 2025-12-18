@@ -3,7 +3,7 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 {pico|pi4|host} [--no-clean]" >&2
+  echo "Usage: $0 {pico|pi4} [--no-clean]" >&2
   exit 1
 fi
 
