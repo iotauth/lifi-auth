@@ -24,6 +24,7 @@
 
 /* -------- Sizes -------- */
 #define SESSION_KEY_SIZE 32  // AES-256-GCM (keep in sync with Pico)
+#define SESSION_KEY_ID_SIZE 8 // Key ID size
 #define NONCE_SIZE 12        // 96-bit GCM IV
 #define TAG_SIZE 16
 #define NONCE_HISTORY_SIZE 64

@@ -382,6 +382,46 @@ int main() {
         if (strncmp(message_buffer, "CMD:", 4) == 0) {
             // Extract the command part (skip the "CMD:" prefix)
             const char *cmd = message_buffer + 4;
+            
+            // Special Command: Send Key ID Plaintext
+            if (strncmp(cmd, "send_id", 7) == 0) {
+                 printf("[TX] Broadcasting Key ID...\n");
+                 
+                 // Payload = 8 bytes of Key ID
+                 uint8_t payload[SESSION_KEY_ID_SIZE];
+                 memcpy(payload, session_key_id, SESSION_KEY_ID_SIZE);
+                 size_t payload_len = SESSION_KEY_ID_SIZE;
+                 
+                 // Calculate CRC: TYPE + LEN + PAYLOAD
+                 uint8_t len_bytes[2] = {(payload_len >> 8) & 0xFF, payload_len & 0xFF};
+                 size_t crc_idx = 0;
+                 crc_buf[crc_idx++] = MSG_TYPE_KEY_ID_ONLY;
+                 crc_buf[crc_idx++] = len_bytes[0];
+                 crc_buf[crc_idx++] = len_bytes[1];
+                 memcpy(&crc_buf[crc_idx], payload, payload_len);
+                 crc_idx += payload_len;
+                 
+                 uint16_t crc = crc16_ccitt(crc_buf, crc_idx);
+                 uint8_t crc_bytes[2] = {(crc >> 8) & 0xFF, crc & 0xFF};
+                 
+                 // Send Frame
+                 uart_putc_raw(UART_ID, PREAMBLE_BYTE_1);
+                 uart_putc_raw(UART_ID, PREAMBLE_BYTE_2);
+                 uart_putc_raw(UART_ID, PREAMBLE_BYTE_3);
+                 uart_putc_raw(UART_ID, PREAMBLE_BYTE_4);
+                 uart_putc_raw(UART_ID, MSG_TYPE_KEY_ID_ONLY);
+                 uart_write_blocking(UART_ID, len_bytes, 2);
+                 uart_tx_wait_blocking(UART_ID);
+                 
+                 uart_write_blocking(UART_ID, payload, payload_len);
+                 uart_tx_wait_blocking(UART_ID);
+                 
+                 uart_write_blocking(UART_ID, crc_bytes, 2);
+                 uart_tx_wait_blocking(UART_ID);
+                 
+                 memset(message_buffer, 0, sizeof(message_buffer));
+                 continue;
+            }
 
             // Run the command handler and check if it modified the active
             // session key (e.g., load new key, clear key, or switch slots).
