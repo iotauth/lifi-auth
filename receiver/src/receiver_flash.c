@@ -820,52 +820,33 @@ int main(int argc, char* argv[]) {
                         memcpy(last_lifi_id, payload, SESSION_KEY_ID_SIZE);
                         lifi_id_seen = true;
                         
-                        // 2. Search for matching key in current list
-                        bool found = false;
-                        if (key_list) {
-                            for (int i=0; i < key_list->num_key; i++) {
-                                if (memcmp(key_list->s_key[i].key_id, last_lifi_id, SESSION_KEY_ID_SIZE) == 0) {
-                                    s_key = key_list->s_key[i];
-                                    key_valid = true;
-                                    found = true;
-                                    cmd_printf("✓ Auto-switched to LiFi Key ID");
-                                    break;
+                        cmd_printf("Looking for Key ID...");
+                        
+                        // 2. Use C-API to find locally or fetch from Auth
+                        // This handles checking existing_s_key_list first, then queries Auth if needed.
+                        session_key_t *found_key = get_session_key_by_ID(last_lifi_id, sst, key_list);
+                        
+                        if (found_key) {
+                            s_key = *found_key;
+                            key_valid = true;
+                            
+                            // Check if it was a local find or a fetch (heuristic: pointer check)
+                            bool is_local = false;
+                            if (key_list && key_list->s_key) {
+                                // If pointer is within the array bounds of our local list
+                                if (found_key >= key_list->s_key && 
+                                    found_key < key_list->s_key + key_list->num_key) {
+                                    is_local = true;
                                 }
                             }
-                        }
-                        
-                        // 3. If not found, try reloading from config (maybe it was just added?)
-                        if (!found) {
-                            cmd_printf("Key not in RAM. Reloading from Auth...");
-                            // Reload logic similar to startup
-                            SST_ctx_t* new_sst = init_SST(config_path);
-                            session_key_list_t* refreshed_list = NULL;
-                            if (new_sst) {
-                                refreshed_list = get_session_key(new_sst, NULL);
-                                free_SST_ctx_t(new_sst); 
+                            
+                            if (is_local) {
+                                cmd_printf("✓ Found in local cache.");
+                            } else {
+                                cmd_printf("✓ Fetched from Auth Server!");
                             }
-
-                            if (refreshed_list) {
-                                if (key_list) free_session_key_list_t(key_list);
-                                key_list = refreshed_list;
-                                
-                                // Retry search
-                                for (int i=0; i < key_list->num_key; i++) {
-                                    if (memcmp(key_list->s_key[i].key_id, last_lifi_id, SESSION_KEY_ID_SIZE) == 0) {
-                                        s_key = key_list->s_key[i];
-                                        key_valid = true;
-                                        found = true;
-                                        cmd_printf("✓ Found key after reload. Switched.");
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if (!found && key_list && key_list->num_key > 0) {
-                             cmd_printf("Warning: Peer Key ID not found in local config.");
-                        } else if (!found) {
-                             cmd_printf("Warning: No keys loaded to check against.");
+                        } else {
+                             cmd_printf("Error: Key ID not found (Local or Auth).");
                         }
 
                         // Update UI immediately
