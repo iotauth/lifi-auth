@@ -449,7 +449,6 @@ int main(int argc, char* argv[]) {
     int uart_state = 0;
 
     log_printf("Listening for encrypted message...\n");
-    log_printf("[TEST] UI Log Window is working.\n"); // Confirm UI
     if (fd >= 0) tcflush(fd, TCIFLUSH);
 
     uint8_t pending_key[SESSION_KEY_SIZE] = {0};
@@ -783,9 +782,7 @@ int main(int argc, char* argv[]) {
                             uart_state = 0;
                             continue;
                         }
-                        
-                        log_printf("Frame read OK: %u bytes payload\n", payload_len);
-                        
+                                                
                         // Validate CRC16
                         uint8_t crc_buf[1 + 2 + NONCE_SIZE + MAX_MSG_LEN + TAG_SIZE];
                         size_t crc_idx = 0;
@@ -908,9 +905,9 @@ int main(int argc, char* argv[]) {
                                                                   CHALLENGE_SIZE, expected_hmac);
                                         
                                         if (ret == 0 && memcmp(received_hmac, expected_hmac, HMAC_SIZE) == 0) {
-                                            log_printf("✅ HMAC VERIFIED! Pico identity confirmed.\n");
+                                            cmd_printf("✅ HMAC VERIFIED! Pico identity confirmed.\n");
                                         } else {
-                                            log_printf("❌ HMAC FAILED! Invalid response.\n");
+                                            cmd_printf("❌ HMAC FAILED! Invalid response.\n");
                                         }
                                         
                                         explicit_bzero(pending_challenge, sizeof(pending_challenge));
