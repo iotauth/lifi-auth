@@ -56,7 +56,7 @@ static void wprint_styled_core(WINDOW *win, bool newline, const char *fmt, va_li
         color = 2; // Red
         attr = A_BOLD;
     } else if (strstr(buf, "Success") || strstr(buf, "OPEN") || strstr(buf, "YES") || 
-               strstr(buf, "✓") || strstr(buf, "ACK")) {
+               strstr(buf, "✓") || strstr(buf, "ACK") || strstr(buf, "VERIFIED")) {
         color = 1; // Green
         attr = A_BOLD;
     } else if (strstr(buf, "Challenge")) {
@@ -797,8 +797,19 @@ int main(int argc, char* argv[]) {
                         uint16_t received_crc = ((uint16_t)crc_bytes[0] << 8) | crc_bytes[1];
                         
                         if (computed_crc != received_crc) {
-                            log_printf("CRC16 mismatch! computed=0x%04X received=0x%04X\\n", 
+                            log_printf("CRC16 mismatch! computed=0x%04X received=0x%04X\n", 
                                        computed_crc, received_crc);
+                            
+                            // Dump failed packet to debug log for analysis
+                            FILE *f = fopen("receiver_debug.log", "a");
+                            if (f) {
+                                fprintf(f, "CRC FAIL: Comp:0x%04X Recv:0x%04X Len:%u\nPayload: ", 
+                                        computed_crc, received_crc, payload_len);
+                                for(size_t i=0; i<crc_idx; i++) fprintf(f, "%02X ", crc_buf[i]);
+                                fprintf(f, "\n");
+                                fclose(f);
+                            }
+                            
                             stats.decrypt_fail++;
                             uart_state = 0;
                             continue;
@@ -905,9 +916,9 @@ int main(int argc, char* argv[]) {
                                                                   CHALLENGE_SIZE, expected_hmac);
                                         
                                         if (ret == 0 && memcmp(received_hmac, expected_hmac, HMAC_SIZE) == 0) {
-                                            cmd_printf("✅ HMAC VERIFIED! Pico identity confirmed.\n");
+                                            cmd_printf("\n✅ HMAC VERIFIED! Pico identity confirmed.\n");
                                         } else {
-                                            cmd_printf("❌ HMAC FAILED! Invalid response.\n");
+                                            cmd_printf("\n❌ HMAC FAILED! Invalid response.\n");
                                         }
                                         
                                         explicit_bzero(pending_challenge, sizeof(pending_challenge));
