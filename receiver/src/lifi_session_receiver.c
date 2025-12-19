@@ -7,6 +7,8 @@
 #include <termios.h>  // Linux serial
 #include <time.h>
 #include <unistd.h>
+#include <sys/select.h>
+#include <sys/select.h>
 
 // Project headers (use -I include dirs instead of ../../../)
 #include "c_api.h"
@@ -59,14 +61,7 @@ static void restore_stdin(void) {
     tcsetattr(STDIN_FILENO, TCSANOW, &tty);
 }
 
-// Check if a key was pressed (non-blocking)
-static int get_keypress(void) {
-    char ch;
-    if (read(STDIN_FILENO, &ch, 1) == 1) {
-        return ch;
-    }
-    return -1;  // No key pressed
-}
+
 
 int main(int argc, char* argv[]) {
     const char* config_path = NULL;
