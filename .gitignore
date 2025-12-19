@@ -1,11 +1,15 @@
 /artifacts/
-/build/
+*/build/
+build/
+*/build/**
 /.build_target
+venv/
 /.tooling/
+.vscode/
 *.pem
 *.key
 *.p12
 *.pfx
-pass_key.sh
 session_stats.txt
 receiver_debug.log
+passKeyToPico

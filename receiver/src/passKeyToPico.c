@@ -42,8 +42,12 @@ static int write_all(int fd, const void* buf, size_t len) {
     return (sent == len) ? 0 : -1;
 }
 
+#ifndef DEFAULT_SST_CONFIG_PATH
+#define DEFAULT_SST_CONFIG_PATH "side.config"
+#endif
+
 int main(int argc, char* argv[]) {
-    const char* config_path = NULL;
+    const char* config_path = DEFAULT_SST_CONFIG_PATH;
 
     printf("--- passKeyToPico Tool ---\n");
 
