@@ -150,16 +150,6 @@ int main(int argc, char* argv[]) {
     set_nonblocking_stdin();
     atexit(restore_stdin);  // Restore terminal on exit
 
-    printf("\n");
-    printf("╔════════════════════════════════════════════════════════╗\n");
-    printf("║          LiFi Receiver - Keyboard Shortcuts           ║\n");
-    printf("╠════════════════════════════════════════════════════════╣\n");
-    printf("║  [1] Send Session Key to Pico                         ║\n");
-    printf("║  [2] Send HMAC Challenge (verify key)                 ║\n");
-    printf("║  [q] Quit                                              ║\n");
-    printf("╚════════════════════════════════════════════════════════╝\n");
-    printf("\n");
-
     // UART framing state
     uint8_t byte = 0;
     int uart_state = 0;
