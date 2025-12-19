@@ -38,7 +38,11 @@
                 </div>
                 <div class="status-item column-flex">
                     <span class="label">KEY ID:</span>
-                    <span id="key-id" class="value dim tiny-text">--</span>
+                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                        <span id="key-id" class="value dim tiny-text">--</span>
+                        <button class="btn-cmd" onclick="sendCommand('CMD: send_id')"
+                            style="padding: 4px 12px; font-size: 0.9em; width: auto; margin: 0;">SEND ID</button>
+                    </div>
                 </div>
             </div>
 
