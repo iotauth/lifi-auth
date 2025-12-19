@@ -101,6 +101,10 @@ static void cmd_print_partial(const char *fmt, ...) {
 static WINDOW *win_log_border = NULL;
 static WINDOW *win_cmd_border = NULL;
 
+// New globals for Auto-Connect feature
+static uint8_t last_lifi_id[SESSION_KEY_ID_SIZE] = {0};
+static bool lifi_id_seen = false;
+
 static void ui_init(void) {
     initscr();
     cbreak();
@@ -231,6 +235,16 @@ static void mid_draw_keypanel(const session_key_t* s_key,
     } else {
         mvwprintw(win_mid, 4, 2, "Key ID: (none)");
         mvwprintw(win_mid, 5, 2, "Key:    (none)");
+    }
+
+    // Display Last Received LiFi Key ID
+    mvwprintw(win_mid, 7, 2, "LiFi Key: ");
+    if (lifi_id_seen) {
+        wattron(win_mid, COLOR_PAIR(3));
+        for (size_t i = 0; i < SESSION_KEY_ID_SIZE; i++) wprintw(win_mid, "%02X ", last_lifi_id[i]);
+        wattroff(win_mid, COLOR_PAIR(3));
+    } else {
+        wprintw(win_mid, "(waiting)");
     }
 
     // Shortcuts menu at bottom of mid panel
@@ -800,6 +814,56 @@ int main(int argc, char* argv[]) {
                             strcat(hex_str, tmp);
                         }
                         log_printf("[KEY ID] Peer ID: %s", hex_str);
+                        
+                        // --- AUTO-CONNECT LOGIC ---
+                        // 1. Store the ID
+                        memcpy(last_lifi_id, payload, SESSION_KEY_ID_SIZE);
+                        lifi_id_seen = true;
+                        
+                        // 2. Search for matching key in current list
+                        bool found = false;
+                        if (key_list) {
+                            for (size_t i=0; i < key_list->count; i++) {
+                                if (memcmp(key_list->s_key[i].key_id, last_lifi_id, SESSION_KEY_ID_SIZE) == 0) {
+                                    s_key = key_list->s_key[i];
+                                    key_valid = true;
+                                    found = true;
+                                    cmd_printf("✓ Auto-switched to LiFi Key ID");
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // 3. If not found, try reloading from config (maybe it was just added?)
+                        if (!found) {
+                            cmd_printf("Key not in RAM. Reloading config...");
+                            // Reload logic similar to startup
+                            session_key_list_t* refreshed_list = sst_get_session_key_list(config_path);
+                            if (refreshed_list) {
+                                if (key_list) free_session_key_list_t(key_list);
+                                key_list = refreshed_list;
+                                
+                                // Retry search
+                                for (size_t i=0; i < key_list->count; i++) {
+                                    if (memcmp(key_list->s_key[i].key_id, last_lifi_id, SESSION_KEY_ID_SIZE) == 0) {
+                                        s_key = key_list->s_key[i];
+                                        key_valid = true;
+                                        found = true;
+                                        cmd_printf("✓ Found key after reload. Switched.");
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (!found && key_list && key_list->count > 0) {
+                             cmd_printf("Warning: Peer Key ID not found in local config.");
+                        } else if (!found) {
+                             cmd_printf("Warning: No keys loaded to check against.");
+                        }
+
+                        // Update UI immediately
+                        mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
                         
                         uart_state = 0;
                     }
