@@ -36,8 +36,15 @@ static WINDOW *win_cmd = NULL;
 static void wprint_styled_core(WINDOW *win, bool newline, const char *fmt, va_list ap) {
     if (!win) return;
     
-    char buf[512];
+    char buf[4096]; // Increased buffer size
     vsnprintf(buf, sizeof(buf), fmt, ap);
+
+    // Write to file for debugging
+    FILE *f = fopen("receiver_debug.log", "a");
+    if (f) {
+        fprintf(f, "%s%s", buf, newline ? "\n" : "");
+        fclose(f);
+    }
 
     // Simple keyword matching for styling
     int color = 0;
@@ -62,7 +69,6 @@ static void wprint_styled_core(WINDOW *win, bool newline, const char *fmt, va_li
     wprintw(win, "%s", buf);
     if (color != 0) wattroff(win, COLOR_PAIR(color) | attr);
     
-    // If newline is requested, print it. Otherwise, rely on format string.
     if (newline) wprintw(win, "\n");
     wrefresh(win);
 }
