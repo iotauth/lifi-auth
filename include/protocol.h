@@ -16,6 +16,7 @@
 #define MSG_TYPE_CHALLENGE 0x04
 #define MSG_TYPE_RESPONSE  0x05
 #define MSG_TYPE_FILE      0x06
+#define MSG_TYPE_KEY_ID_ONLY 0x07 /* Plaintext Key ID broadcast */
 #define MSG_TYPE_KEY       0x10  /* Key provisioning */
 
 /* Cooldown to avoid thrashing key updates */

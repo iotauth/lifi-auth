@@ -739,7 +739,71 @@ int main(int argc, char* argv[]) {
 
                 case 4:
                     // TYPE byte received
-                    if (byte == MSG_TYPE_ENCRYPTED || byte == MSG_TYPE_FILE) {
+                    if (byte == MSG_TYPE_KEY_ID_ONLY) {
+                        uint8_t packet_type = byte; 
+                        stats.total_pkts++;
+                        
+                        // Read length (2 bytes)
+                        uint8_t len_bytes[2];
+                        if (read_exact_timeout(fd, len_bytes, 2, 100) != 2) {
+                            log_printf("Failed to read length (Key ID)\n");
+                            uart_state = 0;
+                            continue;
+                        }
+                        uint16_t payload_len = ((uint16_t)len_bytes[0] << 8) | len_bytes[1];
+                        
+                        if (payload_len > 64) { // Sanity check
+                             log_printf("Invalid Key ID len: %u\n", payload_len);
+                             uart_state = 0;
+                             continue;
+                        }
+                        
+                        uint8_t payload[payload_len];
+                        uint8_t crc_bytes[2];
+                        
+                        if (read_exact_timeout(fd, payload, payload_len, 100) != (ssize_t)payload_len ||
+                            read_exact_timeout(fd, crc_bytes, 2, 100) != 2) {
+                            log_printf("Failed to read payload/CRC (Key ID)\n");
+                            uart_state = 0;
+                            continue;
+                        }
+                        
+                        // Verify CRC
+                        uint8_t crc_buf[1 + 2 + 64]; // Max size
+                        size_t crc_idx = 0;
+                        crc_buf[crc_idx++] = packet_type;
+                        crc_buf[crc_idx++] = len_bytes[0];
+                        crc_buf[crc_idx++] = len_bytes[1];
+                        memcpy(&crc_buf[crc_idx], payload, payload_len);
+                        crc_idx += payload_len;
+                        
+                        uint16_t computed_crc = crc16_ccitt(crc_buf, crc_idx);
+                        uint16_t received_crc = ((uint16_t)crc_bytes[0] << 8) | crc_bytes[1];
+                        
+                        if (computed_crc != received_crc) {
+                            log_printf("CRC fail on Key ID pkt\n");
+                            uart_state = 0;
+                            continue;
+                        }
+                        
+                        log_printf("[KEY ID] Received: ");
+                        for(int i=0; i<payload_len; i++) {
+                            // Using private internal method of log_printf to stay on same line? 
+                            // iterating log_printf calls creates newlines usually.
+                            // Let's just format it into a string first.
+                        }
+                        char hex_str[3 * payload_len + 1];
+                        hex_str[0] = '\0';
+                        for(int i=0; i<payload_len; i++) {
+                            char tmp[5];
+                            snprintf(tmp, sizeof(tmp), "%02X ", payload[i]);
+                            strcat(hex_str, tmp);
+                        }
+                        log_printf("[KEY ID] Peer ID: %s", hex_str);
+                        
+                        uart_state = 0;
+                    }
+                    else if (byte == MSG_TYPE_ENCRYPTED || byte == MSG_TYPE_FILE) {
                         uint8_t packet_type = byte; 
                         stats.total_pkts++;
                         
