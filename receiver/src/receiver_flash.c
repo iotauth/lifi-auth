@@ -286,6 +286,49 @@ static int write_all(int fd, const void* buf, size_t len) {
     return (sent == len) ? 0 : -1;
 }
 
+// Helper: Read exact bytes with timeout for non-blocking FD
+// timeout_ms: Max time to wait for the ENTIRE buffer to be filled
+static ssize_t read_exact_timeout(int fd, void *buf, size_t len, int timeout_ms) {
+    uint8_t *p = (uint8_t *)buf;
+    size_t received = 0;
+    struct timeval start, now;
+    gettimeofday(&start, NULL);
+    
+    while (received < len) {
+        // Check timeout
+        gettimeofday(&now, NULL);
+        long elapsed_ms = (now.tv_sec - start.tv_sec) * 1000 + (now.tv_usec - start.tv_usec) / 1000;
+        if (elapsed_ms >= timeout_ms) {
+            return -1; // Timeout
+        }
+        
+        // Wait for data
+        fd_set fds;
+        FD_ZERO(&fds);
+        FD_SET(fd, &fds);
+        struct timeval tv;
+        tv.tv_sec = 0;
+        tv.tv_usec = (timeout_ms - elapsed_ms) * 1000;
+        
+        int ret = select(fd + 1, &fds, NULL, NULL, &tv);
+        if (ret > 0) {
+            ssize_t n = read(fd, p + received, len - received);
+            if (n > 0) {
+                received += n;
+            } else if (n == 0) {
+                return -1; // EOF/Closed
+            } else {
+                if (errno != EAGAIN && errno != EWOULDBLOCK) return -1; // Error
+            }
+        } else if (ret == 0) {
+            return -1; // Timeout
+        } else {
+            return -1; // Error
+        }
+    }
+    return received;
+}
+
 // --- Session Statistics ---
 typedef struct {
     unsigned long total_pkts;
@@ -694,8 +737,8 @@ int main(int argc, char* argv[]) {
                         
                         // Read length (2 bytes)
                         uint8_t len_bytes[2];
-                        if (read_exact(fd, len_bytes, 2) != 2) {
-                            log_printf("Failed to read length\\n");
+                        if (read_exact_timeout(fd, len_bytes, 2, 100) != 2) {
+                            log_printf("Failed to read length\n");
                             uart_state = 0;
                             continue;
                         }
@@ -703,7 +746,7 @@ int main(int argc, char* argv[]) {
                         // Length = NONCE + CIPHERTEXT + TAG
                         uint16_t payload_len = ((uint16_t)len_bytes[0] << 8) | len_bytes[1];
                         if (payload_len < NONCE_SIZE + TAG_SIZE || payload_len > MAX_MSG_LEN) {
-                            log_printf("Invalid payload length: %u bytes\\n", payload_len);
+                            log_printf("Invalid payload length: %u bytes\n", payload_len);
                             uart_state = 0;
                             continue;
                         }
@@ -716,11 +759,12 @@ int main(int argc, char* argv[]) {
                         uint8_t tag[TAG_SIZE];
                         uint8_t crc_bytes[2];
                         
-                        // Read all payload components with detailed logging
-                        ssize_t nonce_read = read_exact(fd, nonce, NONCE_SIZE);
-                        ssize_t cipher_read = read_exact(fd, ciphertext, ctext_len);
-                        ssize_t tag_read = read_exact(fd, tag, TAG_SIZE);
-                        ssize_t crc_read = read_exact(fd, crc_bytes, 2);
+                        // Read all payload components with timeout (give enough time for full payload)
+                        int chunk_timeout = 200; // ms
+                        ssize_t nonce_read = read_exact_timeout(fd, nonce, NONCE_SIZE, chunk_timeout);
+                        ssize_t cipher_read = read_exact_timeout(fd, ciphertext, ctext_len, chunk_timeout + (ctext_len/10)); // Scaling timeout for size
+                        ssize_t tag_read = read_exact_timeout(fd, tag, TAG_SIZE, chunk_timeout);
+                        ssize_t crc_read = read_exact_timeout(fd, crc_bytes, 2, chunk_timeout);
                         
                         if (nonce_read != NONCE_SIZE || cipher_read != (ssize_t)ctext_len ||
                             tag_read != TAG_SIZE || crc_read != 2) {
