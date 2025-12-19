@@ -9,4 +9,6 @@ cmake -DBUILD_TARGET=pi4 ..
 make passKeyToPico
 
 echo "Running passKeyToPico..."
-./passKeyToPico
+# We are currently in the 'build' directory due to 'cd build' above
+# The executable is located in build/receiver/passKeyToPico
+./receiver/passKeyToPico

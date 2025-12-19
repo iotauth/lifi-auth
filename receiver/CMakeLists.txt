@@ -87,5 +87,5 @@ target_link_libraries(passKeyToPico PRIVATE
 
 set_property(TARGET passKeyToPico PROPERTY C_STANDARD 11)
 target_compile_definitions(passKeyToPico PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/lifi_receiver.config\"
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_SOURCE_DIR}/side.config\"
 )
