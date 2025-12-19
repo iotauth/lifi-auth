@@ -128,18 +128,28 @@ int main(int argc, char* argv[]) {
     struct timespec next_send = {0};
     clock_gettime(CLOCK_MONOTONIC, &next_send);  // send immediately
 
-    const uint8_t preamble[2] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2};
-    // Send preamble + session key (robust, handles partial writes)
-    if (write_all(fd, preamble, sizeof preamble) < 0) {
-        perror("write preamble");
-        // handle error (return -1; or set a flag)
+    // Build key provisioning frame: [PREAMBLE:4][TYPE:1][LEN:2][KEY_ID:8][KEY:32]
+    // Length = KEY_ID_SIZE + SESSION_KEY_SIZE
+    uint16_t key_payload_len = SST_KEY_ID_SIZE + SESSION_KEY_SIZE;
+    uint8_t key_header[] = {
+        PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+        MSG_TYPE_KEY,
+        (key_payload_len >> 8) & 0xFF,
+        key_payload_len & 0xFF
+    };
+    
+    // Send key provisioning frame
+    if (write_all(fd, key_header, sizeof(key_header)) < 0) {
+        perror("write key header");
+    }
+    if (write_all(fd, s_key.key_id, SST_KEY_ID_SIZE) < 0) {
+        perror("write key id");
     }
     if (write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
         perror("write session key");
-        // handle error
     }
     tcdrain(fd);  // ensure bytes actually leave the UART
-    printf("Sent preamble + session key over UART.\n");
+    printf("Sent session key over UART (4-byte preamble + KEY_ID + KEY).\n");
 
     // Setup non-blocking keyboard input for shortcuts
     set_nonblocking_stdin();
@@ -167,9 +177,18 @@ int main(int argc, char* argv[]) {
         int key = get_keypress();
         if (key != -1) {
             switch (key) {
-                case '1':
+                case '1': {
                     printf("\n[Shortcut] Sending session key to Pico...\n");
-                    if (write_all(fd, preamble, sizeof preamble) < 0 ||
+                    // Build key provisioning frame with 4-byte preamble
+                    uint16_t klen = SST_KEY_ID_SIZE + SESSION_KEY_SIZE;
+                    uint8_t hdr[] = {
+                        PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                        MSG_TYPE_KEY,
+                        (klen >> 8) & 0xFF,
+                        klen & 0xFF
+                    };
+                    if (write_all(fd, hdr, sizeof(hdr)) < 0 ||
+                        write_all(fd, s_key.key_id, SST_KEY_ID_SIZE) < 0 ||
                         write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
                         printf("Error: Failed to send session key.\n");
                     } else {
@@ -177,17 +196,25 @@ int main(int argc, char* argv[]) {
                         printf("✓ Session key sent.\n");
                     }
                     break;
+                }
                 
                 case '2':
                     printf("\n[Shortcut] Initiating HMAC challenge...\n");
                     if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
                         printf("Error: Failed to generate challenge nonce.\n");
                     } else {
-                        uint8_t msg[] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_CHALLENGE};
-                        if (write_all(fd, msg, sizeof(msg)) < 0 ||
+                        // Use 4-byte preamble + type + length as expected by sender
+                        uint8_t header[] = {
+                            PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                            MSG_TYPE_CHALLENGE,
+                            (CHALLENGE_SIZE >> 8) & 0xFF,  // Length high byte
+                            CHALLENGE_SIZE & 0xFF          // Length low byte
+                        };
+                        if (write_all(fd, header, sizeof(header)) < 0 ||
                             write_all(fd, pending_challenge, CHALLENGE_SIZE) < 0) {
                             printf("Error: Failed to send challenge.\n");
                         } else {
+                            tcdrain(fd);
                             state = STATE_WAITING_FOR_HMAC_RESP;
                             clock_gettime(CLOCK_MONOTONIC, &state_deadline);
                             state_deadline.tv_sec += 5;
@@ -238,30 +265,60 @@ int main(int argc, char* argv[]) {
                 case 0:
                     if (byte == PREAMBLE_BYTE_1) {
                         uart_state = 1;
-                    } else {
-                        printf(
-                            "Waiting: got 0x%02X, expecting PREAMBLE_BYTE_1\n",
-                            byte);
                     }
+                    // Don't spam - only print if we're getting noise
                     break;
                 case 1:
                     if (byte == PREAMBLE_BYTE_2) {
                         uart_state = 2;
                     } else {
-                        printf("Bad second preamble byte: 0x%02X\n", byte);
+                        uart_state = 0;
+                    }
+                    break;
+                case 2:
+                    if (byte == PREAMBLE_BYTE_3) {
+                        uart_state = 3;
+                    } else {
+                        uart_state = 0;
+                    }
+                    break;
+                case 3:
+                    if (byte == PREAMBLE_BYTE_4) {
+                        uart_state = 4;
+                    } else {
                         uart_state = 0;
                     }
                     break;
 
-                case 2:
+                case 4:
                     if (byte == MSG_TYPE_ENCRYPTED) {
-                        uint8_t nonce[NONCE_SIZE];
                         uint8_t len_bytes[2];
+                        uint8_t nonce[NONCE_SIZE];
 
-                        // Read nonce + length
-                        if (read_exact(fd, nonce, NONCE_SIZE) != NONCE_SIZE ||
-                            read_exact(fd, len_bytes, 2) != 2) {
-                            printf("Failed to read nonce or length\n");
+                        // Read length first, then nonce (matches sender format)
+                        if (read_exact(fd, len_bytes, 2) != 2) {
+                            printf("Failed to read length\n");
+                            uart_state = 0;
+                            continue;
+                        }
+
+                        // Length includes NONCE + CIPHERTEXT + TAG
+                        uint16_t payload_len =
+                            ((uint16_t)len_bytes[0] << 8) | len_bytes[1];
+                        
+                        // Sanity check payload
+                        if (payload_len < NONCE_SIZE + TAG_SIZE || payload_len > MAX_MSG_LEN) {
+                            printf("Invalid payload length: %u bytes\n", payload_len);
+                            uart_state = 0;
+                            continue;
+                        }
+
+                        // Calculate actual message length
+                        uint16_t msg_len = payload_len - NONCE_SIZE - TAG_SIZE;
+
+                        // Read nonce
+                        if (read_exact(fd, nonce, NONCE_SIZE) != NONCE_SIZE) {
+                            printf("Failed to read nonce\n");
                             uart_state = 0;
                             continue;
                         }
@@ -274,24 +331,17 @@ int main(int argc, char* argv[]) {
                         }
                         replay_window_add(&rwin, nonce);
 
-                        // Length -> host order + bounds check
-                        uint16_t msg_len =
-                            ((uint16_t)len_bytes[0] << 8) | len_bytes[1];
-                        if (msg_len == 0 ||
-                            msg_len >
-                                1024) {  // or use MAX_MSG_LEN from protocol.h
-                            printf("Message too long: %u bytes\n", msg_len);
-                            uart_state = 0;
-                            continue;
-                        }
-
-                        // read payload
+                        // read ciphertext and tag
                         uint8_t ciphertext[msg_len];
                         uint8_t tag[TAG_SIZE];
+                        uint8_t crc_bytes[CRC16_SIZE];
                         uint8_t decrypted[msg_len + 1];  // for null-terminator
 
                         ssize_t c = read_exact(fd, ciphertext, msg_len);
                         ssize_t t = read_exact(fd, tag, TAG_SIZE);
+                        ssize_t crc_read = read_exact(fd, crc_bytes, CRC16_SIZE);  // Read CRC
+                        
+                        // TODO: validate CRC if needed (optional for now)
 
                         if (c == msg_len && t == TAG_SIZE) {
                             if (!key_valid) {  // Skip decryption if key was
@@ -414,10 +464,16 @@ int main(int argc, char* argv[]) {
                                     if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
                                         printf("Failed to generate challenge nonce.\n");
                                     } else {
-                                        // Send challenge via UART
-                                        uint8_t msg[] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, MSG_TYPE_CHALLENGE};
-                                        write_all(fd, msg, sizeof(msg));
+                                        // Send challenge via UART with 4-byte preamble + type + length
+                                        uint8_t header[] = {
+                                            PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                                            MSG_TYPE_CHALLENGE,
+                                            (CHALLENGE_SIZE >> 8) & 0xFF,  // Length high byte
+                                            CHALLENGE_SIZE & 0xFF          // Length low byte
+                                        };
+                                        write_all(fd, header, sizeof(header));
                                         write_all(fd, pending_challenge, CHALLENGE_SIZE);
+                                        tcdrain(fd);
                                         
                                         // Set state to wait for response
                                         state = STATE_WAITING_FOR_HMAC_RESP;
