@@ -210,11 +210,19 @@ int main(int argc, char* argv[]) {
                             printf("Error: Failed to send challenge.\n");
                         } else {
                             tcdrain(fd);
+                            
+                            // Pre-calculate expected HMAC for display
+                            uint8_t expected_hmac[HMAC_SIZE];
+                            sst_hmac_sha256(s_key.cipher_key, pending_challenge, CHALLENGE_SIZE, expected_hmac);
+                            
+                            printf("Challenge sent. [Expected HMAC: ");
+                            for(int i=0; i<4; i++) printf("%02X", expected_hmac[i]);
+                            printf("...] Waiting for HMAC response...\n");
+
                             state = STATE_WAITING_FOR_HMAC_RESP;
                             clock_gettime(CLOCK_MONOTONIC, &state_deadline);
                             state_deadline.tv_sec += 5;
                             challenge_active = true;
-                            printf("✓ Challenge sent. Waiting for HMAC response...\n");
                         }
                     }
                     break;
@@ -353,10 +361,12 @@ int main(int argc, char* argv[]) {
                                                       decrypted);
 
                             if (ret == 0) {  // Successful decryption
-                                decrypted[msg_len] =
-                                    '\0';  // Null-terminate the decrypted
-                                           // message
-                                printf("%s\n", decrypted);
+                                decrypted[msg_len] = '\0';  // Null-terminate the decrypted message
+                                
+                                // Only print if NOT an HMAC response (User requested clean verification output)
+                                if (strncmp((char*)decrypted, "HMAC:", 5) != 0) {
+                                    printf("%s\n", decrypted);
+                                }
 
                                 // If the decrypted message is "I have the key",
                                 // stop sending the key.
@@ -498,7 +508,7 @@ int main(int argc, char* argv[]) {
                                                               CHALLENGE_SIZE, expected_hmac);
                                     
                                     if (ret == 0 && memcmp(received_hmac, expected_hmac, HMAC_SIZE) == 0) {
-                                        printf("✅ HMAC VERIFICATION SUCCESSFUL: Pico has correct session key!\n");
+                                        printf("\n✅ HMAC VERIFIED! Pico identity confirmed.\n");
                                     } else {
                                         printf("❌ HMAC VERIFICATION FAILED: Pico does not have correct key!\n");
                                     }
