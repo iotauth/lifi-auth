@@ -372,7 +372,27 @@ int main(int argc, char* argv[]) {
     clock_gettime(CLOCK_MONOTONIC, &next_send);  // send immediately
 
     const uint8_t preamble[4] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4};
-    // Automatic handshake REMOVED - waitForUser to press [1]
+
+    // --- Automatic Session Key Send (Restored) ---
+    // Build key provisioning frame: [PREAMBLE:4][TYPE:1][LEN:2][KEY_ID:8][KEY:16]
+    if (fd >= 0 && key_valid) {
+        uint16_t key_payload_len = SESSION_KEY_ID_SIZE + SESSION_KEY_SIZE;
+        uint8_t key_header[] = {
+            PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+            MSG_TYPE_KEY,
+            (key_payload_len >> 8) & 0xFF,
+            key_payload_len & 0xFF
+        };
+        
+        if (write_all(fd, key_header, sizeof(key_header)) < 0 ||
+            write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
+            write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+            log_printf("Error: Failed to send initial session key.\n");
+        } else {
+            tcdrain(fd);
+            log_printf("Sent session key over UART (4-byte preamble + KEY_ID + KEY).\n");
+        }
+    }
 
     // UART framing state
     uint8_t byte = 0;
@@ -399,7 +419,16 @@ int main(int argc, char* argv[]) {
                     if (fd < 0) { cmd_printf("Serial not open. Press 'r' to retry."); break; }
                     if (!key_valid) { cmd_printf("No valid session key loaded."); break; }
 
-                    if (write_all(fd, preamble, sizeof preamble) < 0 ||
+                    // Build key provisioning frame: [PREAMBLE:4][TYPE:1][LEN:2][KEY_ID:8][KEY:16]
+                    uint16_t klen = SESSION_KEY_ID_SIZE + SESSION_KEY_SIZE;
+                    uint8_t hdr[] = {
+                        PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                        MSG_TYPE_KEY,
+                        (klen >> 8) & 0xFF,
+                        klen & 0xFF
+                    };
+
+                    if (write_all(fd, hdr, sizeof(hdr)) < 0 ||
                         write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
                         write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
                         cmd_printf("Error: Failed to send session key.");
@@ -466,20 +495,35 @@ int main(int argc, char* argv[]) {
                         break;
                     }
 
-                    uint8_t msg[] = { PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4, MSG_TYPE_CHALLENGE };
-                    // For challenge, send: [PREAMBLE:4][TYPE:1][LEN:2][CHALLENGE:32]
-                    uint8_t len_bytes[2] = {0, CHALLENGE_SIZE};
-                    if (write_all(fd, msg, sizeof msg) < 0 ||
-                        write_all(fd, len_bytes, 2) < 0 ||
+                    // Use 4-byte preamble + type + length
+                    uint8_t header[] = {
+                        PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                        MSG_TYPE_CHALLENGE,
+                        (CHALLENGE_SIZE >> 8) & 0xFF,  // Length high byte
+                        CHALLENGE_SIZE & 0xFF          // Length low byte
+                    };
+                    
+                    if (write_all(fd, header, sizeof(header)) < 0 ||
                         write_all(fd, pending_challenge, CHALLENGE_SIZE) < 0) {
                         cmd_printf("Error: Failed to send challenge.");
                     } else {
+                        tcdrain(fd);
+                        
+                        // Pre-calculate expected HMAC for display
+                        uint8_t expected_hmac[HMAC_SIZE];
+                        sst_hmac_sha256(s_key.cipher_key, pending_challenge, CHALLENGE_SIZE, expected_hmac);
+                        
+                        cmd_print_partial("Challenge sent. [Exp: ");
+                        for(int i=0; i<4; i++) wprintw(win_cmd, "%02X", expected_hmac[i]); // Direct wprintw to continue line
+                        wprintw(win_cmd, "..] ");
+                        wrefresh(win_cmd); // Refresh
+
                         state = STATE_WAITING_FOR_HMAC_RESP;
                         clock_gettime(CLOCK_MONOTONIC, &state_deadline);
                         state_deadline.tv_sec += 5;
                         challenge_active = true;
                         last_countdown = 5; // Reset countdown
-                        cmd_print_partial("✓ Challenge sent. Waiting for HMAC response... ");
+                        cmd_print_partial("Waiting... ");
                     }
                     mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
                     break;
@@ -835,8 +879,15 @@ int main(int argc, char* argv[]) {
                                             cmd_hex("New Session Key (pending ACK): ", pending_key, SESSION_KEY_SIZE);
                                             key_valid = true;
 
-                                            uint8_t preamble[2] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2};
-                                            write_all(fd, preamble, 2);
+                                            // Send using MSG_TYPE_KEY
+                                            uint16_t klen = SESSION_KEY_ID_SIZE + SESSION_KEY_SIZE;
+                                            uint8_t hdr[] = {
+                                                PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                                                MSG_TYPE_KEY,
+                                                (klen >> 8) & 0xFF,
+                                                klen & 0xFF
+                                            };
+                                            write_all(fd, hdr, sizeof(hdr));
                                             write_all(fd, key_list->s_key[0].key_id, SESSION_KEY_ID_SIZE);
                                             write_all(fd, pending_key, SESSION_KEY_SIZE);
                                             
@@ -878,6 +929,33 @@ int main(int argc, char* argv[]) {
                                         
                                         state = STATE_IDLE;
                                         mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
+                                    }
+
+                                    // Handle "verify key" command - initiate HMAC challenge
+                                    else if (strcmp((char*)decrypted, "verify key") == 0) {
+                                        cmd_printf("Initiating HMAC challenge to verify Pico has session key...\n");
+                                        
+                                        if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
+                                            cmd_printf("Failed to generate challenge nonce.\n");
+                                        } else {
+                                            uint8_t header[] = {
+                                                PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                                                MSG_TYPE_CHALLENGE,
+                                                (CHALLENGE_SIZE >> 8) & 0xFF,
+                                                CHALLENGE_SIZE & 0xFF
+                                            };
+                                            write_all(fd, header, sizeof(header));
+                                            write_all(fd, pending_challenge, CHALLENGE_SIZE);
+                                            tcdrain(fd);
+                                            
+                                            state = STATE_WAITING_FOR_HMAC_RESP;
+                                            clock_gettime(CLOCK_MONOTONIC, &state_deadline);
+                                            state_deadline.tv_sec += 5;
+                                            challenge_active = true;
+                                            last_countdown = 5;
+                                            
+                                            cmd_print_partial("Challenge sent. Waiting for HMAC response...\n");
+                                        }
                                     }
                                 }
                                 
