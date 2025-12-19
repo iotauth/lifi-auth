@@ -383,9 +383,12 @@ int main() {
             // Extract the command part (skip the "CMD:" prefix)
             const char *cmd = message_buffer + 4;
             
+            const char *cmd_trimmed = cmd;
+            while (*cmd_trimmed == ' ') cmd_trimmed++; // Skip leading spaces for our check
+            
             // Special Command: Send Key ID Plaintext
-            if (strncmp(cmd, "send_id", 7) == 0) {
-                 printf("[TX] Broadcasting Key ID...\n");
+            if (strncmp(cmd_trimmed, "send_id", 7) == 0) {
+                 printf("[TX] Sending Key ID...\n");
                  
                  // Payload = 8 bytes of Key ID
                  uint8_t payload[SESSION_KEY_ID_SIZE];
