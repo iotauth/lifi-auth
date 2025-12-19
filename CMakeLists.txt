@@ -97,23 +97,7 @@ if(BUILD_TARGET STREQUAL "pico")
 endif()
 
 
-# Choose a per-subproject binary dir under the target root
-if(BUILD_TARGET STREQUAL "pico")
-  set(_SUB_BIN "${CMAKE_BINARY_DIR}/sender")
-  add_subdirectory(sender "${_SUB_BIN}")
 
-elseif(BUILD_TARGET STREQUAL "pi4")
-  set(_SUB_BIN "${CMAKE_BINARY_DIR}/receiver")
-  add_subdirectory(receiver "${_SUB_BIN}")
-
-elseif(BUILD_TARGET STREQUAL "host")
-  # Host-side tools (Linux sender)
-  set(_SUB_BIN "${CMAKE_BINARY_DIR}/host")
-  add_subdirectory(sender/host "${_SUB_BIN}")
-
-else()
-  message(FATAL_ERROR "Unknown BUILD_TARGET='${BUILD_TARGET}'")
-endif()
 
 
 
@@ -226,4 +210,22 @@ target_link_libraries(sst_embedded
 
 if(BUILD_TARGET STREQUAL "pico") 
   target_link_libraries(sst_embedded PRIVATE pico_stdlib) 
+endif()
+
+# === Add Subdirectories (Last, so libs are defined) ===
+if(BUILD_TARGET STREQUAL "pico")
+  set(_SUB_BIN "${CMAKE_BINARY_DIR}/sender")
+  add_subdirectory(sender "${_SUB_BIN}")
+
+elseif(BUILD_TARGET STREQUAL "pi4")
+  set(_SUB_BIN "${CMAKE_BINARY_DIR}/receiver")
+  add_subdirectory(receiver "${_SUB_BIN}")
+
+elseif(BUILD_TARGET STREQUAL "host")
+  # Host-side tools (Linux sender)
+  set(_SUB_BIN "${CMAKE_BINARY_DIR}/host")
+  add_subdirectory(sender/host "${_SUB_BIN}")
+
+else()
+  message(FATAL_ERROR "Unknown BUILD_TARGET='${BUILD_TARGET}'")
 endif()
