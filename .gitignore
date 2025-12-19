@@ -6,3 +6,6 @@
 *.key
 *.p12
 *.pfx
+pass_key.sh
+session_stats.txt
+receiver_debug.log

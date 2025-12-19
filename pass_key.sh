@@ -3,6 +3,7 @@
 set -e
 
 echo "Building passKeyToPico..."
+mkdir -p receiver/build
 cd receiver/build
 cmake .. 
 make passKeyToPico
