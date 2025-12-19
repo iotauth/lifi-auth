@@ -7,6 +7,7 @@
 #include <termios.h>  // Linux serial
 #include <time.h>
 #include <unistd.h>
+#include <sys/time.h> // For gettimeofday
 
 //for ui on pi4
 #include <fcntl.h>  // for open()
