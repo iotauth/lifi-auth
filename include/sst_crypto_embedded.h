@@ -34,7 +34,7 @@ int sst_decrypt_gcm(const uint8_t *key, const uint8_t *nonce,
                     const uint8_t *tag, uint8_t *output);
 
 // Compute HMAC-SHA256
-// @param key Session Key (32 bytes)
+// @param key Session Key (16 bytes, SST_KEY_SIZE)
 // @param input Data to hash (Challenge)
 // @param input_len Length of input
 // @param output Output buffer (32 bytes)

@@ -128,9 +128,9 @@ int main(int argc, char* argv[]) {
     struct timespec next_send = {0};
     clock_gettime(CLOCK_MONOTONIC, &next_send);  // send immediately
 
-    // Build key provisioning frame: [PREAMBLE:4][TYPE:1][LEN:2][KEY_ID:8][KEY:32]
-    // Length = KEY_ID_SIZE + SESSION_KEY_SIZE
-    uint16_t key_payload_len = SST_KEY_ID_SIZE + SESSION_KEY_SIZE;
+    // Build key provisioning frame: [PREAMBLE:4][TYPE:1][LEN:2][KEY_ID:8][KEY:16]
+    // Length = KEY_ID_SIZE + KEY_SIZE (16 bytes for AES-128)
+    uint16_t key_payload_len = SST_KEY_ID_SIZE + SST_KEY_SIZE;
     uint8_t key_header[] = {
         PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
         MSG_TYPE_KEY,
@@ -138,14 +138,14 @@ int main(int argc, char* argv[]) {
         key_payload_len & 0xFF
     };
     
-    // Send key provisioning frame
+    // Send key provisioning frame (only first 16 bytes of cipher_key for AES-128)
     if (write_all(fd, key_header, sizeof(key_header)) < 0) {
         perror("write key header");
     }
     if (write_all(fd, s_key.key_id, SST_KEY_ID_SIZE) < 0) {
         perror("write key id");
     }
-    if (write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+    if (write_all(fd, s_key.cipher_key, SST_KEY_SIZE) < 0) {
         perror("write session key");
     }
     tcdrain(fd);  // ensure bytes actually leave the UART
@@ -179,8 +179,8 @@ int main(int argc, char* argv[]) {
             switch (key) {
                 case '1': {
                     printf("\n[Shortcut] Sending session key to Pico...\n");
-                    // Build key provisioning frame with 4-byte preamble
-                    uint16_t klen = SST_KEY_ID_SIZE + SESSION_KEY_SIZE;
+                    // Build key provisioning frame with 4-byte preamble (16-byte key for AES-128)
+                    uint16_t klen = SST_KEY_ID_SIZE + SST_KEY_SIZE;
                     uint8_t hdr[] = {
                         PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
                         MSG_TYPE_KEY,
@@ -189,7 +189,7 @@ int main(int argc, char* argv[]) {
                     };
                     if (write_all(fd, hdr, sizeof(hdr)) < 0 ||
                         write_all(fd, s_key.key_id, SST_KEY_ID_SIZE) < 0 ||
-                        write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+                        write_all(fd, s_key.cipher_key, SST_KEY_SIZE) < 0) {
                         printf("Error: Failed to send session key.\n");
                     } else {
                         tcdrain(fd);
