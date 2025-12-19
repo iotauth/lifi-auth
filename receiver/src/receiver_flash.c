@@ -448,6 +448,7 @@ int main(int argc, char* argv[]) {
     int uart_state = 0;
 
     log_printf("Listening for encrypted message...\n");
+    log_printf("[TEST] UI Log Window is working.\n"); // Confirm UI
     if (fd >= 0) tcflush(fd, TCIFLUSH);
 
     uint8_t pending_key[SESSION_KEY_SIZE] = {0};
@@ -701,6 +702,13 @@ int main(int argc, char* argv[]) {
         }
 
         if (fd >= 0 && read(fd, &byte, 1) == 1) {
+            // Activity Blink (Top Right)
+            static int act_ctr = 0;
+            if (++act_ctr % 10 == 0) {
+                mvwprintw(win_log_border, 0, getmaxx(win_log_border)-4, "%c", (act_ctr/10)%2 ? '*' : ' ');
+                wrefresh(win_log_border);
+            }
+
             switch (uart_state) {
                 case 0:
                     if (byte == PREAMBLE_BYTE_1) {

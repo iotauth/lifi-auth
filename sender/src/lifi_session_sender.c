@@ -117,8 +117,8 @@ int main() {
         uint8_t tag[SST_TAG_SIZE] = {0};
 
         for (;;) {
-            // Check for incoming UART challenges from Pi4
-            if (uart_is_readable(UART_ID)) {
+            // Drain all available UART bytes before checking USB (prevents FIFO overflow)
+            while (uart_is_readable(UART_ID)) {
                 static uint8_t uart_byte;
                 static int challenge_state = 0;
                 static uint8_t challenge_buffer[CHALLENGE_SIZE];
@@ -131,14 +131,17 @@ int main() {
                         break;
                     case 1:
                         if (uart_byte == PREAMBLE_BYTE_2) challenge_state = 2;
+                        else if (uart_byte == PREAMBLE_BYTE_1) challenge_state = 1; // Overlapping preamble start
                         else challenge_state = 0;
                         break;
                     case 2:
                         if (uart_byte == PREAMBLE_BYTE_3) challenge_state = 3;
+                        else if (uart_byte == PREAMBLE_BYTE_1) challenge_state = 1;
                         else challenge_state = 0;
                         break;
                     case 3:
                         if (uart_byte == PREAMBLE_BYTE_4) challenge_state = 4;
+                        else if (uart_byte == PREAMBLE_BYTE_1) challenge_state = 1;
                         else challenge_state = 0;
                         break;
                     case 4:
@@ -162,6 +165,7 @@ int main() {
                                     for (int i = 0; i < HMAC_SIZE; i++) {
                                         sprintf(hmac_msg + 5 + (i * 2), "%02X", hmac[i]);
                                     }
+                                    printf("Computed Response: %s\n", hmac_msg);
                                     
                                     // Send HMAC response as encrypted LiFi message
                                     uint8_t nonce[SST_NONCE_SIZE];
@@ -181,15 +185,15 @@ int main() {
                                         uint8_t len_bytes_out[2] = {(payload_len >> 8) & 0xFF, payload_len & 0xFF};
                                         
                                         // CRC buffer
-                                        uint8_t crc_buf[1 + 2 + SST_NONCE_SIZE + sizeof(hmac_msg) + SST_TAG_SIZE];
+                                        uint8_t crc_buf_hmac[1 + 2 + SST_NONCE_SIZE + sizeof(hmac_msg) + SST_TAG_SIZE];
                                         size_t crc_idx = 0;
-                                        crc_buf[crc_idx++] = MSG_TYPE_ENCRYPTED;
-                                        crc_buf[crc_idx++] = len_bytes_out[0];
-                                        crc_buf[crc_idx++] = len_bytes_out[1];
-                                        memcpy(&crc_buf[crc_idx], nonce, SST_NONCE_SIZE); crc_idx += SST_NONCE_SIZE;
-                                        memcpy(&crc_buf[crc_idx], ciphertext_hmac, msg_len_hmac); crc_idx += msg_len_hmac;
-                                        memcpy(&crc_buf[crc_idx], tag_hmac, SST_TAG_SIZE); crc_idx += SST_TAG_SIZE;
-                                        uint16_t crc = crc16_ccitt(crc_buf, crc_idx);
+                                        crc_buf_hmac[crc_idx++] = MSG_TYPE_ENCRYPTED;
+                                        crc_buf_hmac[crc_idx++] = len_bytes_out[0];
+                                        crc_buf_hmac[crc_idx++] = len_bytes_out[1];
+                                        memcpy(&crc_buf_hmac[crc_idx], nonce, SST_NONCE_SIZE); crc_idx += SST_NONCE_SIZE;
+                                        memcpy(&crc_buf_hmac[crc_idx], ciphertext_hmac, msg_len_hmac); crc_idx += msg_len_hmac;
+                                        memcpy(&crc_buf_hmac[crc_idx], tag_hmac, SST_TAG_SIZE); crc_idx += SST_TAG_SIZE;
+                                        uint16_t crc = crc16_ccitt(crc_buf_hmac, crc_idx);
                                         uint8_t crc_bytes[2] = {(crc >> 8) & 0xFF, crc & 0xFF};
                                         
                                         uart_putc_raw(UART_ID, PREAMBLE_BYTE_1);
@@ -207,16 +211,20 @@ int main() {
                                     }
                                 }
                             } else {
-                                printf("\n[Error] Challenge timeout.\n");
+                                printf("\n[Error] Challenge timeout. Flushing RX.\n");
+                                // Flush any remaining garbage (noise/partial frame) to clean the line
+                                while (uart_is_readable(UART_ID)) {
+                                    (void)uart_getc(UART_ID);
+                                }
                             }
                         } 
                         else if (uart_byte == MSG_TYPE_KEY) {
-                            // New key provisioning format: [LEN:2][KEY_ID:8][KEY:32]
+                            // New key provisioning format: [LEN:2][KEY_ID:8][KEY:16]
                             uint8_t len_bytes[2];
                             uint8_t new_id[SST_KEY_ID_SIZE];
                             uint8_t new_key[SST_KEY_SIZE];
                             
-                            bool ok = uart_read_blocking_timeout_us(UART_ID, len_bytes, 2, 50000);
+                            bool ok = uart_read_blocking_timeout_us(UART_ID, len_bytes, 2, 100000);
                             if (ok) ok = uart_read_blocking_timeout_us(UART_ID, new_id, SST_KEY_ID_SIZE, 100000);
                             if (ok) ok = uart_read_blocking_timeout_us(UART_ID, new_key, SST_KEY_SIZE, 100000);
                             
@@ -239,48 +247,26 @@ int main() {
                                     
                                     printf("[Auto-Provision] Key saved to Slot %c and activated.\n", 
                                            current_slot == 0 ? 'A' : 'B');
-                                    printf("Enter a message to send over LiFi:\n");
                                 } else {
                                     printf("[Error] Failed to save key to flash.\n");
                                 }
+                            } else {
+                                printf("\n[Error] Key update timeout. Flushing RX.\n");
+                                while (uart_is_readable(UART_ID)) (void)uart_getc(UART_ID);
                             }
                         }
                         else {
-                            // Old-style key provisioning (backwards compat) - first byte is KEY_ID[0]
-                            uint8_t new_id[SST_KEY_ID_SIZE];
-                            uint8_t new_key[SST_KEY_SIZE];
-                            
-                            new_id[0] = uart_byte; // We already consumed the first byte
-                            
-                            bool ok = uart_read_blocking_timeout_us(UART_ID, &new_id[1], SST_KEY_ID_SIZE - 1, 100000);
-                            if (ok) ok = uart_read_blocking_timeout_us(UART_ID, new_key, SST_KEY_SIZE, 100000);
-                            
-                            if (ok) {
-                                printf("\n[Received New Session Key via LiFi (legacy)]\n");
-                                printf("Received ID: ");
-                                for(int i=0; i<SST_KEY_ID_SIZE; i++) printf("%02X", new_id[i]);
-                                printf("\n");
-                                
-                                if (pico_write_key_to_slot(current_slot, new_id, new_key)) {
-                                    store_last_used_slot((uint8_t)current_slot);
-                                    keyram_set_with_id(new_id, new_key);
-                                    memcpy(session_key, new_key, SST_KEY_SIZE);
-                                    memcpy(session_key_id, new_id, SST_KEY_ID_SIZE);
-                                    pico_nonce_on_key_change();
-                                    printf("[Auto-Provision] Key saved to Slot %c and activated.\n", 
-                                           current_slot == 0 ? 'A' : 'B');
-                                    printf("Enter a message to send over LiFi:\n");
-                                } else {
-                                    printf("[Error] Failed to save key to flash.\n");
-                                }
-                            }
+                            // Unknown/Legacy fallback removed to strict protocol enforcement
+                            // Reset state handled by loop break
                         }
                         challenge_state = 0;
                         break;
                 }
             }
             
-            ch = getchar_timeout_us(1000);  // poll USB CDC every 1 ms
+            // Use non-blocking read (0 timeout) or very short timeout to prevent
+            // UART FIFO overflow. 1Mbps = ~10us/byte. 32-byte FIFO fills in 320us.
+            ch = getchar_timeout_us(0);  // Non-blocking poll
             if (ch == PICO_ERROR_TIMEOUT) {
                 // watchdog_update(); //when enabled
                 continue;
@@ -454,9 +440,9 @@ int main() {
         
         printf("[TX] Frame sent successfully\n");
 
-        gpio_put(25, 1);
-        sleep_ms(100);
-        gpio_put(25, 0);
+        // gpio_put(25, 1);
+        // sleep_ms(100);
+        // gpio_put(25, 0);
 
         // Clear sensitive data from memory
         secure_zero(ciphertext, sizeof(ciphertext));
