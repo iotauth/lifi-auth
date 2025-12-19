@@ -314,12 +314,58 @@ int main() {
             }
             payload_len = write_idx;
             
-            printf("[FILEB] TEST MODE - NO COMPRESSION. Sending %zu raw bytes as regular message.\n", payload_len);
-            
-            // Skip compression entirely - just send raw as MSG_TYPE_ENCRYPTED (like a normal message)
-            memmove(message_buffer, payload, payload_len);
-            msg_len = payload_len;
-            current_msg_type = MSG_TYPE_ENCRYPTED;  // Send as normal message, NO compression
+            // Perform Compression
+            // Args: window_sz2=8 (2^8=256), lookahead_sz2=4 (2^4=16)
+            heatshrink_encoder *hse = heatshrink_encoder_alloc(8, 4);
+            if (hse) {
+                size_t sunk = 0;
+                size_t polled = 0;
+                size_t comp_sz = 0;
+                
+                // Sink the whole payload
+                heatshrink_encoder_sink(hse, (uint8_t*)payload, payload_len, &sunk);
+                
+                // Poll compressed data
+                HSE_poll_res pres;
+                do {
+                    size_t p = 0;
+                    pres = heatshrink_encoder_poll(hse, &compressed_buf[comp_sz], 
+                                                 sizeof(compressed_buf) - comp_sz, &p);
+                    comp_sz += p;
+                } while (pres == HSER_POLL_MORE && comp_sz < sizeof(compressed_buf));
+                
+                // Finish
+                HSE_finish_res fres = heatshrink_encoder_finish(hse);
+                if (fres == HSER_FINISH_MORE) {
+                     size_t p = 0;
+                     heatshrink_encoder_poll(hse, &compressed_buf[comp_sz], 
+                                           sizeof(compressed_buf) - comp_sz, &p);
+                     comp_sz += p;
+                }
+                
+                heatshrink_encoder_free(hse);
+                
+                printf("[FILEB] Compressed %zu -> %zu bytes (%.1f%%)\n", 
+                       payload_len, comp_sz, (1.0 - (float)comp_sz/payload_len)*100.0);
+                
+                // Replace message buffer with compressed data
+                if (comp_sz < sizeof(message_buffer)) {
+                    memcpy(message_buffer, compressed_buf, comp_sz);
+                    msg_len = comp_sz;
+                    current_msg_type = MSG_TYPE_FILE; // Set type to FILE for receiver to decompress
+                } else {
+                    printf("[Error] Compressed data too large for buffer!\n");
+                    // Fallback to uncompressed if expansion happened (unlikely for text)
+                    memmove(message_buffer, payload, payload_len);
+                    msg_len = payload_len;
+                    current_msg_type = MSG_TYPE_ENCRYPTED;
+                }
+            } else {
+                printf("[Error] Encoder alloc failed. Sending uncompressed.\n");
+                memmove(message_buffer, payload, payload_len);
+                msg_len = payload_len;
+                current_msg_type = MSG_TYPE_ENCRYPTED;
+            }
         }
         // Check for FILE: prefix (legacy single-chunk)
         else if (strncmp(message_buffer, "FILE:", 5) == 0) {
@@ -327,7 +373,7 @@ int main() {
             size_t payload_len = msg_len - 5;
             
             // TEST MODE: Skip compression, send as regular encrypted message
-            printf("[FILE] TEST MODE - NO COMPRESSION. Sending %zu bytes as regular message.\n", payload_len);
+            // printf("[FILE] TEST MODE - NO COMPRESSION. Sending %zu bytes as regular message.\n", payload_len);
             memmove(message_buffer, payload, payload_len);
             msg_len = payload_len;
             current_msg_type = MSG_TYPE_ENCRYPTED;  // Send as regular message
@@ -401,10 +447,6 @@ int main() {
         uint16_t crc = crc16_ccitt(crc_buf, crc_idx);
         uint8_t crc_bytes[2] = {(crc >> 8) & 0xFF, crc & 0xFF};
         
-        // Send frame with delays between ALL components for receiver stability
-        printf("[TX] Sending frame: type=0x%02X, payload_len=%zu, total=%zu bytes\n", 
-               current_msg_type, payload_len, 4 + 1 + 2 + payload_len + 2);
-        
         // Send preamble and header
         uart_putc_raw(UART_ID, PREAMBLE_BYTE_1);
         uart_putc_raw(UART_ID, PREAMBLE_BYTE_2);
@@ -413,36 +455,30 @@ int main() {
         uart_putc_raw(UART_ID, current_msg_type);
         uart_write_blocking(UART_ID, len_bytes, 2);
         uart_tx_wait_blocking(UART_ID);
-        sleep_us(1000);  // 1ms after header
+        sleep_us(250);  // 250us after header
         
         // Send nonce in small chunks
         uart_write_blocking(UART_ID, nonce, SST_NONCE_SIZE);
         uart_tx_wait_blocking(UART_ID);
-        sleep_us(1000);  // 1ms after nonce
+        sleep_us(250);  // 250us after nonce
         
-        // Send ciphertext in 32-byte chunks with delays
-        const size_t CHUNK_SIZE = 32;
+        // Send ciphertext in 256-byte chunks with delays
+        const size_t CHUNK_SIZE = 256;
         for (size_t offset = 0; offset < msg_len; offset += CHUNK_SIZE) {
             size_t chunk = (msg_len - offset > CHUNK_SIZE) ? CHUNK_SIZE : (msg_len - offset);
             uart_write_blocking(UART_ID, ciphertext + offset, chunk);
             uart_tx_wait_blocking(UART_ID);
-            sleep_us(1000);  // 1ms after each chunk
+            sleep_us(250);  // 250us after each chunk
         }
         
         // Send tag in chunks
         uart_write_blocking(UART_ID, tag, SST_TAG_SIZE);
         uart_tx_wait_blocking(UART_ID);
-        sleep_us(1000);  // 1ms after tag
+        sleep_us(250);  // 250us after tag
         
         // Send CRC
         uart_write_blocking(UART_ID, crc_bytes, 2);
         uart_tx_wait_blocking(UART_ID);
-        
-        printf("[TX] Frame sent successfully\n");
-
-        // gpio_put(25, 1);
-        // sleep_ms(100);
-        // gpio_put(25, 0);
 
         // Clear sensitive data from memory
         secure_zero(ciphertext, sizeof(ciphertext));
