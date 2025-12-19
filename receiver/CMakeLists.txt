@@ -21,7 +21,7 @@ target_include_directories(receiver_common PUBLIC
 )
 
 # ---- sst-c-api (submodule under deps/) ----
-set(SST_C_API_DIR "${CMAKE_SOURCE_DIR}/deps/sst-c-api")
+set(SST_C_API_DIR "${CMAKE_SOURCE_DIR}/../deps/sst-c-api")
 
 add_executable(lifi_session_receiver
   ${CMAKE_CURRENT_SOURCE_DIR}/src/receiver_flash.c
