@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
     printf("--- passKeyToPico Tool ---\n");
 
     if (argc > 2) {
-        fprintf(stderr, "Usage: %s [<path/to/lifi_receiver.config>]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [<path/to/side.config>]\n", argv[0]);
         return 1;
     } else if (argc == 2) {
         config_path = argv[1];
