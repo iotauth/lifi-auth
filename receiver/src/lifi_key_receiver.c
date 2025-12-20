@@ -58,6 +58,19 @@ int main(int argc, char *argv[]) {
         // printf("\n");
     } else {
         SST_print_error("Failed to retrieve session key.");
+        if (s_key_list->num_key > 0) {
+            unsigned char *abs = s_key_list->s_key[0].abs_validity;
+            uint64_t exp_ms = 0; // Manual parsing to correspond with check_validity
+            // Using logic similar to read_unsigned_long_int_BE to show what's there
+             uint64_t num_valid = 0;
+            for (int i = 0; i < KEY_EXPIRATION_TIME_SIZE; i++) {
+                uint64_t num = 1ULL << 8 * (KEY_EXPIRATION_TIME_SIZE - 1 - i);
+                num_valid |= num * abs[i];
+            }
+            printf("DEBUG: Key Expiration (ms): %lu\n", num_valid);
+            printf("DEBUG: Key Expiration (sec): %lu\n", num_valid / 1000);
+            printf("DEBUG: Current Time (sec): %lu\n", time(NULL));
+        }
     }
 
     // 5. Cleanup
