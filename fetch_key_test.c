@@ -46,7 +46,7 @@ int main() {
         printf("Key ID: ");
         for(int i=0; i<SESSION_KEY_ID_SIZE; i++) printf("%02X ", found_key->key_id[i]);
         printf("\nCipher Key: ");
-        for(int i=0; i<SESSION_KEY_SIZE; i++) printf("%02X ", found_key->cipher_key[i]);
+        for(int i=0; i<found_key->cipher_key_size; i++) printf("%02X ", found_key->cipher_key[i]);
         printf("\n");
     } else {
         printf("\nFAILURE. Key not found or connection failed.\n");
