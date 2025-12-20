@@ -375,16 +375,34 @@ int main(int argc, char* argv[]) {
 
     printf("Using config file: %s\n", config_path);
 
-    // --- Init Empty Key List (Lazy Loading) ---
-    // We don't fetch keys at startup. We wait for a Key ID from LiFi.
-    printf("Initializing empty session key list...\n");
+    // --- Init Key List (Secure Startup) ---
+    // Update: Fetch a fresh key at startup to establish valid session with Auth.
+    // This allows subsequent "Fetch by ID" calls to work correctly.
+    printf("Initializing SST...\n");
     SST_ctx_t* sst = init_SST(config_path);
     if (!sst) {
         printf("SST init failed.\n");
         return 1;
     }
+    // Explicitly initialize purpose_index to avoid garbage values
+    sst->config->purpose_index = 0;
 
-    session_key_list_t* key_list = init_empty_session_key_list();
+    printf("Fetching initial session key to establish Auth connection...\n");
+    session_key_list_t* key_list = get_session_key(sst, NULL);
+    
+    if (!key_list) {
+         printf("Failed to get initial session key. Auth connection might be down or config invalid.\n");
+         printf("Attempting to continue with empty list (Reactive Mode)...\n");
+         key_list = init_empty_session_key_list();
+    } else {
+         if (key_list->num_key > 0) {
+             printf("Success! Initial Session Key ID: ");
+             for(int i=0; i<SESSION_KEY_ID_SIZE; i++) printf("%02X", key_list->s_key[0].key_id[i]);
+             printf("\n");
+         } else {
+             printf("Connected to Auth, but received 0 keys.\n");
+         }
+    }
 
     // --- Serial Init (Before UI) ---
     // Initialize serial first so any perror/printf issues don't corrupt the ncurses window
