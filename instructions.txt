@@ -1,0 +1,10 @@
+gcc fetch_key_test.c \
+    deps/sst-c-api/c_api.c \
+    deps/sst-c-api/c_common.c \
+    deps/sst-c-api/c_secure_comm.c \
+    deps/sst-c-api/c_crypto.c \
+    deps/sst-c-api/load_config.c \
+    -I deps/sst-c-api \
+    -I /usr/include/openssl \
+    -lssl -lcrypto -pthread \
+    -o fetch_key_test && ./fetch_key_test
