@@ -821,6 +821,14 @@ int main(int argc, char* argv[]) {
                         lifi_id_seen = true;
                         
                         cmd_printf("Looking for Key ID...");
+                        char debug_key_id[3 * SESSION_KEY_ID_SIZE + 1];
+                        debug_key_id[0] = '\0';
+                        for (int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
+                            char buf[4];
+                            snprintf(buf, sizeof(buf), "%02X ", last_lifi_id[i]);
+                            strcat(debug_key_id, buf);
+                        }
+                        cmd_printf("Passing ID to SST: %s", debug_key_id);
                         
                         // 2. Use C-API to find locally or fetch from Auth
                         // This handles checking existing_s_key_list first, then queries Auth if needed.
