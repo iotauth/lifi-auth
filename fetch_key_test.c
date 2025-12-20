@@ -50,6 +50,12 @@ int main() {
     memcpy(target_id, valid_key->key_id, SESSION_KEY_ID_SIZE);
     
     // Free the list to prevent "local cache" hits (we want to force fetch)
+    // free_session_key_list_t(new_keys); // Actually, we might keep it to compare, but freeing ensures we fetch remotely? 
+    // Wait, get_session_key_by_ID might check "existing_s_key_list" which is key_list (empty).
+    // The "Auth" server has it. The "Local" client has it in new_keys.
+    // We want to fetch it FROM AUTH again.
+    // So we invoke get_session_key_by_ID with 'key_list' which is currently empty.
+    
     free_session_key_list_t(new_keys); 
 
     // 4. Fetch Key by ID (Validation Step 2)
@@ -71,6 +77,7 @@ int main() {
         printf("\n");
     } else {
         printf("\nFAILURE. Key not found or connection failed.\n");
+        SST_print_error("Detailed Failure Information");
     }
 
     // Cleanup
