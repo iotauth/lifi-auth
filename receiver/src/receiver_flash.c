@@ -375,15 +375,16 @@ int main(int argc, char* argv[]) {
 
     printf("Using config file: %s\n", config_path);
 
-    // --- Fetch session key from SST ---
-    printf("Retrieving session key from SST...\n");
+    // --- Init Empty Key List (Lazy Loading) ---
+    // We don't fetch keys at startup. We wait for a Key ID from LiFi.
+    printf("Initializing empty session key list...\n");
     SST_ctx_t* sst = init_SST(config_path);
     if (!sst) {
         printf("SST init failed.\n");
         return 1;
     }
 
-    session_key_list_t* key_list = get_session_key(sst, NULL);
+    session_key_list_t* key_list = init_empty_session_key_list();
 
     // --- Serial Init (Before UI) ---
     // Initialize serial first so any perror/printf issues don't corrupt the ncurses window
