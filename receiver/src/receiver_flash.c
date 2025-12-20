@@ -26,77 +26,7 @@
 #include "heatshrink_decoder.h"
 #include "../../include/crc16.h"
 #include "utils.h"
-#include "c_secure_comm.h" // Needed for send_session_key_request_check_protocol
 
-// Workaround for missing read_unsigned_long_int_BE in c_api.h
-static uint64_t parse_be_uint64(unsigned char *buf) {
-    uint64_t num = 0;
-    for (int i = 0; i < 8; i++) {
-        num = (num << 8) | buf[i];
-    }
-    return num;
-}
-
-// Custom implementation of get_session_key_by_ID that handles 64-bit IDs correctly
-session_key_t *get_session_key_by_ID_safe(unsigned char *target_session_key_id,
-                                          SST_ctx_t *ctx,
-                                          session_key_list_t *existing_s_key_list) {
-    session_key_t *s_key = NULL;
-    uint64_t target_session_key_id_int = parse_be_uint64(target_session_key_id);
-
-    // 1. Search Local List - SKIPPED (Always ask Auth)
-    // We force session_key_idx to -1 to trigger the Auth request below.
-    // This ensures we always get the authoritative key from the server
-    int session_key_idx = -1;
-    /* 
-    if (existing_s_key_list == NULL) {
-        cmd_printf("Error: Session key list is NULL.\n");
-        return NULL;
-    }
-    
-    for (int idx = 0; idx < existing_s_key_list->num_key; idx++) {
-        uint64_t list_key_id = parse_be_uint64(existing_s_key_list->s_key[idx].key_id);
-        if (target_session_key_id_int == list_key_id) {
-            session_key_idx = idx;
-            break;
-        }
-    }
-    */
-
-    if (session_key_idx >= 0) {
-        s_key = &existing_s_key_list->s_key[session_key_idx];
-    } else {
-        // 2. Not found locally, Request from Auth
-        // Manually format the purpose string with %llu to ensure 64-bit ID is sent
-        snprintf(ctx->config->purpose[ctx->config->purpose_index],
-                 sizeof(ctx->config->purpose[ctx->config->purpose_index]),
-                 "{\"keyId\":%llu}", (unsigned long long)target_session_key_id_int);
-
-        session_key_list_t *s_key_list;
-        // This library call will now use the correct "keyId: <64bit>" string we just set
-        s_key_list = send_session_key_request_check_protocol(ctx, target_session_key_id);
-        
-        if (s_key_list == NULL) {
-             // Auth request failed (or Auth rejected it)
-            return NULL;
-        }
-        
-        // Add the FIRST key from response to our local list
-        // library's add_session_key_to_list is available in c_secure_comm.h
-        s_key = &s_key_list->s_key[0]; 
-        add_session_key_to_list(s_key, existing_s_key_list);
-        
-        // Clean up the temporary list returned by fetch
-        free(s_key_list->s_key);
-        free(s_key_list);
-        
-        // Return pointer to the key we just added to existing_s_key_list
-        // It resides at (rear_idx - 1) wrapped around
-        int new_idx = (existing_s_key_list->rear_idx - 1 + MAX_SESSION_KEY) % MAX_SESSION_KEY;
-        s_key = &existing_s_key_list->s_key[new_idx];
-    }
-    return s_key;
-}
 
 static WINDOW *win_log = NULL;
 static WINDOW *win_mid = NULL;
@@ -893,18 +823,16 @@ int main(int argc, char* argv[]) {
                         
                         // 2. Use C-API to find locally or fetch from Auth
                         // This handles checking existing_s_key_list first, then queries Auth if needed.
-                        session_key_t *found_key = get_session_key_by_ID_safe(last_lifi_id, sst, key_list);
+                        session_key_t *found_key = get_session_key_by_ID(last_lifi_id, sst, key_list);
                         
                         if (found_key) {
                             s_key = *found_key;
                             key_valid = true;
                             
-                            // Since we forced the fetch in get_session_key_by_ID_safe:
-                            cmd_printf("✓ Fetched from Auth Server!");
-                            
-                            /* (Disabled old heuristic since we always fetch now)
+                            // Check if it was a local find or a fetch (heuristic: pointer check)
                             bool is_local = false;
                             if (key_list && key_list->s_key) {
+                                // If pointer is within the array bounds of our local list
                                 if (found_key >= key_list->s_key && 
                                     found_key < key_list->s_key + key_list->num_key) {
                                     is_local = true;
@@ -916,7 +844,6 @@ int main(int argc, char* argv[]) {
                             } else {
                                 cmd_printf("✓ Fetched from Auth Server!");
                             }
-                            */
                         } else {
                              cmd_printf("Error: Key ID not found (Local or Auth).");
                         }
