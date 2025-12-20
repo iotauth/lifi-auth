@@ -44,8 +44,11 @@ session_key_t *get_session_key_by_ID_safe(unsigned char *target_session_key_id,
     session_key_t *s_key = NULL;
     uint64_t target_session_key_id_int = parse_be_uint64(target_session_key_id);
 
-    // 1. Search Local List with CORRECT 64-bit comparison
+    // 1. Search Local List - SKIPPED (Always ask Auth)
+    // We force session_key_idx to -1 to trigger the Auth request below.
+    // This ensures we always get the authoritative key from the server
     int session_key_idx = -1;
+    /* 
     if (existing_s_key_list == NULL) {
         cmd_printf("Error: Session key list is NULL.\n");
         return NULL;
@@ -58,6 +61,7 @@ session_key_t *get_session_key_by_ID_safe(unsigned char *target_session_key_id,
             break;
         }
     }
+    */
 
     if (session_key_idx >= 0) {
         s_key = &existing_s_key_list->s_key[session_key_idx];
@@ -895,10 +899,12 @@ int main(int argc, char* argv[]) {
                             s_key = *found_key;
                             key_valid = true;
                             
-                            // Check if it was a local find or a fetch (heuristic: pointer check)
+                            // Since we forced the fetch in get_session_key_by_ID_safe:
+                            cmd_printf("✓ Fetched from Auth Server!");
+                            
+                            /* (Disabled old heuristic since we always fetch now)
                             bool is_local = false;
                             if (key_list && key_list->s_key) {
-                                // If pointer is within the array bounds of our local list
                                 if (found_key >= key_list->s_key && 
                                     found_key < key_list->s_key + key_list->num_key) {
                                     is_local = true;
@@ -910,6 +916,7 @@ int main(int argc, char* argv[]) {
                             } else {
                                 cmd_printf("✓ Fetched from Auth Server!");
                             }
+                            */
                         } else {
                              cmd_printf("Error: Key ID not found (Local or Auth).");
                         }
