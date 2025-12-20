@@ -23,6 +23,8 @@ int main() {
         return 1;
     }
     printf("SST Context initialized.\n");
+    // Explicitly initialize purpose_index as it might be garbage from malloc
+    ctx->config->purpose_index = 0;
 
     // 2. Prepare Empty Key List
     session_key_list_t *key_list = init_empty_session_key_list();
