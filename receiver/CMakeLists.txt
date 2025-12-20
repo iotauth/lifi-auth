@@ -23,6 +23,36 @@ target_include_directories(receiver_common PUBLIC
 # ---- sst-c-api (submodule under deps/) ----
 set(SST_C_API_DIR "${CMAKE_SOURCE_DIR}/deps/sst-c-api")
 
+add_executable(lifi_key_receiver
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/lifi_key_receiver.c
+  ${SST_C_API_DIR}/c_api.c
+  ${SST_C_API_DIR}/c_common.c
+  ${SST_C_API_DIR}/c_crypto.c
+  ${SST_C_API_DIR}/c_secure_comm.c
+  ${SST_C_API_DIR}/load_config.c
+  ${SST_C_API_DIR}/ipfs.c
+)
+
+target_include_directories(lifi_key_receiver PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/include
+  ${SST_C_API_DIR}
+  ${MBEDTLS_DIR}/include  
+)
+
+target_link_libraries(lifi_key_receiver PRIVATE
+  receiver_common
+  sst_embedded
+  heatshrink
+  mbedcrypto
+  OpenSSL::Crypto
+)
+
+# Use an absolute default config path (reusing receiver config for now, or user can specify)
+target_compile_definitions(lifi_key_receiver PRIVATE
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/lifi_receiver.config\"
+)
+
 add_executable(lifi_session_receiver
   ${CMAKE_CURRENT_SOURCE_DIR}/src/receiver_flash.c
   ${SST_C_API_DIR}/c_api.c
