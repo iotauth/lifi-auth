@@ -27,22 +27,43 @@ int main() {
     // 2. Prepare Empty Key List
     session_key_list_t *key_list = init_empty_session_key_list();
 
-    // 3. Prepare Target Key ID
-    // 00 00 00 00 00 9A 1D 59
-    unsigned char target_id[SESSION_KEY_ID_SIZE] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x9A, 0x1D, 0x59
-    };
+    // 3. Request Valid Key from Auth (Validation Step 1)
+    printf("Requesting NEW session key from Auth...\n");
+    session_key_list_t *new_keys = get_session_key(ctx, NULL);
+    
+    if (!new_keys || new_keys->num_key == 0) {
+        printf("ERROR: Failed to get ANY new key from Auth.\n");
+        if (new_keys) free_session_key_list_t(new_keys);
+        free_session_key_list_t(key_list);
+        free_SST_ctx_t(ctx);
+        return 1;
+    }
 
+    session_key_t *valid_key = &new_keys->s_key[0];
+    printf("SUCCESS! Received New Key.\n");
+    printf("Key ID: ");
+    for(int i=0; i<SESSION_KEY_ID_SIZE; i++) printf("%02X ", valid_key->key_id[i]);
+    printf("\n");
+
+    // Copy ID for the test
+    unsigned char target_id[SESSION_KEY_ID_SIZE];
+    memcpy(target_id, valid_key->key_id, SESSION_KEY_ID_SIZE);
+    
+    // Free the list to prevent "local cache" hits (we want to force fetch)
+    free_session_key_list_t(new_keys); 
+
+    // 4. Fetch Key by ID (Validation Step 2)
+    printf("----------------------------------------\n");
+    printf("Now testing fetch by ID (Simulating Receiver)...\n");
     printf("Requesting Key ID: ");
     for(int i=0; i<SESSION_KEY_ID_SIZE; i++) printf("%02X ", target_id[i]);
     printf("\n");
 
-    // 4. Fetch Key
     printf("Calling get_session_key_by_ID()...\n");
     session_key_t *found_key = get_session_key_by_ID(target_id, ctx, key_list);
 
     if (found_key) {
-        printf("\nSUCCESS! Key Fetched.\n");
+        printf("\nSUCCESS! Key Fetched by ID.\n");
         printf("Key ID: ");
         for(int i=0; i<SESSION_KEY_ID_SIZE; i++) printf("%02X ", found_key->key_id[i]);
         printf("\nCipher Key: ");
