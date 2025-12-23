@@ -427,9 +427,11 @@ int main(int argc, char* argv[]) {
         // return 1; 
     }
 
+    // Initial key extraction
+    static int current_key_idx = 0;
     session_key_t s_key = {0}; 
     if (key_list && key_list->num_key > 0) {
-        s_key = key_list->s_key[0];
+        s_key = key_list->s_key[current_key_idx];
     }
     
     bool key_valid = (key_list && key_list->num_key > 0);
@@ -496,6 +498,24 @@ int main(int argc, char* argv[]) {
 
         if (key != -1) {
             switch (key) {
+                // ... (previous cases) ...
+                case 'n':
+                case 'N': {
+                    if (key_list && key_list->num_key > 1) {
+                        current_key_idx = (current_key_idx + 1) % key_list->num_key;
+                        s_key = key_list->s_key[current_key_idx];
+                        
+                        cmd_printf("Rotated to Local Key #%d (Total: %d)", current_key_idx + 1, key_list->num_key);
+                        unsigned int nid = convert_skid_buf_to_int(s_key.key_id, SESSION_KEY_ID_SIZE);
+                        cmd_printf("Active Key ID: %u", nid);
+                        
+                        mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
+                    } else {
+                        cmd_printf("Cannot rotate: Only 1 key in local list.");
+                    }
+                    break;
+                }
+
                 case '1': {
                     cmd_printf("[Shortcut] Sending session key to Pico...");
                     if (fd < 0) { cmd_printf("Serial not open. Press 'r' to retry."); break; }
