@@ -24,7 +24,7 @@ target_include_directories(receiver_common PUBLIC
 set(SST_C_API_DIR "${CMAKE_SOURCE_DIR}/deps/sst-c-api")
 
 add_executable(flash_receiver
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/receiver_flash.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/flash_receiver.c
   ${SST_C_API_DIR}/c_api.c
   ${SST_C_API_DIR}/c_common.c
   ${SST_C_API_DIR}/c_crypto.c
@@ -61,7 +61,7 @@ target_compile_definitions(flash_receiver PRIVATE
 
 # --- Receiver Keys (Sender Logic) ---
 add_executable(keys_receiver
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/receiver_keys.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/keys_receiver.c
   ${SST_C_API_DIR}/c_api.c
   ${SST_C_API_DIR}/c_common.c
   ${SST_C_API_DIR}/c_crypto.c
@@ -92,7 +92,7 @@ target_compile_definitions(keys_receiver PRIVATE
 
 # --- Receiver Ask (Listener Logic) ---
 add_executable(ask_receiver
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/receiver_ask.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/ask_receiver.c
   ${SST_C_API_DIR}/c_api.c
   ${SST_C_API_DIR}/c_common.c
   ${SST_C_API_DIR}/c_crypto.c
