@@ -672,6 +672,9 @@ int main(int argc, char* argv[]) {
                         // --- Local Fix for Broken Library Function ---
                         // Declare the internal (but non-static) sender function
                         extern session_key_list_t *send_session_key_req_via_TCP(SST_ctx_t *ctx);
+                        // internal library functions needed for manual implementation
+                        extern int find_session_key(unsigned int key_id, session_key_list_t* s_key_list);
+                        extern int add_session_key_to_list(session_key_t* s_key, session_key_list_t* existing_s_key_list);
 
                         // Local replacement for get_session_key_by_ID that handles 64-bit IDs correctly
                         session_key_t *get_session_key_by_ID_fixed(unsigned char *target_session_key_id,
