@@ -23,66 +23,7 @@ target_include_directories(receiver_common PUBLIC
 # ---- sst-c-api (submodule under deps/) ----
 set(SST_C_API_DIR "${CMAKE_SOURCE_DIR}/deps/sst-c-api")
 
-add_executable(lifi_key_sender
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/lifi_key_sender.c
-  ${SST_C_API_DIR}/c_api.c
-  ${SST_C_API_DIR}/c_common.c
-  ${SST_C_API_DIR}/c_crypto.c
-  ${SST_C_API_DIR}/c_secure_comm.c
-  ${SST_C_API_DIR}/load_config.c
-  ${SST_C_API_DIR}/ipfs.c
-)
-
-target_include_directories(lifi_key_sender PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/include
-  ${SST_C_API_DIR}
-  ${MBEDTLS_DIR}/include  
-)
-
-target_link_libraries(lifi_key_sender PRIVATE
-  receiver_common
-  sst_embedded
-  heatshrink
-  mbedcrypto
-  OpenSSL::Crypto
-)
-
-target_compile_definitions(lifi_key_sender PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/lifi_receiver.config\"
-)
-
-add_executable(lifi_key_receiver
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/lifi_key_receiver.c
-  ${SST_C_API_DIR}/c_api.c
-  ${SST_C_API_DIR}/c_common.c
-  ${SST_C_API_DIR}/c_crypto.c
-  ${SST_C_API_DIR}/c_secure_comm.c
-  ${SST_C_API_DIR}/load_config.c
-  ${SST_C_API_DIR}/ipfs.c
-)
-
-target_include_directories(lifi_key_receiver PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/include
-  ${SST_C_API_DIR}
-  ${MBEDTLS_DIR}/include  
-)
-
-target_link_libraries(lifi_key_receiver PRIVATE
-  receiver_common
-  sst_embedded
-  heatshrink
-  mbedcrypto
-  OpenSSL::Crypto
-)
-
-# Use an absolute default config path (reusing receiver config for now, or user can specify)
-target_compile_definitions(lifi_key_receiver PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/lifi_receiver.config\"
-)
-
-add_executable(lifi_session_receiver
+add_executable(receiver_flash
   ${CMAKE_CURRENT_SOURCE_DIR}/src/receiver_flash.c
   ${SST_C_API_DIR}/c_api.c
   ${SST_C_API_DIR}/c_common.c
@@ -92,7 +33,7 @@ add_executable(lifi_session_receiver
   ${SST_C_API_DIR}/ipfs.c
 )
 
-target_include_directories(lifi_session_receiver PRIVATE
+target_include_directories(receiver_flash PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/include
   ${SST_C_API_DIR}
@@ -100,7 +41,7 @@ target_include_directories(lifi_session_receiver PRIVATE
   ${CURSES_INCLUDE_DIRS}
 )
 
-target_link_libraries(lifi_session_receiver PRIVATE
+target_link_libraries(receiver_flash PRIVATE
   receiver_common
   sst_embedded         # <-- provides sst_decrypt_gcm
   heatshrink
@@ -110,17 +51,17 @@ target_link_libraries(lifi_session_receiver PRIVATE
 )
 
 # C standard & warnings
-set_property(TARGET receiver_common lifi_session_receiver PROPERTY C_STANDARD 11)
-target_compile_options(lifi_session_receiver PRIVATE -Wall -Wextra -Wno-unused-parameter)
+set_property(TARGET receiver_common receiver_flash PROPERTY C_STANDARD 11)
+target_compile_options(receiver_flash PRIVATE -Wall -Wextra -Wno-unused-parameter)
 
 # Use an absolute default config path
-target_compile_definitions(lifi_session_receiver PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/lifi_receiver.config\"
+target_compile_definitions(receiver_flash PRIVATE
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/receiver.config\"
 )
 
-# ---- passKeyToPico Tool ----
-add_executable(passKeyToPico
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/passKeyToPico.c
+# --- Receiver Keys (Sender Logic) ---
+add_executable(receiver_keys
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/receiver_keys.c
   ${SST_C_API_DIR}/c_api.c
   ${SST_C_API_DIR}/c_common.c
   ${SST_C_API_DIR}/c_crypto.c
@@ -128,23 +69,53 @@ add_executable(passKeyToPico
   ${SST_C_API_DIR}/load_config.c
   ${SST_C_API_DIR}/ipfs.c
 )
-
-target_include_directories(passKeyToPico PRIVATE
+target_include_directories(receiver_keys PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/include
   ${SST_C_API_DIR}
   ${MBEDTLS_DIR}/include  
+  ${CURSES_INCLUDE_DIRS}
 )
-
-target_link_libraries(passKeyToPico PRIVATE
+target_link_libraries(receiver_keys PRIVATE
   receiver_common
   sst_embedded
   heatshrink
   mbedcrypto
   OpenSSL::Crypto
+  ${CURSES_LIBRARIES}
+)
+set_property(TARGET receiver_keys PROPERTY C_STANDARD 11)
+target_compile_definitions(receiver_keys PRIVATE
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/receiver.config\"
 )
 
-set_property(TARGET passKeyToPico PROPERTY C_STANDARD 11)
-target_compile_definitions(passKeyToPico PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_SOURCE_DIR}/side.config\"
+
+# --- Receiver Ask (Listener Logic) ---
+add_executable(receiver_ask
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/receiver_ask.c
+  ${SST_C_API_DIR}/c_api.c
+  ${SST_C_API_DIR}/c_common.c
+  ${SST_C_API_DIR}/c_crypto.c
+  ${SST_C_API_DIR}/c_secure_comm.c
+  ${SST_C_API_DIR}/load_config.c
+  ${SST_C_API_DIR}/ipfs.c
+)
+target_include_directories(receiver_ask PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/include
+  ${SST_C_API_DIR}
+  ${MBEDTLS_DIR}/include  
+  ${CURSES_INCLUDE_DIRS}
+)
+target_link_libraries(receiver_ask PRIVATE
+  receiver_common
+  sst_embedded
+  heatshrink
+  mbedcrypto
+  OpenSSL::Crypto
+  ${CURSES_LIBRARIES}
+)
+set_property(TARGET receiver_ask PROPERTY C_STANDARD 11)
+target_compile_definitions(receiver_ask PRIVATE
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/receiver.config\"
 )

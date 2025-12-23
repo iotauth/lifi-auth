@@ -182,6 +182,7 @@ if [[ "$BUILD_TARGET" == "pico" ]]; then
   fi
 
 elif [[ "$BUILD_TARGET" == "pi4" ]]; then
+  # 1. Original Session Receiver
   exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -name 'lifi_session_receiver' -executable -print -quit)"
   if [[ -n "$exe" ]]; then
     fname="${ts}_pi4_receiver"
@@ -190,7 +191,29 @@ elif [[ "$BUILD_TARGET" == "pi4" ]]; then
     manifest="$art_dir/${ts}_pi4_receiver.json"
     write_manifest "$manifest" "pi4" "$ver_tag" "$ts" "$fname"
     echo "📦 EXE: $art_dir/$fname"
-    echo "ℹ️  Binary info: $(file "$art_dir/$fname" | sed 's/.*: //')"
+  fi
+
+  # 2. Key Manager (Sender Logic)
+  exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -name 'lifi_receiver_keys' -executable -print -quit)"
+  if [[ -n "$exe" ]]; then
+    fname="${ts}_pi4_keys"
+    install -m 0755 -- "$exe" "$art_dir/$fname"
+    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
+    # Separate manifest to allow individual tracking/pruning if needed
+    manifest="$art_dir/${ts}_pi4_keys.json"
+    write_manifest "$manifest" "pi4_keys" "$ver_tag" "$ts" "$fname"
+    echo "📦 EXE: $art_dir/$fname"
+  fi
+
+  # 3. Asker (Listener Logic)
+  exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -name 'lifi_receiver_ask' -executable -print -quit)"
+  if [[ -n "$exe" ]]; then
+    fname="${ts}_pi4_ask"
+    install -m 0755 -- "$exe" "$art_dir/$fname"
+    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
+    manifest="$art_dir/${ts}_pi4_ask.json"
+    write_manifest "$manifest" "pi4_ask" "$ver_tag" "$ts" "$fname"
+    echo "📦 EXE: $art_dir/$fname"
   fi
 
 #elif [[ "$BUILD_TARGET" == "host" ]]; then
