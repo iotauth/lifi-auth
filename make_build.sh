@@ -153,7 +153,13 @@ git_desc="$(git -C "$repo_dir" describe --always --dirty --tags 2>/dev/null \
 ver_tag="${git_desc:-unknown}"
 
 # === Collect artifacts (history + latest file + checksum + manifest) ===
-art_dir="$here/artifacts/$BUILD_TARGET"
+# Map legacy 'pi4' to 'receiver' if needed, otherwise use BUILD_TARGET
+if [[ "$BUILD_TARGET" == "pi4" ]]; then
+  art_dir_name="receiver"
+else
+  art_dir_name="$BUILD_TARGET"
+fi
+art_dir="$here/artifacts/$art_dir_name"
 mkdir -p "$art_dir"
 
 ts="$(date +%m%d-%H_%M)"
@@ -181,39 +187,54 @@ if [[ "$BUILD_TARGET" == "pico" ]]; then
     echo "📦 UF2: $art_dir/$fname"
   fi
 
-elif [[ "$BUILD_TARGET" == "pi4" ]]; then
-  # 1. Original Session Receiver
-  exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -name 'lifi_session_receiver' -executable -print -quit)"
+elif [[ "$BUILD_TARGET" == "pi4" || "$BUILD_TARGET" == "receiver" ]]; then
+  # 1. Flash Receiver (Original Session Receiver)
+  # Look for 'flash_receiver' (was lifi_session_receiver)
+  # Attempt to find the new name first, fallback if not found? 
+  # Actually, we rely on cmake having built the new name.
+  
+  exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -name 'flash_receiver' -executable -print -quit)"
   if [[ -n "$exe" ]]; then
-    fname="${ts}_pi4_receiver"
+    # User requested name: flash_receiver
+    # We prepend timestamp but keep the base name
+    fname="${ts}_flash_receiver"
     install -m 0755 -- "$exe" "$art_dir/$fname"
-    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
-    manifest="$art_dir/${ts}_pi4_receiver.json"
-    write_manifest "$manifest" "pi4" "$ver_tag" "$ts" "$fname"
+    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256" && ln -sf "$fname" "flash_receiver")
+    manifest="$art_dir/${ts}_flash_receiver.json"
+    write_manifest "$manifest" "pi4_flash" "$ver_tag" "$ts" "$fname"
     echo "📦 EXE: $art_dir/$fname"
+    echo "🔗 Link: $art_dir/flash_receiver"
+  else
+    # Fallback to old name if build wasn't clean, but warn
+    echo "⚠️ flash_receiver executable not found"
   fi
 
   # 2. Key Manager (Sender Logic)
-  exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -name 'lifi_receiver_keys' -executable -print -quit)"
+  exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -name 'keys_receiver' -executable -print -quit)"
   if [[ -n "$exe" ]]; then
-    fname="${ts}_pi4_keys"
+    fname="${ts}_keys_receiver"
     install -m 0755 -- "$exe" "$art_dir/$fname"
-    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
-    # Separate manifest to allow individual tracking/pruning if needed
-    manifest="$art_dir/${ts}_pi4_keys.json"
+    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256" && ln -sf "$fname" "keys_receiver")
+    manifest="$art_dir/${ts}_keys_receiver.json"
     write_manifest "$manifest" "pi4_keys" "$ver_tag" "$ts" "$fname"
     echo "📦 EXE: $art_dir/$fname"
+    echo "🔗 Link: $art_dir/keys_receiver"
+  else
+     echo "⚠️ keys_receiver executable not found"
   fi
 
   # 3. Asker (Listener Logic)
-  exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -name 'lifi_receiver_ask' -executable -print -quit)"
+  exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -name 'ask_receiver' -executable -print -quit)"
   if [[ -n "$exe" ]]; then
-    fname="${ts}_pi4_ask"
+    fname="${ts}_ask_receiver"
     install -m 0755 -- "$exe" "$art_dir/$fname"
-    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
-    manifest="$art_dir/${ts}_pi4_ask.json"
+    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256" && ln -sf "$fname" "ask_receiver")
+    manifest="$art_dir/${ts}_ask_receiver.json"
     write_manifest "$manifest" "pi4_ask" "$ver_tag" "$ts" "$fname"
     echo "📦 EXE: $art_dir/$fname"
+    echo "🔗 Link: $art_dir/ask_receiver"
+  else
+    echo "⚠️ ask_receiver executable not found"
   fi
 
 #elif [[ "$BUILD_TARGET" == "host" ]]; then

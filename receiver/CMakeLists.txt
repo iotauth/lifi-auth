@@ -23,7 +23,7 @@ target_include_directories(receiver_common PUBLIC
 # ---- sst-c-api (submodule under deps/) ----
 set(SST_C_API_DIR "${CMAKE_SOURCE_DIR}/deps/sst-c-api")
 
-add_executable(receiver_flash
+add_executable(flash_receiver
   ${CMAKE_CURRENT_SOURCE_DIR}/src/receiver_flash.c
   ${SST_C_API_DIR}/c_api.c
   ${SST_C_API_DIR}/c_common.c
@@ -33,7 +33,7 @@ add_executable(receiver_flash
   ${SST_C_API_DIR}/ipfs.c
 )
 
-target_include_directories(receiver_flash PRIVATE
+target_include_directories(flash_receiver PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/include
   ${SST_C_API_DIR}
@@ -41,7 +41,7 @@ target_include_directories(receiver_flash PRIVATE
   ${CURSES_INCLUDE_DIRS}
 )
 
-target_link_libraries(receiver_flash PRIVATE
+target_link_libraries(flash_receiver PRIVATE
   receiver_common
   sst_embedded         # <-- provides sst_decrypt_gcm
   heatshrink
@@ -51,16 +51,16 @@ target_link_libraries(receiver_flash PRIVATE
 )
 
 # C standard & warnings
-set_property(TARGET receiver_common receiver_flash PROPERTY C_STANDARD 11)
-target_compile_options(receiver_flash PRIVATE -Wall -Wextra -Wno-unused-parameter)
+set_property(TARGET receiver_common flash_receiver PROPERTY C_STANDARD 11)
+target_compile_options(flash_receiver PRIVATE -Wall -Wextra -Wno-unused-parameter)
 
 # Use an absolute default config path
-target_compile_definitions(receiver_flash PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/receiver.config\"
+target_compile_definitions(flash_receiver PRIVATE
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_SOURCE_DIR}/receiver.config\"
 )
 
 # --- Receiver Keys (Sender Logic) ---
-add_executable(receiver_keys
+add_executable(keys_receiver
   ${CMAKE_CURRENT_SOURCE_DIR}/src/receiver_keys.c
   ${SST_C_API_DIR}/c_api.c
   ${SST_C_API_DIR}/c_common.c
@@ -69,14 +69,14 @@ add_executable(receiver_keys
   ${SST_C_API_DIR}/load_config.c
   ${SST_C_API_DIR}/ipfs.c
 )
-target_include_directories(receiver_keys PRIVATE
+target_include_directories(keys_receiver PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/include
   ${SST_C_API_DIR}
   ${MBEDTLS_DIR}/include  
   ${CURSES_INCLUDE_DIRS}
 )
-target_link_libraries(receiver_keys PRIVATE
+target_link_libraries(keys_receiver PRIVATE
   receiver_common
   sst_embedded
   heatshrink
@@ -84,14 +84,14 @@ target_link_libraries(receiver_keys PRIVATE
   OpenSSL::Crypto
   ${CURSES_LIBRARIES}
 )
-set_property(TARGET receiver_keys PROPERTY C_STANDARD 11)
-target_compile_definitions(receiver_keys PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/receiver.config\"
+set_property(TARGET keys_receiver PROPERTY C_STANDARD 11)
+target_compile_definitions(keys_receiver PRIVATE
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_SOURCE_DIR}/receiver.config\"
 )
 
 
 # --- Receiver Ask (Listener Logic) ---
-add_executable(receiver_ask
+add_executable(ask_receiver
   ${CMAKE_CURRENT_SOURCE_DIR}/src/receiver_ask.c
   ${SST_C_API_DIR}/c_api.c
   ${SST_C_API_DIR}/c_common.c
@@ -100,14 +100,14 @@ add_executable(receiver_ask
   ${SST_C_API_DIR}/load_config.c
   ${SST_C_API_DIR}/ipfs.c
 )
-target_include_directories(receiver_ask PRIVATE
+target_include_directories(ask_receiver PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/include
   ${SST_C_API_DIR}
   ${MBEDTLS_DIR}/include  
   ${CURSES_INCLUDE_DIRS}
 )
-target_link_libraries(receiver_ask PRIVATE
+target_link_libraries(ask_receiver PRIVATE
   receiver_common
   sst_embedded
   heatshrink
@@ -115,7 +115,7 @@ target_link_libraries(receiver_ask PRIVATE
   OpenSSL::Crypto
   ${CURSES_LIBRARIES}
 )
-set_property(TARGET receiver_ask PROPERTY C_STANDARD 11)
-target_compile_definitions(receiver_ask PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/receiver.config\"
+set_property(TARGET ask_receiver PROPERTY C_STANDARD 11)
+target_compile_definitions(ask_receiver PRIVATE
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_SOURCE_DIR}/receiver.config\"
 )

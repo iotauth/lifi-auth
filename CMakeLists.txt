@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.13)
 set(PICO_SDK_DISABLE_MBEDTLS 1)   # stops the SDK from bringing its mbedTLS
 
 # ---- build sstcapi on pi4 and host (Linux tools) ----
-if(BUILD_TARGET STREQUAL "pi4" OR BUILD_TARGET STREQUAL "host")
+if(BUILD_TARGET STREQUAL "pi4" OR BUILD_TARGET STREQUAL "host" OR BUILD_TARGET STREQUAL "receiver")
   set(SST_C_API_DIR "${CMAKE_SOURCE_DIR}/deps/sst-c-api")
   add_library(sstcapi STATIC
     ${SST_C_API_DIR}/c_api.c
@@ -59,7 +59,7 @@ if(EXISTS "${_bt_file}")
 endif()
 
 if(BUILD_TARGET STREQUAL "")
-  message(FATAL_ERROR "No build target selected. Run: ./set_build pico | pi4 | host")
+  message(FATAL_ERROR "No build target selected. Run: ./set_build pico | pi4 (or receiver) | host")
 endif()
 
 
@@ -179,7 +179,7 @@ if(BUILD_TARGET STREQUAL "pico")
       mbedcrypto
   )
 
-elseif(BUILD_TARGET STREQUAL "pi4" OR BUILD_TARGET STREQUAL "host")
+elseif(BUILD_TARGET STREQUAL "pi4" OR BUILD_TARGET STREQUAL "host" OR BUILD_TARGET STREQUAL "receiver")
   if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/src/pi_handler.c)
     add_library(ram_handler STATIC src/pi_handler.c)
     target_include_directories(ram_handler PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
@@ -217,7 +217,7 @@ if(BUILD_TARGET STREQUAL "pico")
   set(_SUB_BIN "${CMAKE_BINARY_DIR}/sender")
   add_subdirectory(sender "${_SUB_BIN}")
 
-elseif(BUILD_TARGET STREQUAL "pi4")
+elseif(BUILD_TARGET STREQUAL "pi4" OR BUILD_TARGET STREQUAL "receiver")
   set(_SUB_BIN "${CMAKE_BINARY_DIR}/receiver")
   add_subdirectory(receiver "${_SUB_BIN}")
 

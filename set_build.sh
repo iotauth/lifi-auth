@@ -12,10 +12,10 @@ EOF
     ;;
   pi4|receiver|r)
     cat > "$here/.build_target" <<EOF
-BUILD_TARGET=pi4
-OUT_DIR=pi4
+BUILD_TARGET=receiver
+OUT_DIR=receiver
 EOF
-    echo "Selected: Pi 4. Wrote $here/.build_target"
+    echo "Selected: Receiver. Wrote $here/.build_target"
     ;;
 #  host|h)
 #    cat > "$here/.build_target" <<EOF

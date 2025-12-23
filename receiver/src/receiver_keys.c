@@ -318,11 +318,15 @@ int main(int argc, char* argv[]) {
 
     if (argc > 2) {
         fprintf(stderr, "Error: Too many arguments.\n");
-        fprintf(stderr, "Usage: %s [<path/to/lifi_receiver.config>]\n",
+        fprintf(stderr, "Usage: %s [<path/to/receiver.config>]\n",
                 argv[0]);
         return 1;
     } else if (argc == 2) {
         config_path = argv[1];
+    } else {
+#ifdef DEFAULT_SST_CONFIG_PATH
+        config_path = DEFAULT_SST_CONFIG_PATH;
+#endif
     }
 
     // Resolve / chdir and pick the config filename (host-only; Pico stub is
