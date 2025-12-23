@@ -668,23 +668,55 @@ int main(int argc, char* argv[]) {
                         cmd_printf("Looking for Key ID...");
                         
                         // 2. Use C-API to find locally or fetch from Auth
-                        session_key_t *found_key = get_session_key_by_ID(last_lifi_id, sst, key_list);
                         
-                        if (found_key) {
-                            unsigned int found_native = convert_skid_buf_to_int(found_key->key_id, SESSION_KEY_ID_SIZE);
-                            cmd_printf("[NATIVE] Found Key ID: %u", found_native);
-                            s_key = *found_key;
-                            key_valid = true;
+                        // --- Local Fix for Broken Library Function ---
+                        // Declare the internal (but non-static) sender function
+                        extern session_key_list_t *send_session_key_req_via_TCP(SST_ctx_t *ctx);
+
+                        // Local replacement for get_session_key_by_ID that handles 64-bit IDs correctly
+                        session_key_t *get_session_key_by_ID_fixed(unsigned char *target_session_key_id,
+                                                                   SST_ctx_t *ctx,
+                                                                   session_key_list_t *existing_s_key_list) {
+                            session_key_t *s_key = NULL;
+
+                            // Correct 64-bit Big Endian read
+                            unsigned long long target_id = 0;
+                            for(int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
+                                target_id = (target_id << 8) | target_session_key_id[i];
+                            }
+
+                            int session_key_idx = -1;
+                            if (existing_s_key_list == NULL) {
+                                cmd_printf("Error: Session key list is NULL.");
+                                return NULL;
+                            }
                             
-                            cmd_printf("✓ Fetched/Found Session Key!");
-                        } else {
-                             cmd_printf("Error: Key ID not found (Local or Auth).");
+                            // Cast for local lookup (existing function expects uint)
+                            session_key_idx = find_session_key((unsigned int)target_id, existing_s_key_list);
+                            
+                            if (session_key_idx >= 0) {
+                                s_key = &existing_s_key_list->s_key[session_key_idx];
+                            } else {
+                                // Correct 64-bit formatting for the request
+                                snprintf(ctx->config.purpose[ctx->config.purpose_index],
+                                         MAX_PURPOSE_LENGTH, // Use constant instead of sizeof to be safe
+                                         "{\"keyId\":%llu}", target_id);
+
+                                session_key_list_t *s_key_list;
+                                s_key_list = send_session_key_req_via_TCP(ctx);
+                                if (s_key_list == NULL) {
+                                    cmd_printf("Error: Failed to fetch key from Auth.");
+                                    return NULL;
+                                }
+                                s_key = s_key_list->s_key;
+                                add_session_key_to_list(s_key, existing_s_key_list);
+                                free(s_key_list);
+                            }
+                            return s_key;
                         }
 
-                        // Update UI immediately
-                        mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
-                        
-                        uart_state = 0;
+                        session_key_t *found_key = get_session_key_by_ID_fixed(last_lifi_id, sst, key_list);
+                        // ---------------------------------------------
                     }
                     else if (byte == MSG_TYPE_ENCRYPTED || byte == MSG_TYPE_FILE) {
                         uint8_t packet_type = byte; 
