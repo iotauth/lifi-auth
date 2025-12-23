@@ -181,9 +181,9 @@ session_key_t *get_session_key_by_ID(unsigned char *target_session_key_id,
                                      SST_ctx_t *ctx,
                                      session_key_list_t *existing_s_key_list) {
     session_key_t *s_key = NULL;
-    // Use uint64_t to prevent truncation of 8-byte IDs
-    unsigned long target_session_key_id_int =  // Using unsigned long which is 64-bit on standard 64-bit Linux/WSL
-        read_unsigned_long_int_BE(target_session_key_id, SESSION_KEY_ID_SIZE);
+    // Use unsigned long long (guaranteed 64-bit) to prevent truncation of 8-byte IDs
+    unsigned long long target_session_key_id_int =  
+        (unsigned long long)read_unsigned_long_int_BE(target_session_key_id, SESSION_KEY_ID_SIZE);
 
     // If the entity_server already has the corresponding session key,
     // it does not have to request session key from Auth
@@ -193,15 +193,15 @@ session_key_t *get_session_key_by_ID(unsigned char *target_session_key_id,
         return NULL;
     }
     session_key_idx =
-        find_session_key((unsigned int)target_session_key_id_int, existing_s_key_list); // Cast for local lookup (if find_session_key still uses int)
+        find_session_key((unsigned int)target_session_key_id_int, existing_s_key_list); // Cast for local lookup
     if (session_key_idx >= 0) {
         s_key = &existing_s_key_list->s_key[session_key_idx];
     } else if (session_key_idx < 0) {
         // WARNING: The following line overwrites the purpose.
-        // Use %lu or %llu for 64-bit ID
+        // Use %llu for 64-bit ID
         snprintf(ctx->config->purpose[ctx->config->purpose_index],
                  sizeof(ctx->config->purpose[ctx->config->purpose_index]),
-                 "{\"keyId\":%lu}", target_session_key_id_int);
+                 "{\"keyId\":%llu}", target_session_key_id_int);
 
         session_key_list_t *s_key_list;
         s_key_list =
