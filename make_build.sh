@@ -182,7 +182,7 @@ if [[ "$BUILD_TARGET" == "pico" ]]; then
   fi
 
 elif [[ "$BUILD_TARGET" == "pi4" ]]; then
-  exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -executable -print -quit)"
+  exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -name 'lifi_session_receiver' -executable -print -quit)"
   if [[ -n "$exe" ]]; then
     fname="${ts}_pi4_receiver"
     install -m 0755 -- "$exe" "$art_dir/$fname"
