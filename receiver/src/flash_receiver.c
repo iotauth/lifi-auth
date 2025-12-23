@@ -389,7 +389,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     // Explicitly initialize purpose_index to avoid garbage values
-    sst->config->purpose_index = 0;
+    sst->config.purpose_index = 0;
 
     printf("Fetching initial session key to establish Auth connection...\n");
     session_key_list_t* key_list = get_session_key(sst, NULL);
