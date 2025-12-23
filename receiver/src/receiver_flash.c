@@ -837,6 +837,9 @@ int main(int argc, char* argv[]) {
                         // 1. Store the ID
                         memcpy(last_lifi_id, payload, SESSION_KEY_ID_SIZE);
                         lifi_id_seen = true;
+
+                        unsigned int native_id = convert_skid_buf_to_int(last_lifi_id, SESSION_KEY_ID_SIZE);
+                        cmd_printf("[NATIVE] Received ID: %u", native_id);
                         
                         cmd_printf("Looking for Key ID...");
                         char debug_key_id[3 * SESSION_KEY_ID_SIZE + 1];
@@ -853,6 +856,8 @@ int main(int argc, char* argv[]) {
                         session_key_t *found_key = get_session_key_by_ID(last_lifi_id, sst, key_list);
                         
                         if (found_key) {
+                            unsigned int found_native = convert_skid_buf_to_int(found_key->key_id, SESSION_KEY_ID_SIZE);
+                            cmd_printf("[NATIVE] Found Key ID: %u", found_native);
                             s_key = *found_key;
                             key_valid = true;
                             
