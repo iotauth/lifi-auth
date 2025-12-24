@@ -56,7 +56,7 @@ target_compile_options(flash_receiver PRIVATE -Wall -Wextra -Wno-unused-paramete
 
 # Use an absolute default config path
 target_compile_definitions(flash_receiver PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_SOURCE_DIR}/ask_receiver.config\"
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_SOURCE_DIR}/receiver.config\"
 )
 
 # --- Receiver Keys (Sender Logic) ---
