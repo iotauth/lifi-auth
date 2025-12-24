@@ -235,7 +235,10 @@ static void mid_draw_keypanel(const session_key_t* s_key,
         
         // Print Key on next line(s), indented
         int bytes_per_line = 16;
-        for (size_t i = 0; i < SESSION_KEY_SIZE; i++) {
+        unsigned int klen = s_key->cipher_key_size;
+        if (klen == 0 || klen > SESSION_KEY_SIZE) klen = SESSION_KEY_SIZE;
+
+        for (size_t i = 0; i < klen; i++) {
             if (i % bytes_per_line == 0) wmove(win_mid, 6 + (i / bytes_per_line), 4);
             wprintw(win_mid, "%02X ", s_key->cipher_key[i]);
         }
