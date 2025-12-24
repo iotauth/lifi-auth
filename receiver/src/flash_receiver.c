@@ -500,6 +500,9 @@ int main(int argc, char* argv[]) {
              } else {
                  tcdrain(fd);
                  log_printf("Sent session key over UART (ID + Cipher + MAC).\n");
+                 log_printf("[DEBUG] Sent Cipher: %02X %02X... MAC: %02X %02X...\n", 
+                     s_key.cipher_key[0], s_key.cipher_key[1], 
+                     s_key.mac_key[0], s_key.mac_key[1]);
              }
         }
     }
@@ -567,7 +570,7 @@ int main(int argc, char* argv[]) {
                         } else {
                              tcdrain(fd);
                              cmd_printf("✓ Session key sent (Cipher + MAC).");
-                             cmd_printf("[DEBUG] Sent Cipher: %02X %02X... MAC: %02X %02X...", 
+                             log_printf("[DEBUG] Sent Cipher: %02X %02X... MAC: %02X %02X...\n", 
                                  s_key.cipher_key[0], s_key.cipher_key[1], 
                                  s_key.mac_key[0], s_key.mac_key[1]);
                         }
@@ -621,6 +624,9 @@ int main(int argc, char* argv[]) {
                                 write_all(fd, s_key.mac_key, 32);
                                 tcdrain(fd);
                                 cmd_printf("✓ New session key sent to Pico.");
+                                log_printf("[DEBUG] Sent Cipher: %02X %02X... MAC: %02X %02X...\n", 
+                                    s_key.cipher_key[0], s_key.cipher_key[1], 
+                                    s_key.mac_key[0], s_key.mac_key[1]);
                             }
                         } else {
                             cmd_printf("Warning: Serial closed. Key updated locally but not sent.");
@@ -1174,6 +1180,10 @@ int main(int argc, char* argv[]) {
                                             usleep(5000); // Delay for MAC key
                                             // Assume we can get Mac Key from list too
                                             write_all(fd, key_list->s_key[0].mac_key, 32);
+                                            
+                                            log_printf("[DEBUG] Sent Cipher: %02X %02X... MAC: %02X %02X...\n", 
+                                                pending_key[0], pending_key[1], 
+                                                key_list->s_key[0].mac_key[0], key_list->s_key[0].mac_key[1]);
                                             
                                             // 5ms sleep to let transmission complete
                                             usleep(5000);  
