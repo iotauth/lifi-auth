@@ -13,6 +13,8 @@
 #include <fcntl.h>  // for open()
 #include <ncurses.h>
 #include <stdarg.h>
+#include <ctype.h>
+
 
 
 // Project headers (use -I include dirs instead of ../../../)
@@ -125,7 +127,7 @@ static void ui_init(void) {
     int rows, cols;
     getmaxyx(stdscr, rows, cols);
 
-    int mid_h = 9;                 // Increased height for better spacing
+    int mid_h = 12;                 // Increased height for multiline key and better spacing
     int top_h = (rows - mid_h) / 2;
     int bot_h = rows - mid_h - top_h;
 
@@ -141,6 +143,7 @@ static void ui_init(void) {
     win_log_border = newwin(top_h, cols, top_y, 0);
     win_mid        = newwin(mid_h, cols, mid_y, 0);
     win_cmd_border = newwin(bot_h, cols, bot_y, 0);
+
 
     // Create Inner Content Windows (derived from borders)
     // 1 char offset from top/left, height-2, width-2 to stay inside box
@@ -227,17 +230,23 @@ static void mid_draw_keypanel(const session_key_t* s_key,
         wattroff(win_mid, COLOR_PAIR(3));
 
         wmove(win_mid, 5, 2);
-        wprintw(win_mid, "Key:    ");
-        wattron(win_mid, COLOR_PAIR(3)); // Same Cyan for Key
-        for (size_t i = 0; i < SESSION_KEY_SIZE; i++) wprintw(win_mid, "%02X ", s_key->cipher_key[i]);
+        wprintw(win_mid, "Key:");
+        wattron(win_mid, COLOR_PAIR(3));
+        
+        // Print Key on next line(s), indented
+        int bytes_per_line = 16;
+        for (size_t i = 0; i < SESSION_KEY_SIZE; i++) {
+            if (i % bytes_per_line == 0) wmove(win_mid, 6 + (i / bytes_per_line), 4);
+            wprintw(win_mid, "%02X ", s_key->cipher_key[i]);
+        }
         wattroff(win_mid, COLOR_PAIR(3));
     } else {
         mvwprintw(win_mid, 4, 2, "Key ID: (none)");
-        mvwprintw(win_mid, 5, 2, "Key:    (none)");
+        mvwprintw(win_mid, 6, 2, "Key:    (none)");
     }
 
-    // Display Last Received LiFi Key ID
-    mvwprintw(win_mid, 7, 2, "LiFi Key: ");
+    // Display Last Received LiFi Key ID - pushed down to avoid overlap
+    mvwprintw(win_mid, 9, 2, "LiFi Key: ");
     if (lifi_id_seen) {
         wattron(win_mid, COLOR_PAIR(3));
         for (size_t i = 0; i < SESSION_KEY_ID_SIZE; i++) wprintw(win_mid, "%02X ", last_lifi_id[i]);
@@ -248,7 +257,6 @@ static void mid_draw_keypanel(const session_key_t* s_key,
 
     // Shortcuts menu at bottom of mid panel
     int menu_r = h - 2;
-    // Use A_DIM or just normal
     mvwprintw(win_mid, menu_r, 2, "[s] Stats  [c] Clear  [p] Save  [r] Reopen  [q] Quit");
 
     wrefresh(win_mid);
@@ -353,6 +361,82 @@ typedef struct {
     unsigned long bad_preamble;
     unsigned long keys_consumed;
 } SessionStats;
+
+// --- Local Fix for Broken Library Function ---
+// Declare the internal (but non-static) sender function
+extern session_key_list_t *send_session_key_req_via_TCP(SST_ctx_t *ctx);
+// internal library functions needed for manual implementation
+extern int find_session_key(unsigned int key_id, session_key_list_t* s_key_list);
+extern int add_session_key_to_list(session_key_t* s_key, session_key_list_t* existing_s_key_list);
+
+// Local replacement for get_session_key_by_ID that handles 64-bit IDs correctly
+static session_key_t *get_session_key_by_ID_fixed(unsigned char *target_session_key_id,
+                                           SST_ctx_t *ctx,
+                                           session_key_list_t *existing_s_key_list) {
+    session_key_t *s_key = NULL;
+
+    // Correct 64-bit Big Endian read
+    unsigned long long target_id = 0;
+    for(int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
+        target_id = (target_id << 8) | target_session_key_id[i];
+    }
+
+    int session_key_idx = -1;
+    if (existing_s_key_list == NULL) {
+        cmd_printf("Error: Session key list is NULL.");
+        return NULL;
+    }
+    
+    // Cast for local lookup (existing function expects uint)
+    session_key_idx = find_session_key((unsigned int)target_id, existing_s_key_list);
+    
+    if (session_key_idx >= 0) {
+        s_key = &existing_s_key_list->s_key[session_key_idx];
+    } else {
+        // Correct 64-bit formatting for the request
+        // Reverting to standard JSON integer format
+        snprintf(ctx->config.purpose[ctx->config.purpose_index],
+                 MAX_PURPOSE_LENGTH, 
+                 "{\"keyId\":%llu}", target_id);
+
+        // DEBUG: Print what we are about to send
+        cmd_printf("[DEBUG] Requesting Purpose: %s", ctx->config.purpose[ctx->config.purpose_index]);
+        cmd_printf("[DEBUG] Target ID (llu): %llu (Hex: 0x%llX)", target_id, target_id);
+        
+        cmd_print_partial("[DEBUG] Raw Bytes: ");
+        for(int k=0; k<SESSION_KEY_ID_SIZE; k++) {
+            cmd_print_partial("%02X ", target_session_key_id[k]);
+        }
+        cmd_printf("");
+
+        session_key_list_t *s_key_list;
+        s_key_list = send_session_key_req_via_TCP(ctx);
+
+        if (s_key_list == NULL) {
+            cmd_printf("Error: Failed to fetch key from Auth.");
+            return NULL;
+        }
+        // s_key_list contains valid key. We copy it to existing list.
+        if (s_key_list->num_key > 0) {
+            s_key = &s_key_list->s_key[0];
+            add_session_key_to_list(s_key, existing_s_key_list);
+        } else {
+            s_key = NULL;
+        }
+        free(s_key_list);
+        
+        // Re-fetch the stable pointer from the main list so we don't return a dangling pointer
+        if (s_key) {
+             session_key_idx = find_session_key((unsigned int)target_id, existing_s_key_list);
+             if (session_key_idx >= 0) {
+                 s_key = &existing_s_key_list->s_key[session_key_idx];
+             } else {
+                 s_key = NULL; 
+             }
+        }
+    }
+    return s_key;
+}
 
 int main(int argc, char* argv[]) {
     SessionStats stats = {0};
@@ -525,6 +609,55 @@ int main(int argc, char* argv[]) {
                     break;
                 }
 
+                case 'k':
+                case 'K': {
+                    cmd_printf("Enter Key ID (Hex): ");
+                    echo();
+                    char input_buf[128];
+                    wrefresh(win_cmd);
+                    // Use wgetnstr to allow editing
+                    wgetnstr(win_cmd, input_buf, sizeof(input_buf) - 1);
+                    noecho();
+                    
+                    uint8_t pasted_id[SESSION_KEY_ID_SIZE];
+                    memset(pasted_id, 0, sizeof(pasted_id));
+                    
+                    int bytes_parsed = 0;
+                    char *ptr = input_buf;
+                    // Simple parser: hex characters, skipping others
+                    while(*ptr && bytes_parsed < SESSION_KEY_ID_SIZE) {
+                         if (isxdigit(*ptr) && isxdigit(*(ptr+1))) {
+                             sscanf(ptr, "%2hhx", &pasted_id[bytes_parsed]);
+                             bytes_parsed++;
+                             ptr += 2;
+                         } else {
+                             ptr++;
+                         }
+                    }
+
+                    if (bytes_parsed > 0) {
+                         cmd_hex("Manual ID Input: ", pasted_id, bytes_parsed);
+                         
+                         // Update global last_lifi_id
+                         memcpy(last_lifi_id, pasted_id, SESSION_KEY_ID_SIZE);
+                         lifi_id_seen = true;
+                         
+                         // Trigger logic
+                         session_key_t *found = get_session_key_by_ID_fixed(last_lifi_id, sst, key_list);
+                         if (found) {
+                             s_key = *found;
+                             key_valid = true;
+                             cmd_printf("✓ Switched to Manual Key.");
+                             mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
+                         } else {
+                             cmd_printf("✗ Key search/fetch failed.");
+                         }
+                    } else {
+                        cmd_printf("Invalid input or no hex found.");
+                    }
+                    break;
+                }
+
                 case 'q':
                 case 'Q': {
                     cmd_printf("Exiting...");
@@ -669,68 +802,16 @@ int main(int argc, char* argv[]) {
                         
                         // 2. Use C-API to find locally or fetch from Auth
                         
-                        // --- Local Fix for Broken Library Function ---
-                        // Declare the internal (but non-static) sender function
-                        extern session_key_list_t *send_session_key_req_via_TCP(SST_ctx_t *ctx);
-                        // internal library functions needed for manual implementation
-                        extern int find_session_key(unsigned int key_id, session_key_list_t* s_key_list);
-                        extern int add_session_key_to_list(session_key_t* s_key, session_key_list_t* existing_s_key_list);
-
-                        // Local replacement for get_session_key_by_ID that handles 64-bit IDs correctly
-                        session_key_t *get_session_key_by_ID_fixed(unsigned char *target_session_key_id,
-                                                                   SST_ctx_t *ctx,
-                                                                   session_key_list_t *existing_s_key_list) {
-                            session_key_t *s_key = NULL;
-
-                            // Correct 64-bit Big Endian read
-                            unsigned long long target_id = 0;
-                            for(int i = 0; i < SESSION_KEY_ID_SIZE; i++) {
-                                target_id = (target_id << 8) | target_session_key_id[i];
-                            }
-
-                            int session_key_idx = -1;
-                            if (existing_s_key_list == NULL) {
-                                cmd_printf("Error: Session key list is NULL.");
-                                return NULL;
-                            }
-                            
-                            // Cast for local lookup (existing function expects uint)
-                            session_key_idx = find_session_key((unsigned int)target_id, existing_s_key_list);
-                            
-                            if (session_key_idx >= 0) {
-                                s_key = &existing_s_key_list->s_key[session_key_idx];
-                            } else {
-                                // Correct 64-bit formatting for the request
-                                // Reverting to standard JSON integer format
-                                snprintf(ctx->config.purpose[ctx->config.purpose_index],
-                                         MAX_PURPOSE_LENGTH, 
-                                         "{\"keyId\":%llu}", target_id);
-
-                                // DEBUG: Print what we are about to send
-                                cmd_printf("[DEBUG] Requesting Purpose: %s", ctx->config.purpose[ctx->config.purpose_index]);
-                                cmd_printf("[DEBUG] Target ID (llu): %llu (Hex: 0x%llX)", target_id, target_id);
-                                
-                                cmd_print_partial("[DEBUG] Raw Bytes: ");
-                                for(int k=0; k<SESSION_KEY_ID_SIZE; k++) {
-                                    cmd_print_partial("%02X ", target_session_key_id[k]);
-                                }
-                                cmd_printf("");
-
-                                session_key_list_t *s_key_list;
-                                s_key_list = send_session_key_req_via_TCP(ctx);
-
-                                if (s_key_list == NULL) {
-                                    cmd_printf("Error: Failed to fetch key from Auth.");
-                                    return NULL;
-                                }
-                                s_key = s_key_list->s_key;
-                                add_session_key_to_list(s_key, existing_s_key_list);
-                                free(s_key_list);
-                            }
-                            return s_key;
-                        }
-
                         session_key_t *found_key = get_session_key_by_ID_fixed(last_lifi_id, sst, key_list);
+                        
+                        if (found_key) {
+                            s_key = *found_key;
+                            key_valid = true;
+                            cmd_printf("✓ Switched to LiFi Key.");
+                            mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
+                        } else {
+                            cmd_printf("✗ LiFi Key search failed.");
+                        }
                         // ---------------------------------------------
                     }
                     else if (byte == MSG_TYPE_ENCRYPTED || byte == MSG_TYPE_FILE) {
