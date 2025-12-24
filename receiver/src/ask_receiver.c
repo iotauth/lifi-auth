@@ -705,6 +705,10 @@ int main(int argc, char* argv[]) {
                                          MAX_PURPOSE_LENGTH, // Use constant instead of sizeof to be safe
                                          "{\"keyId\":%llu}", target_id);
 
+                                // DEBUG: Print what we are about to send
+                                cmd_printf("[DEBUG] Requesting Purpose: %s", ctx->config.purpose[ctx->config.purpose_index]);
+                                cmd_printf("[DEBUG] Target ID (llu): %llu", target_id);
+
                                 session_key_list_t *s_key_list;
                                 s_key_list = send_session_key_req_via_TCP(ctx);
                                 if (s_key_list == NULL) {
