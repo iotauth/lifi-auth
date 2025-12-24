@@ -477,7 +477,6 @@ int main(int argc, char* argv[]) {
     struct timespec next_send = {0};
     clock_gettime(CLOCK_MONOTONIC, &next_send);  // send immediately
 
-    const uint8_t preamble[4] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4};
 
     // --- Automatic Session Key Send (Restored) ---
     // Build key provisioning frame: [PREAMBLE:4][TYPE:1][LEN:2][KEY_ID:8][CIPHER_KEY:16][MAC_KEY:32]
