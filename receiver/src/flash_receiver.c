@@ -255,7 +255,7 @@ static void mid_draw_keypanel(const session_key_t* s_key,
     }
 
     // Display Last Received LiFi Key ID
-    mvwprintw(win_mid, 7, 2, "LiFi Key: ");
+    mvwprintw(win_mid, 9, 2, "LiFi Key: ");
     if (lifi_id_seen) {
         wattron(win_mid, COLOR_PAIR(3));
         for (size_t i = 0; i < SESSION_KEY_ID_SIZE; i++) wprintw(win_mid, "%02X ", last_lifi_id[i]);
