@@ -644,6 +644,10 @@ int main(int argc, char* argv[]) {
                         
                         // Pre-calculate expected HMAC for display (Use MAC Key now)
                         uint8_t expected_hmac[HMAC_SIZE];
+                        cmd_printf("[DEBUG] Exp Challenge[0..3]: %02X %02X %02X %02X using MAC_KEY[0..3]: %02X %02X %02X %02X",
+                            pending_challenge[0], pending_challenge[1], pending_challenge[2], pending_challenge[3],
+                            s_key.mac_key[0], s_key.mac_key[1], s_key.mac_key[2], s_key.mac_key[3]);
+
                         sst_hmac_sha256(s_key.mac_key, pending_challenge, CHALLENGE_SIZE, expected_hmac);
                         
                         cmd_print_partial("Challenge sent. [Exp: ");
