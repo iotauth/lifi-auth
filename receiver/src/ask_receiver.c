@@ -392,7 +392,7 @@ int main(int argc, char* argv[]) {
 
     // Fix: When asking for a specific key (by ID), we should request exactly 1 key.
     // The config file might say 3 (for the sender/group logic), but here we are specific.
-    sst->config.numkey = 1;
+    // sst->config.numkey = 1;  <-- REMOVED to allow matching the Sender's numkey (3)
 
     printf("Initializing empty session key list (will fetch by ID later)...\n");
     session_key_list_t* key_list = init_empty_session_key_list();
