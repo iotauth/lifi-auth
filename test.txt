@@ -1,1 +1,4 @@
-23 02 CA 03 A0 99 31 F1 F7 F6 F0 83 51 9D 32 80
+│[Shortcut] Initiating HMAC challenge...                                                                     │
+│[DEBUG] Exp Challenge[0..3]: 37 A0 C5 0A using MAC_KEY[0..3]: F6 A2 A0 28                                   │
+│Challenge sent. [Exp: 5DB732DF..] Waiting...                                                                │
+│�~]~L HMAC Verification Failed! Invalid response. 
