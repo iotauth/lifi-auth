@@ -701,13 +701,14 @@ int main(int argc, char* argv[]) {
                                 s_key = &existing_s_key_list->s_key[session_key_idx];
                             } else {
                                 // Correct 64-bit formatting for the request
+                                // Reverting to lowercase 'keyId' matching library standard
                                 snprintf(ctx->config.purpose[ctx->config.purpose_index],
-                                         MAX_PURPOSE_LENGTH, // Use constant instead of sizeof to be safe
+                                         MAX_PURPOSE_LENGTH, 
                                          "{\"keyId\":%llu}", target_id);
 
                                 // DEBUG: Print what we are about to send
                                 cmd_printf("[DEBUG] Requesting Purpose: %s", ctx->config.purpose[ctx->config.purpose_index]);
-                                cmd_printf("[DEBUG] Target ID (llu): %llu", target_id);
+                                cmd_printf("[DEBUG] Target ID (llu): %llu (Hex: 0x%llX)", target_id, target_id);
 
                                 // FORCE numkey to 0. When asking by ID, we don't want to specify a count (which implies generation).
                                 // 0 tells the serialization to OMIT the numkey field.
