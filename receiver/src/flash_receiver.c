@@ -1062,29 +1062,39 @@ int main(int argc, char* argv[]) {
 
                                 // Handle File Transfer
                                 if (packet_type == MSG_TYPE_FILE) {
-                                    // Allocate decoder with same window params as encoder (window_sz2=8, lookahead_sz2=4)
-                                    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 8, 4);
+                                    log_printf("[FILE] Rx Compressed: %u bytes. Expanding...\n", ctext_len);
+                                    
+                                    heatshrink_decoder *hsd = heatshrink_decoder_alloc(512, 8, 4);
                                     if (hsd) {
-                                        size_t sunk = 0;
-                                        heatshrink_decoder_sink(hsd, decrypted, ctext_len, &sunk);
-                                        
-                                        // Increased buffer for large files
-                                        static uint8_t decompressed[32768]; // 32KB buffer
+                                        size_t total_sunk = 0;
                                         size_t total_decomp = 0;
-                                        HSD_poll_res pres;
+                                        static uint8_t decompressed[32768]; 
                                         
-                                        // Loop until we stop getting MORE output
-                                        do {
-                                            size_t p = 0;
-                                            // Poll as much as will fit in remaining buffer
-                                            pres = heatshrink_decoder_poll(hsd, &decompressed[total_decomp], 
-                                                                           sizeof(decompressed) - total_decomp, &p);
-                                            total_decomp += p;
+                                        // Loop until all input is sunk
+                                        while (total_sunk < ctext_len) {
+                                            size_t sunk = 0;
+                                            HSD_sink_res sres = heatshrink_decoder_sink(hsd, &decrypted[total_sunk], 
+                                                                                      ctext_len - total_sunk, &sunk);
+                                            total_sunk += sunk;
                                             
-                                        } while (pres == HSDR_POLL_MORE && total_decomp < sizeof(decompressed));
+                                            // Poll immediately after sinking some data
+                                            HSD_poll_res pres;
+                                            do {
+                                                size_t p = 0;
+                                                pres = heatshrink_decoder_poll(hsd, &decompressed[total_decomp], 
+                                                                               sizeof(decompressed) - total_decomp, &p);
+                                                total_decomp += p;
+                                            } while (pres == HSDR_POLL_MORE && total_decomp < sizeof(decompressed));
+                                            
+                                            if (sres < 0) {
+                                                log_printf("[Error] Sink failed err=%d\n", sres);
+                                                break;
+                                            }
+                                        }
                                         
-                                        // Finish decoder and poll any remaining flush data
+                                        // Finish and flush remaining
                                         heatshrink_decoder_finish(hsd);
+                                        HSD_poll_res pres;
                                         do {
                                             size_t p = 0;
                                             pres = heatshrink_decoder_poll(hsd, &decompressed[total_decomp], 
@@ -1094,28 +1104,34 @@ int main(int argc, char* argv[]) {
                                         
                                         heatshrink_decoder_free(hsd);
                                         
-                                        // Null terminate for safer printing (if text)
+                                        // Null terminate
                                         if (total_decomp < sizeof(decompressed)) {
                                             decompressed[total_decomp] = '\0';
                                         } else {
-                                            decompressed[sizeof(decompressed)-1] = '\0'; // Safety cap
+                                            decompressed[sizeof(decompressed)-1] = '\0';
                                         }
                                         
-                                        log_printf("[FILE] Decompressed %u -> %zu bytes\n", ctext_len, total_decomp);
-                                        log_printf("[FILE] Content:\n%s\n", decompressed);
-
+                                        log_printf("[FILE] Result: %zu -> %zu bytes\n", ctext_len, total_decomp);
+                                        // log_printf("[FILE] Data:\n%s\n", decompressed); // removing huge spam
+                                        
+                                        // Write to file
                                         FILE *f_out = fopen("received_file.txt", "a");
                                         if (f_out) {
                                             if (total_decomp > 0) {
                                                 fwrite(decompressed, 1, total_decomp, f_out);
-                                                // Ideally don't force newline unless user wants strict line separation
-                                                // but it helps if files are concatenated.
                                                 fprintf(f_out, "\n");
                                             }
                                             fclose(f_out);
-                                        } else {
-                                            log_printf(" (Save failed)\n");
+                                            log_printf("[FILE] Saved to received_file.txt\n");
                                         }
+                                        
+                                        // If small enough, print some head/tail
+                                        if (total_decomp > 0 && total_decomp < 500) {
+                                            log_printf("Content:\n%s", decompressed);
+                                        } else if (total_decomp >= 500) {
+                                            log_printf("Content (Head 100):\n%.100s...\n", decompressed);
+                                        }
+
                                     } else {
                                         log_printf("[FILE] Decompression alloc failed.\n");
                                     }
