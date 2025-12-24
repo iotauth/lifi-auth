@@ -87,7 +87,6 @@ target_link_libraries(keys_receiver PRIVATE
 set_property(TARGET keys_receiver PROPERTY C_STANDARD 11)
 target_compile_definitions(keys_receiver PRIVATE
   DEFAULT_SST_CONFIG_PATH=\"${CMAKE_SOURCE_DIR}/receiver.config\"
-
 )
 
 
