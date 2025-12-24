@@ -254,16 +254,6 @@ static void mid_draw_keypanel(const session_key_t* s_key,
         mvwprintw(win_mid, 5, 2, "Key:    (none)");
     }
 
-    // Display Last Received LiFi Key ID
-    mvwprintw(win_mid, 7, 2, "LiFi Key: ");
-    if (lifi_id_seen) {
-        wattron(win_mid, COLOR_PAIR(3));
-        for (size_t i = 0; i < SESSION_KEY_ID_SIZE; i++) wprintw(win_mid, "%02X ", last_lifi_id[i]);
-        wattroff(win_mid, COLOR_PAIR(3));
-    } else {
-        wprintw(win_mid, "(not listening)");
-    }
-
     // Shortcuts menu at bottom of mid panel
     int menu_r = h - 2;
     // Use A_DIM or just normal
