@@ -716,8 +716,14 @@ int main(int argc, char* argv[]) {
                                 }
                                 cmd_printf("");
 
+                                // FORCE numkey to 0. When asking by ID we must not request new keys.
+                                int original_numkey = ctx->config.numkey;
+                                ctx->config.numkey = 0;
+
                                 session_key_list_t *s_key_list;
                                 s_key_list = send_session_key_req_via_TCP(ctx);
+                                
+                                ctx->config.numkey = original_numkey;
 
                                 if (s_key_list == NULL) {
                                     cmd_printf("Error: Failed to fetch key from Auth.");
