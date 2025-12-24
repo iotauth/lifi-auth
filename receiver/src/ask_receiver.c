@@ -701,10 +701,10 @@ int main(int argc, char* argv[]) {
                                 s_key = &existing_s_key_list->s_key[session_key_idx];
                             } else {
                                 // Correct 64-bit formatting for the request
-                                // TRYING QUOTES: The server might expect the 64-bit ID as a string?
+                                // Reverting to standard JSON integer format
                                 snprintf(ctx->config.purpose[ctx->config.purpose_index],
                                          MAX_PURPOSE_LENGTH, 
-                                         "{\"keyId\":\"%llu\"}", target_id);
+                                         "{\"keyId\":%llu}", target_id);
 
                                 // DEBUG: Print what we are about to send
                                 cmd_printf("[DEBUG] Requesting Purpose: %s", ctx->config.purpose[ctx->config.purpose_index]);
