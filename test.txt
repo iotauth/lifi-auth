@@ -1,0 +1,22 @@
+ Error: Failed to fetch key from Auth.                                                                DEBUG: auth_id: 101
+ [NATIVE] Received ID: 10100084                                                                                          ERROR: ILooking for Key ID...                         ce temporarily unavailable)
+ [DEBUG] Requesting Purpose: {"keyId":10100084}                           Error: Failed to fetch key from Auth.
+ [DEBUG] Target ID (llu): 10100084             : sender: net1.client
+ Error: Failed to fetch key from Auth.                              DEBUG: purpose: {"keyId":10100084}
+ [NATIVE] Received ID: 10100084                                                                       DEBUG: auth_id: 101
+ Looking for Key ID...                                                                                                   ERROR: I[DEBUG] Requesting Purpose: {"keyId":10100084}ce temporarily unavailable)
+ [DEBUG] Target ID (llu): 10100084             
+ Error: Failed to fetch key from Auth.         : sender: net1.client
+ [NATIVE] Received ID: 10100084                                     DEBUG: purpose: {"keyId":10100084}
+ Looking for Key ID...                                                                                DEBUG: auth_id: 101
+ [DEBUG] Requesting Purpose: {"keyId":10100084}                                                                          ERROR: I[DEBUG] Target ID (llu): 10100084             ce temporarily unavailable)
+ Error: Failed to fetch key from Auth.         
+ [NATIVE] Received ID: 10100084                : sender: net1.client
+ Looking for Key ID...                                              DEBUG: purpose: {"keyId":10100084}
+ [DEBUG] Requesting Purpose: {"keyId":10100084}                                                       DEBUG: auth_id: 101
+ [DEBUG] Target ID (llu): 10100084                                                                                       ERROR: IError: Failed to fetch key from Auth.1, Resource temporarily unavailable)
+ [NATIVE] Received ID: 10100084       y: 3
+ Looking for Key ID...                    DEBUG: sender: net1.client
+ [DEBUG] Requesting Purpose: {"keyId":10100084}                     DEBUG: purpose: {"keyId":10100084}
+         Target ID (llu): 10100084                                                                    DEBUG: auth_id: 101
+ Error: Failed to fetch key from Auth.                                                                                   ERROR: Invalid Session Key Request. (errno: 11, Resource temporarily unavailable)
