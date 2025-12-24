@@ -480,9 +480,9 @@ int main(int argc, char* argv[]) {
     const uint8_t preamble[4] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4};
 
     // --- Automatic Session Key Send (Restored) ---
-    // Build key provisioning frame: [PREAMBLE:4][TYPE:1][LEN:2][KEY_ID:8][KEY:16]
+    // Build key provisioning frame: [PREAMBLE:4][TYPE:1][LEN:2][KEY_ID:8][CIPHER_KEY:16][MAC_KEY:32]
     if (fd >= 0 && key_valid) {
-        uint16_t key_payload_len = SESSION_KEY_ID_SIZE + SESSION_KEY_SIZE;
+        uint16_t key_payload_len = SESSION_KEY_ID_SIZE + SESSION_KEY_SIZE + 32;
         uint8_t key_header[] = {
             PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
             MSG_TYPE_KEY,
@@ -492,11 +492,12 @@ int main(int argc, char* argv[]) {
         
         if (write_all(fd, key_header, sizeof(key_header)) < 0 ||
             write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
-            write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+            write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0 ||
+            write_all(fd, s_key.mac_key, 32) < 0) {
             log_printf("Error: Failed to send initial session key.\n");
         } else {
             tcdrain(fd);
-            log_printf("Sent session key over UART (4-byte preamble + KEY_ID + KEY).\n");
+            log_printf("Sent session key over UART (ID + Cipher + MAC).\n");
         }
     }
 
@@ -543,8 +544,8 @@ int main(int argc, char* argv[]) {
                     if (fd < 0) { cmd_printf("Serial not open. Press 'r' to retry."); break; }
                     if (!key_valid) { cmd_printf("No valid session key loaded."); break; }
 
-                    // Build key provisioning frame: [PREAMBLE:4][TYPE:1][LEN:2][KEY_ID:8][KEY:16]
-                    uint16_t klen = SESSION_KEY_ID_SIZE + SESSION_KEY_SIZE;
+                    // Build key provisioning frame: [PREAMBLE:4][TYPE:1][LEN:2][ID][CIPHER][MAC]
+                    uint16_t klen = SESSION_KEY_ID_SIZE + SESSION_KEY_SIZE + 32;
                     uint8_t hdr[] = {
                         PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
                         MSG_TYPE_KEY,
@@ -554,11 +555,12 @@ int main(int argc, char* argv[]) {
 
                     if (write_all(fd, hdr, sizeof(hdr)) < 0 ||
                         write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
-                        write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+                        write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0 ||
+                        write_all(fd, s_key.mac_key, 32) < 0) {
                         cmd_printf("Error: Failed to send session key.");
                     } else {
                         tcdrain(fd);
-                        cmd_printf("✓ Session key sent.");
+                        cmd_printf("✓ Session key sent (Cipher + MAC).");
                     }
                     mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
                     break;
@@ -593,9 +595,17 @@ int main(int argc, char* argv[]) {
                         
                         // Auto-send like '1'
                         if (fd >= 0) {
-                            if (write_all(fd, preamble, sizeof preamble) < 0 ||
+                            uint16_t klen = SESSION_KEY_ID_SIZE + SESSION_KEY_SIZE + 32;
+                            uint8_t hdr[] = {
+                                PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                                MSG_TYPE_KEY,
+                                (klen >> 8) & 0xFF,
+                                klen & 0xFF
+                            };
+                            if (write_all(fd, hdr, sizeof(hdr)) < 0 ||
                                 write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
-                                write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+                                write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0 ||
+                                write_all(fd, s_key.mac_key, 32) < 0) {
                                 cmd_printf("Error: Failed to send new key to Pico.");
                             } else {
                                 tcdrain(fd);
@@ -1135,8 +1145,8 @@ int main(int argc, char* argv[]) {
                                             cmd_hex("New Session Key (pending ACK): ", pending_key, SESSION_KEY_SIZE);
                                             key_valid = true;
 
-                                            // Send using MSG_TYPE_KEY
-                                            uint16_t klen = SESSION_KEY_ID_SIZE + SESSION_KEY_SIZE;
+                                            // Send using MSG_TYPE_KEY with MAC
+                                            uint16_t klen = SESSION_KEY_ID_SIZE + SESSION_KEY_SIZE + 32;
                                             uint8_t hdr[] = {
                                                 PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
                                                 MSG_TYPE_KEY,
@@ -1146,6 +1156,8 @@ int main(int argc, char* argv[]) {
                                             write_all(fd, hdr, sizeof(hdr));
                                             write_all(fd, key_list->s_key[0].key_id, SESSION_KEY_ID_SIZE);
                                             write_all(fd, pending_key, SESSION_KEY_SIZE);
+                                            // Assume we can get Mac Key from list too
+                                            write_all(fd, key_list->s_key[0].mac_key, 32);
                                             
                                             // 5ms sleep to let transmission complete
                                             usleep(5000);  
