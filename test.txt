@@ -1,3 +1,17 @@
+josem@raspberrypi4:~/projects/lifi-auth $ ./artifacts/receiver/keys_receiver 
+Changed directory from '/home/josem/projects/lifi-auth' to '/home/josem/projects/lifi-auth'
+Using config file: receiver.config
+Initializing SST (Key Manager Mode)...
+Fetching fresh session keys from Auth...
+DEBUG: handle_AUTH_HELLO
+DEBUG: num_key: 3
+DEBUG: sender: net1.client
+DEBUG: purpose: {"group":"Clients"}
+DEBUG: auth_id: 101
+ERROR: Invalid Session Key Request.
+ERROR: Failed to send_session_key_req_via_TCP().
+Failed to get initial session key. Auth connection might be down or config invalid.
+Attempting to continue with empty list (Reactive Mode)...
  Error: Failed to fetch key from Auth.                                                                DEBUG: auth_id: 101
  [NATIVE] Received ID: 10100090                                                                                          ERROR: ILooking for Key ID...                            temporarily unavailable)
  [DEBUG] Requesting Purpose: {"keyId":10100090}   
