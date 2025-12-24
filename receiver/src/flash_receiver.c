@@ -1062,25 +1062,28 @@ int main(int argc, char* argv[]) {
 
                                 // Handle File Transfer
                                 if (packet_type == MSG_TYPE_FILE) {
+                                    // Allocate decoder with same window params as encoder (window_sz2=8, lookahead_sz2=4)
                                     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 8, 4);
                                     if (hsd) {
                                         size_t sunk = 0;
                                         heatshrink_decoder_sink(hsd, decrypted, ctext_len, &sunk);
                                         
                                         // Increased buffer for large files
-                                        uint8_t decompressed[16384];
+                                        static uint8_t decompressed[32768]; // 32KB buffer
                                         size_t total_decomp = 0;
                                         HSD_poll_res pres;
                                         
-                                        // First poll to get initial output
+                                        // Loop until we stop getting MORE output
                                         do {
                                             size_t p = 0;
+                                            // Poll as much as will fit in remaining buffer
                                             pres = heatshrink_decoder_poll(hsd, &decompressed[total_decomp], 
                                                                            sizeof(decompressed) - total_decomp, &p);
                                             total_decomp += p;
+                                            
                                         } while (pres == HSDR_POLL_MORE && total_decomp < sizeof(decompressed));
                                         
-                                        // Finish decoder and poll remaining output
+                                        // Finish decoder and poll any remaining flush data
                                         heatshrink_decoder_finish(hsd);
                                         do {
                                             size_t p = 0;
@@ -1092,15 +1095,21 @@ int main(int argc, char* argv[]) {
                                         heatshrink_decoder_free(hsd);
                                         
                                         // Null terminate for safer printing (if text)
-                                        if (total_decomp < sizeof(decompressed)) decompressed[total_decomp] = '\0';
+                                        if (total_decomp < sizeof(decompressed)) {
+                                            decompressed[total_decomp] = '\0';
+                                        } else {
+                                            decompressed[sizeof(decompressed)-1] = '\0'; // Safety cap
+                                        }
                                         
                                         log_printf("[FILE] Decompressed %u -> %zu bytes\n", ctext_len, total_decomp);
-                                        log_printf("[FILE] Content: %s\n", decompressed);
+                                        log_printf("[FILE] Content:\n%s\n", decompressed);
 
                                         FILE *f_out = fopen("received_file.txt", "a");
                                         if (f_out) {
                                             if (total_decomp > 0) {
                                                 fwrite(decompressed, 1, total_decomp, f_out);
+                                                // Ideally don't force newline unless user wants strict line separation
+                                                // but it helps if files are concatenated.
                                                 fprintf(f_out, "\n");
                                             }
                                             fclose(f_out);
