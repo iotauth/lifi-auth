@@ -1,13 +1,1 @@
-┌─ Commands / Status ──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│[NATIVE] Received ID: 10100102                                                                                                │
-│Looking for Key ID...                                                                                                         │
-│[DEBUG] Requesting Purpose: {"keyId":10100102}                                                                                │
-│[DEBUG] Target ID (llu): 10100102 (Hex: 0x9A1D86)                                                                             │
-│[DEBUG] Raw Bytes: 00 00 00 00 00 9A 1D 86                                                                                    │
-│DEBUG: handle_AUTH_HELLO                                                                                                      │
-│                        DEBUG: num_key: 3                                                                                     │
-│                                         DEBUG: sender: net1.client                                                           │
-│                                                                   DEBUG: purpose: {"keyId":10100102}                         │
-│                                                                                                     DEBUG: auth_id: 101      │
-│                                                                                                                        ERROR: Invalid Session Key Request. (errno: 11, Resource temporarily unavailable)                                                     │
-│                                                                         Error: Failed to fetch key from Auth.    
+23 02 CA 03 A0 99 31 F1 F7 F6 F0 83 51 9D 32 80
