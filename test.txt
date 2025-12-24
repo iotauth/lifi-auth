@@ -1,18 +1,18 @@
-┌─ Commands / Status ──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│[NATIVE] Received ID: 10100093                                                                                                │
+$ ./artifacts/receiver/ask_receiver receiver_ask.config
+Changed directory from '/home/josem/projects/lifi-auth' to '/home/josem/projects/lifi-auth'
+Using config file: receiver_ask.config
+Initializing SST (Asker Mode)...
+Initializing empty session key list (will fetch by ID later)...
+│[NATIVE] Received ID: 10100096                                                                                                │
 │Looking for Key ID...                                                                                                         │
-│[DEBUG] Requesting Purpose: {"keyId":10100093}                                                                                │
-│[DEBUG] Target ID (llu): 10100093 (Hex: 0x9A1D7D)                                                                             │
-│[DEBUG] Requesting Purpose: {"keyId":10100093}                                                                                │
-│[DEBUG] Target ID (llu): 10100093 (Hex: 0x9A1D7D)                                                                             │
+│[DEBUG] Requesting Purpose: {"keyId":10100096}                                                                                │
+│[DEBUG] Target ID (llu): 10100096 (Hex: 0x9A1D80)                                                                             │
+│[DEBUG] Requesting Purpose: {"keyId":10100096}                                                                                │
+│[DEBUG] Target ID (llu): 10100096 (Hex: 0x9A1D80)                                                                             │
 │DEBUG: handle_AUTH_HELLO                                                                                                      │
 │                        DEBUG: num_key: 1                                                                                     │
-│                                         DEBUG: sender: net1.client                                                           │
-│                                                                   DEBUG: purpose: {"keyId":10100093}                         │
+│                                         DEBUG: sender: net1.server                                                           │
+│                                                                   DEBUG: purpose: {"keyId":10100096}                         │
 │                                                                                                     DEBUG: auth_id: 101      │
 │                                                                                                                        ERROR: Invalid Session Key Request. (errno: 11, Resource temporarily unavailable)                                                     │
-│                                                                         Error: Failed to fetch key from Auth.                │
-│                                                                                                                              │
-│                                                                                                                              │
-│                                                                                                                              │
-│                                                                              
+│                                                                         Error: Failed to fetch key from Auth.  
