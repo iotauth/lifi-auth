@@ -1,37 +1,18 @@
-josem@raspberrypi4:~/projects/lifi-auth $ ./artifacts/receiver/keys_receiver 
-Changed directory from '/home/josem/projects/lifi-auth' to '/home/josem/projects/lifi-auth'
-Using config file: receiver.config
-Initializing SST (Key Manager Mode)...
-Fetching fresh session keys from Auth...
-DEBUG: handle_AUTH_HELLO
-DEBUG: num_key: 3
-DEBUG: sender: net1.client
-DEBUG: purpose: {"group":"Clients"}
-DEBUG: auth_id: 101
-ERROR: Invalid Session Key Request.
-ERROR: Failed to send_session_key_req_via_TCP().
-Failed to get initial session key. Auth connection might be down or config invalid.
-Attempting to continue with empty list (Reactive Mode)...
- Error: Failed to fetch key from Auth.                                                                DEBUG: auth_id: 101
- [NATIVE] Received ID: 10100090                                                                                          ERROR: ILooking for Key ID...                            temporarily unavailable)
- [DEBUG] Requesting Purpose: {"keyId":10100090}   
- [DEBUG] Target ID (llu): 10100090 (Hex: 0x9A1D7A)ender: net1.client
- Error: Failed to fetch key from Auth.                              DEBUG: purpose: {"keyId":10100090}
- [NATIVE] Received ID: 10100090                                                                       DEBUG: auth_id: 101
- Looking for Key ID...                                                                                                   ERROR: I[DEBUG] Requesting Purpose: {"keyId":10100090}   temporarily unavailable)
- [DEBUG] Target ID (llu): 10100090 (Hex: 0x9A1D7A)
- Error: Failed to fetch key from Auth.            ender: net1.client
- [NATIVE] Received ID: 10100090                                     DEBUG: purpose: {"keyId":10100090}
- Looking for Key ID...                                                                                DEBUG: auth_id: 101
- [DEBUG] Requesting Purpose: {"keyId":10100090}                                                                          ERROR: I[DEBUG] Target ID (llu): 10100090 (Hex: 0x9A1D7A)temporarily unavailable)
- Error: Failed to fetch key from Auth.            
- [NATIVE] Received ID: 10100090                   ender: net1.client
- Looking for Key ID...                                              DEBUG: purpose: {"keyId":10100090}
- [DEBUG] Requesting Purpose: {"keyId":10100090}                                                       DEBUG: auth_id: 101
- [DEBUG] Target ID (llu): 10100090 (Hex: 0x9A1D7A)                                                                       ERROR: IError: Failed to fetch key from Auth.            temporarily unavailable)
- [NATIVE] Received ID: 10100090       y: 0
- Looking for Key ID...                    DEBUG: sender: net1.client
- [DEBUG] Requesting Purpose: {"keyId":10100090}                     DEBUG: purpose: {"keyId":10100090}
-         Target ID (llu): 10100090 (Hex: 0x9A1D7A)                                                    DEBUG: auth_id: 101
- Error: Failed to fetch key from Auth.                                                                                   ERROR: Invalid Session Key Request. (errno: 11, Resource temporarily unavailable)
-
+┌─ Commands / Status ──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│[NATIVE] Received ID: 10100093                                                                                                │
+│Looking for Key ID...                                                                                                         │
+│[DEBUG] Requesting Purpose: {"keyId":10100093}                                                                                │
+│[DEBUG] Target ID (llu): 10100093 (Hex: 0x9A1D7D)                                                                             │
+│[DEBUG] Requesting Purpose: {"keyId":10100093}                                                                                │
+│[DEBUG] Target ID (llu): 10100093 (Hex: 0x9A1D7D)                                                                             │
+│DEBUG: handle_AUTH_HELLO                                                                                                      │
+│                        DEBUG: num_key: 1                                                                                     │
+│                                         DEBUG: sender: net1.client                                                           │
+│                                                                   DEBUG: purpose: {"keyId":10100093}                         │
+│                                                                                                     DEBUG: auth_id: 101      │
+│                                                                                                                        ERROR: Invalid Session Key Request. (errno: 11, Resource temporarily unavailable)                                                     │
+│                                                                         Error: Failed to fetch key from Auth.                │
+│                                                                                                                              │
+│                                                                                                                              │
+│                                                                                                                              │
+│                                                                              
