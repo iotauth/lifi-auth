@@ -560,6 +560,9 @@ int main(int argc, char* argv[]) {
                     } else {
                         tcdrain(fd);
                         cmd_printf("✓ Session key sent (Cipher + MAC).");
+                        cmd_printf("[DEBUG] Sent Cipher: %02X %02X... MAC: %02X %02X...", 
+                            s_key.cipher_key[0], s_key.cipher_key[1], 
+                            s_key.mac_key[0], s_key.mac_key[1]);
                     }
                     mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
                     break;
