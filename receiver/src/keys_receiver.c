@@ -412,10 +412,10 @@ int main(int argc, char* argv[]) {
     
     const uint8_t preamble[4] = {PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4};
 
-    // --- Automatic Session Key Send --
-    // Build key provisioning frame: [PREAMBLE:4][TYPE:1][LEN:2][KEY_ID:8][KEY:16]
+    // --- Automatic Session Key Send (Restored) ---
+    // Build key provisioning frame: [PREAMBLE:4][TYPE:1][LEN:2][KEY_ID:8][CIPHER_KEY:16][MAC_KEY:32]
     if (fd >= 0 && key_valid) {
-        uint16_t key_payload_len = SESSION_KEY_ID_SIZE + SESSION_KEY_SIZE;
+        uint16_t key_payload_len = SESSION_KEY_ID_SIZE + SESSION_KEY_SIZE + 32;
         uint8_t key_header[] = {
             PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
             MSG_TYPE_KEY,
@@ -425,11 +425,12 @@ int main(int argc, char* argv[]) {
         
         if (write_all(fd, key_header, sizeof(key_header)) < 0 ||
             write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
-            write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+            write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0 ||
+            write_all(fd, s_key.mac_key, 32) < 0) {
             log_printf("Error: Failed to send initial session key.\n");
         } else {
             tcdrain(fd);
-            log_printf("Sent session key over UART (4-byte preamble + KEY_ID + KEY).\n");
+            log_printf("Sent session key over UART (ID + Cipher + MAC).\n");
         }
     }
 
