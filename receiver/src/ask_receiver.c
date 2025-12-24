@@ -710,16 +710,12 @@ int main(int argc, char* argv[]) {
                                 cmd_printf("[DEBUG] Requesting Purpose: %s", ctx->config.purpose[ctx->config.purpose_index]);
                                 cmd_printf("[DEBUG] Target ID (llu): %llu (Hex: 0x%llX)", target_id, target_id);
 
-                                // FORCE numkey to 0. When asking by ID, we don't want to specify a count (which implies generation).
-                                // 0 tells the serialization to OMIT the numkey field.
-                                int original_numkey = ctx->config.numkey;
-                                ctx->config.numkey = 0;
+                                // DEBUG: Print what we are about to send
+                                cmd_printf("[DEBUG] Requesting Purpose: %s", ctx->config.purpose[ctx->config.purpose_index]);
+                                cmd_printf("[DEBUG] Target ID (llu): %llu (Hex: 0x%llX)", target_id, target_id);
 
                                 session_key_list_t *s_key_list;
                                 s_key_list = send_session_key_req_via_TCP(ctx);
-                                
-                                // Restore numkey just in case
-                                ctx->config.numkey = original_numkey;
 
                                 if (s_key_list == NULL) {
                                     cmd_printf("Error: Failed to fetch key from Auth.");
