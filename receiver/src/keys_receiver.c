@@ -125,7 +125,7 @@ static void ui_init(void) {
     int rows, cols;
     getmaxyx(stdscr, rows, cols);
 
-    int mid_h = 9;                 // Increased height for better spacing
+    int mid_h = 14;                 // Increased height for Cipher + MAC keys
     int top_h = (rows - mid_h) / 2;
     int bot_h = rows - mid_h - top_h;
 
@@ -227,10 +227,28 @@ static void mid_draw_keypanel(const session_key_t* s_key,
         wattroff(win_mid, COLOR_PAIR(3));
 
         wmove(win_mid, 5, 2);
-        wprintw(win_mid, "Key:    ");
-        wattron(win_mid, COLOR_PAIR(3)); // Same Cyan for Key
-        for (size_t i = 0; i < SESSION_KEY_SIZE; i++) wprintw(win_mid, "%02X ", s_key->cipher_key[i]);
+        wprintw(win_mid, "Cipher Key:");
+        wattron(win_mid, COLOR_PAIR(3));
+        
+        unsigned int c_len = s_key->cipher_key_size;
+        if (c_len == 0 || c_len > 32) c_len = 32;
+
+        for (size_t i = 0; i < c_len; i++) wprintw(win_mid, "%02X ", s_key->cipher_key[i]);
         wattroff(win_mid, COLOR_PAIR(3));
+
+        // Print MAC Key
+        wmove(win_mid, 6, 2);
+        wprintw(win_mid, "MAC Key:   ");
+        wattron(win_mid, COLOR_PAIR(5)); // Magenta for MAC
+        
+        unsigned int m_len = s_key->mac_key_size;
+        if (m_len == 0 || m_len > 32) m_len = 32;
+
+        for (size_t i = 0; i < m_len; i++) {
+            if (i == 16) mvwprintw(win_mid, 7, 13, ""); // Wrap
+            wprintw(win_mid, "%02X ", s_key->mac_key[i]);
+        }
+        wattroff(win_mid, COLOR_PAIR(5));
     } else {
         mvwprintw(win_mid, 4, 2, "Key ID: (none)");
         mvwprintw(win_mid, 5, 2, "Key:    (none)");
