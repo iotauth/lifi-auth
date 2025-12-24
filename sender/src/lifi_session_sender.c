@@ -28,6 +28,7 @@
 #define UART_TX_PIN 4
 
 #define BAUD_RATE 1000000
+#define SST_MAC_KEY_SIZE 32
 /* Preamble and message types now in protocol.h */
 
 // Helper: Read bytes with a total timeout
@@ -89,6 +90,7 @@ int main() {
     }
 
     uint8_t session_key[SST_KEY_SIZE] = {0};
+    uint8_t session_mac_key[SST_MAC_KEY_SIZE] = {0}; // 32 bytes
     uint8_t session_key_id[SST_KEY_ID_SIZE] = {0};
 
     // Try to load an existing valid session key from flash
@@ -153,9 +155,14 @@ int main() {
                                 uart_read_blocking_timeout_us(UART_ID, challenge_buffer, CHALLENGE_SIZE, 100000)) {
                                 printf("\n[Received HMAC challenge from Pi4]\n");
                                 
-                                // Compute HMAC response
+                                // DEBUG: Print what we are hashing
+                                printf("DEBUG: Hashing Challenge[0..3]: %02X %02X %02X %02X using MAC_KEY[0..3]: %02X %02X %02X %02X\n",
+                                    challenge_buffer[0], challenge_buffer[1], challenge_buffer[2], challenge_buffer[3],
+                                    session_mac_key[0], session_mac_key[1], session_mac_key[2], session_mac_key[3]);
+
+                                // Compute HMAC response using MAC KEY (32 bytes)
                                 uint8_t hmac[HMAC_SIZE];
-                                int hmac_ret = sst_hmac_sha256(session_key, challenge_buffer, 
+                                int hmac_ret = sst_hmac_sha256(session_mac_key, challenge_buffer, 
                                                          CHALLENGE_SIZE, hmac);
                                 
                                 if (hmac_ret == 0) {
@@ -219,14 +226,16 @@ int main() {
                             }
                         } 
                         else if (uart_byte == MSG_TYPE_KEY) {
-                            // New key provisioning format: [LEN:2][KEY_ID:8][KEY:16]
+                            // New key format: [LEN:2][KEY_ID:8][CIPHER_KEY:16][MAC_KEY:32]
                             uint8_t len_bytes[2];
                             uint8_t new_id[SST_KEY_ID_SIZE];
                             uint8_t new_key[SST_KEY_SIZE];
+                            uint8_t new_mac_key[SST_MAC_KEY_SIZE];
                             
                             bool ok = uart_read_blocking_timeout_us(UART_ID, len_bytes, 2, 100000);
                             if (ok) ok = uart_read_blocking_timeout_us(UART_ID, new_id, SST_KEY_ID_SIZE, 100000);
                             if (ok) ok = uart_read_blocking_timeout_us(UART_ID, new_key, SST_KEY_SIZE, 100000);
+                            if (ok) ok = uart_read_blocking_timeout_us(UART_ID, new_mac_key, SST_MAC_KEY_SIZE, 100000);
                             
                             if (ok) {
                                 printf("\n[Received New Session Key via LiFi]\n");
@@ -234,24 +243,33 @@ int main() {
                                 for(int i=0; i<SST_KEY_ID_SIZE; i++) printf("%02X", new_id[i]);
                                 printf("\n");
                                 
-                                // Write to CURRENT slot (auto-provision)
+                                // Write to CURRENT slot (Cipher Key only for now as flash struct unsure)
                                 if (pico_write_key_to_slot(current_slot, new_id, new_key)) {
                                     store_last_used_slot((uint8_t)current_slot);
                                     
+                                    // DEBUG: Print received keys (Full)
+                                    printf("DEBUG: Recv Cipher: ");
+                                    for(int i=0; i<SST_KEY_SIZE; i++) printf("%02X ", new_key[i]);
+                                    printf("\nDEBUG: Recv MAC:    ");
+                                    for(int i=0; i<SST_MAC_KEY_SIZE; i++) printf("%02X ", new_mac_key[i]);
+                                    printf("\n");
+
                                     // Update RAM
                                     keyram_set_with_id(new_id, new_key);
                                     memcpy(session_key, new_key, SST_KEY_SIZE);
                                     memcpy(session_key_id, new_id, SST_KEY_ID_SIZE);
+                                    memcpy(session_mac_key, new_mac_key, SST_MAC_KEY_SIZE);
                                     
                                     pico_nonce_on_key_change();
                                     
                                     printf("[Auto-Provision] Key saved to Slot %c and activated.\n", 
                                            current_slot == 0 ? 'A' : 'B');
+                                    printf("(MAC Key updated in RAM)\n");
                                 } else {
                                     printf("[Error] Failed to save key to flash.\n");
                                 }
                             } else {
-                                printf("\n[Error] Key update timeout. Flushing RX.\n");
+                                printf("\n[Error] Key update timeout (Waiting for MAC Key?). Flushing RX.\n");
                                 while (uart_is_readable(UART_ID)) (void)uart_getc(UART_ID);
                             }
                         }
