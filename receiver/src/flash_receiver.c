@@ -491,12 +491,16 @@ int main(int argc, char* argv[]) {
         
         if (write_all(fd, key_header, sizeof(key_header)) < 0 ||
             write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
-            write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0 ||
-            write_all(fd, s_key.mac_key, 32) < 0) {
-            log_printf("Error: Failed to send initial session key.\n");
+            write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
+            log_printf("Error: Failed to send initial session key parts.\n");
         } else {
-            tcdrain(fd);
-            log_printf("Sent session key over UART (ID + Cipher + MAC).\n");
+             usleep(5000); // Wait for Pico FIFO to drain
+             if (write_all(fd, s_key.mac_key, 32) < 0) {
+                 log_printf("Error: Failed to send MAC key.\n");
+             } else {
+                 tcdrain(fd);
+                 log_printf("Sent session key over UART (ID + Cipher + MAC).\n");
+             }
         }
     }
 
@@ -554,15 +558,19 @@ int main(int argc, char* argv[]) {
 
                     if (write_all(fd, hdr, sizeof(hdr)) < 0 ||
                         write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
-                        write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0 ||
-                        write_all(fd, s_key.mac_key, 32) < 0) {
+                        write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
                         cmd_printf("Error: Failed to send session key.");
                     } else {
-                        tcdrain(fd);
-                        cmd_printf("✓ Session key sent (Cipher + MAC).");
-                        cmd_printf("[DEBUG] Sent Cipher: %02X %02X... MAC: %02X %02X...", 
-                            s_key.cipher_key[0], s_key.cipher_key[1], 
-                            s_key.mac_key[0], s_key.mac_key[1]);
+                        usleep(5000);
+                        if (write_all(fd, s_key.mac_key, 32) < 0) {
+                             cmd_printf("Error: Failed to send MAC key.");
+                        } else {
+                             tcdrain(fd);
+                             cmd_printf("✓ Session key sent (Cipher + MAC).");
+                             cmd_printf("[DEBUG] Sent Cipher: %02X %02X... MAC: %02X %02X...", 
+                                 s_key.cipher_key[0], s_key.cipher_key[1], 
+                                 s_key.mac_key[0], s_key.mac_key[1]);
+                        }
                     }
                     mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
                     break;
@@ -606,10 +614,11 @@ int main(int argc, char* argv[]) {
                             };
                             if (write_all(fd, hdr, sizeof(hdr)) < 0 ||
                                 write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
-                                write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0 ||
-                                write_all(fd, s_key.mac_key, 32) < 0) {
+                                write_all(fd, s_key.cipher_key, SESSION_KEY_SIZE) < 0) {
                                 cmd_printf("Error: Failed to send new key to Pico.");
                             } else {
+                                usleep(5000);
+                                write_all(fd, s_key.mac_key, 32);
                                 tcdrain(fd);
                                 cmd_printf("✓ New session key sent to Pico.");
                             }
@@ -1162,6 +1171,7 @@ int main(int argc, char* argv[]) {
                                             write_all(fd, hdr, sizeof(hdr));
                                             write_all(fd, key_list->s_key[0].key_id, SESSION_KEY_ID_SIZE);
                                             write_all(fd, pending_key, SESSION_KEY_SIZE);
+                                            usleep(5000); // Delay for MAC key
                                             // Assume we can get Mac Key from list too
                                             write_all(fd, key_list->s_key[0].mac_key, 32);
                                             
