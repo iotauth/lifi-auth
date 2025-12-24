@@ -1,4 +1,45 @@
+┌─ RX / Photodiode Log ───────────────────────────────────────────────────────────────────────────────────*──┐
+│Sent session key over UART (ID + Cipher + MAC).                                                             │
+│Listening for encrypted message...                                                                          │
+│HMAC:79C680E777C3871F911886D0AB9664E1971D03DDA2F63DBCE11CC5F3B8414798                                       │
+│HMAC:E40F26EFFE7C128DA9B571DD90C5F711700ED4560BB251E6E9C0353EE37C35A5                                       │
+│                                                                                                            │
+│                                                                                                            │
+│                                                                                                            │
+│                                                                                                            │
+│                                                                                                            │
+│                                                                                                            │
+│                                                                                                            │
+│                                                                                                            │
+│                                                                                                            │
+│                                                                                                            │
+│                                                                                                            │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌─ Key / Security ───────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                                            │
+│ Serial: OPEN   Dev: /dev/serial0   State: 3                                                                │
+│ Key valid: YES                                                                                             │
+│ Key ID: 00 00 00 00 00 9A 1D 5A                                                                            │
+│ Cipher Key:BF 19 F7 3E DB D1 27 52 07 D9 C3 3D 97 BF 8D 32                                                 │
+│ MAC Key:   BE C3 8E 55 50 DA 80 4F B8 37 A6 32 87 53 65 74                                                 │
+│            52 33 15 55 51 CC 77 6F 62 C3 C0 62 B3 B0 7A CA                                                 │
+│                                                                                                            │
+│ LiFi Key: (waiting)                                                                                        │
+│                                                                                                            │
+│                                                                                                            │
+│ [1] Send Key  [2] Challenge  [s] Stats  [c] Clear  [p] Save  [f] Force Key  [r] Reopen  [q] Quit           │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌─ Commands / Status ────────────────────────────────────────────────────────────────────────────────────────┐
+│[DEBUG] Exp Challenge[0..3]: CF ED 42 7D using MAC_KEY[0..3]: C6 12 E8 BD                                   │
+│Challenge sent. [Exp: 77FCED80..] Waiting...                                                                │
+│�~]~L HMAC Verification Failed! Invalid response.                                                           │
+│                                                                                                            │
+│Rotated to Local Key #2 (Total: 3)                                                                          │
+│Active Key ID: 10100058                                                                                     │
+│[Shortcut] Sending session key to Pico...                                                                   │
+│�~\~S Session key sent (Cipher + MAC).                                                                      │
+│[DEBUG] Sent Cipher: BF 19... MAC: BE C3...                                                                 │
 │[Shortcut] Initiating HMAC challenge...                                                                     │
-│[DEBUG] Exp Challenge[0..3]: 37 A0 C5 0A using MAC_KEY[0..3]: F6 A2 A0 28                                   │
-│Challenge sent. [Exp: 5DB732DF..] Waiting...                                                                │
-│�~]~L HMAC Verification Failed! Invalid response. 
+│[DEBUG] Exp Challenge[0..3]: D2 71 47 3C using MAC_KEY[0..3]: BE C3 8E 55                                   │
+│Challenge sent. [Exp: 5EA7CC48..] Waiting...                                                                │
+│�~]~L HMAC Verification Failed! Invalid response.     
