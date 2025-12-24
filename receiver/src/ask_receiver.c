@@ -127,7 +127,7 @@ static void ui_init(void) {
     int rows, cols;
     getmaxyx(stdscr, rows, cols);
 
-    int mid_h = 12;                 // Increased height for multiline key and better spacing
+    int mid_h = 14;                 // Increased again for Cipher + MAC keys
     int top_h = (rows - mid_h) / 2;
     int bot_h = rows - mid_h - top_h;
 
@@ -230,25 +230,38 @@ static void mid_draw_keypanel(const session_key_t* s_key,
         wattroff(win_mid, COLOR_PAIR(3));
 
         wmove(win_mid, 5, 2);
-        wprintw(win_mid, "Key:");
+        wprintw(win_mid, "Cipher Key:");
         wattron(win_mid, COLOR_PAIR(3));
         
-        // Print Key on next line(s), indented
-        int bytes_per_line = 16;
-        unsigned int klen = s_key->cipher_key_size;
-        if (klen == 0 || klen > SESSION_KEY_SIZE) klen = SESSION_KEY_SIZE;
+        // Print Cipher Key
+        unsigned int c_len = s_key->cipher_key_size;
+        if (c_len == 0 || c_len > 32) c_len = 32; 
 
-        for (size_t i = 0; i < klen; i++) {
-            if (i % bytes_per_line == 0) wmove(win_mid, 6 + (i / bytes_per_line), 4);
+        for (size_t i = 0; i < c_len; i++) {
             wprintw(win_mid, "%02X ", s_key->cipher_key[i]);
         }
         wattroff(win_mid, COLOR_PAIR(3));
+
+        // Print MAC Key
+        wmove(win_mid, 6, 2);
+        wprintw(win_mid, "MAC Key:   ");
+        wattron(win_mid, COLOR_PAIR(5)); // Magenta for MAC
+        
+        unsigned int m_len = s_key->mac_key_size;
+        if (m_len == 0 || m_len > 32) m_len = 32;
+
+        for (size_t i = 0; i < m_len; i++) {
+            if (i == 16) mvwprintw(win_mid, 7, 13, ""); // Wrap to next line indented
+            wprintw(win_mid, "%02X ", s_key->mac_key[i]);
+        }
+        wattroff(win_mid, COLOR_PAIR(5));
+
     } else {
         mvwprintw(win_mid, 4, 2, "Key ID: (none)");
-        mvwprintw(win_mid, 6, 2, "Key:    (none)");
+        mvwprintw(win_mid, 5, 2, "Key:    (none)");
     }
 
-    // Display Last Received LiFi Key ID - pushed down to avoid overlap
+    // Display Last Received LiFi Key ID
     mvwprintw(win_mid, 9, 2, "LiFi Key: ");
     if (lifi_id_seen) {
         wattron(win_mid, COLOR_PAIR(3));
@@ -260,7 +273,7 @@ static void mid_draw_keypanel(const session_key_t* s_key,
 
     // Shortcuts menu at bottom of mid panel
     int menu_r = h - 2;
-    mvwprintw(win_mid, menu_r, 2, "[s] Stats  [c] Clear  [p] Save  [r] Reopen  [q] Quit");
+    mvwprintw(win_mid, menu_r, 2, "[s] Stats  [c] Clear  [k] Manual Key  [r] Reopen  [q] Quit");
 
     wrefresh(win_mid);
 }
