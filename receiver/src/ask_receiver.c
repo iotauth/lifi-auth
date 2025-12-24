@@ -251,7 +251,7 @@ static void mid_draw_keypanel(const session_key_t* s_key,
         if (m_len == 0 || m_len > 32) m_len = 32;
 
         for (size_t i = 0; i < m_len; i++) {
-            if (i == 16) mvwprintw(win_mid, 7, 13, ""); // Wrap to next line indented
+            if (i == 16) mvwprintw(win_mid, 7, 13, "%s", ""); // Wrap to next line indented
             wprintw(win_mid, "%02X ", s_key->mac_key[i]);
         }
         wattroff(win_mid, COLOR_PAIR(5));
