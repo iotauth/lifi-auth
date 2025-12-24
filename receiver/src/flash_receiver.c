@@ -1106,7 +1106,8 @@ int main(int argc, char* argv[]) {
                                         if (ret == 0 && memcmp(received_hmac, expected_hmac, HMAC_SIZE) == 0) {
                                             cmd_printf("\n✅ HMAC VERIFIED! Pico identity confirmed.\n");
                                         } else {
-                                            cmd_printf("\n❌ HMAC FAILED! Invalid response.\n");
+                                            // Ensure "Failed" is present for auto-red coloring
+                                            cmd_printf("\n❌ HMAC Verification Failed! Invalid response.\n");
                                         }
                                         
                                         explicit_bzero(pending_challenge, sizeof(pending_challenge));
