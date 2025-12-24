@@ -701,18 +701,20 @@ int main(int argc, char* argv[]) {
                                 s_key = &existing_s_key_list->s_key[session_key_idx];
                             } else {
                                 // Correct 64-bit formatting for the request
-                                // Reverting to lowercase 'keyId' matching library standard
+                                // TRYING QUOTES: The server might expect the 64-bit ID as a string?
                                 snprintf(ctx->config.purpose[ctx->config.purpose_index],
                                          MAX_PURPOSE_LENGTH, 
-                                         "{\"keyId\":%llu}", target_id);
+                                         "{\"keyId\":\"%llu\"}", target_id);
 
                                 // DEBUG: Print what we are about to send
                                 cmd_printf("[DEBUG] Requesting Purpose: %s", ctx->config.purpose[ctx->config.purpose_index]);
                                 cmd_printf("[DEBUG] Target ID (llu): %llu (Hex: 0x%llX)", target_id, target_id);
-
-                                // DEBUG: Print what we are about to send
-                                cmd_printf("[DEBUG] Requesting Purpose: %s", ctx->config.purpose[ctx->config.purpose_index]);
-                                cmd_printf("[DEBUG] Target ID (llu): %llu (Hex: 0x%llX)", target_id, target_id);
+                                
+                                cmd_print_partial("[DEBUG] Raw Bytes: ");
+                                for(int k=0; k<SESSION_KEY_ID_SIZE; k++) {
+                                    cmd_print_partial("%02X ", target_session_key_id[k]);
+                                }
+                                cmd_printf("");
 
                                 session_key_list_t *s_key_list;
                                 s_key_list = send_session_key_req_via_TCP(ctx);
