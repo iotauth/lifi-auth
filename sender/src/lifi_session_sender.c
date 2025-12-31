@@ -291,111 +291,54 @@ int main() {
             }
 
             if (ch == '\r' || ch == '\n') {
-                // User pressed Enter: end of input
-                message_buffer[msg_len] = '\0';
-                putchar('\n');
-                break;
+                // Peak ahead 2ms to see if more data follows (Streaming/Paste)
+                int next_ch = getchar_timeout_us(2000);
+                
+                if (next_ch != PICO_ERROR_TIMEOUT) {
+                    // Start of Stream / Burst detected
+                    if (msg_len < sizeof(message_buffer) - 1) {
+                        message_buffer[msg_len++] = '\n'; 
+                        putchar('\n');
+                    }
+
+                    // Process the peeked character aggressively
+                    if (msg_len < sizeof(message_buffer) - 1) {
+                         if (next_ch >= 32 && next_ch < 127) {
+                              message_buffer[msg_len++] = next_ch;
+                              putchar(next_ch);
+                         } else if (next_ch == '\r' || next_ch == '\n') {
+                              message_buffer[msg_len++] = '\n';
+                              putchar('\n');
+                         }
+                    }
+                    continue; // Keep buffering
+                } else {
+                    // Regular interactive Enter
+                    message_buffer[msg_len] = '\0';
+                    putchar('\n');
+                    break;
+                }
             }
             if ((ch == 127 || ch == 8) && msg_len > 0) {
                 // Handle backspace
                 msg_len--;
-                printf("\b \b");  // visually erase the character in terminal
+                printf("\b \b");
                 continue;
             }
             if (msg_len < sizeof(message_buffer) - 1 && ch >= 32 && ch < 127) {
-                // Accept only printable ASCII characters
                 message_buffer[msg_len++] = ch;
                 putchar(ch);
             }
+            
+            if (msg_len >= sizeof(message_buffer) - 128) {
+                message_buffer[msg_len] = '\0';
+                printf("\n[Auto-Send: Buffer Full]\n");
+                break;
+            }
         }
 
-        // Check if the message is actually a command (starts with "CMD:")
+        // Default message type (may be changed to MSG_TYPE_FILE if compressed later and NOT a Command)
         uint8_t current_msg_type = MSG_TYPE_ENCRYPTED;
-        
-        // Check for FILEB: prefix (File Blob - entire file in one message)
-        if (strncmp(message_buffer, "FILEB:", 6) == 0) {
-            char *payload = message_buffer + 6;
-            size_t payload_len = msg_len - 6;
-            
-            // Unescape newlines: replace ␊ (UTF-8: E2 90 8A) with \n
-            size_t write_idx = 0;
-            for (size_t i = 0; i < payload_len; i++) {
-                if (i + 2 < payload_len && 
-                    (uint8_t)payload[i] == 0xE2 && 
-                    (uint8_t)payload[i+1] == 0x90 && 
-                    (uint8_t)payload[i+2] == 0x8A) {
-                    payload[write_idx++] = '\n';
-                    i += 2;
-                } else {
-                    payload[write_idx++] = payload[i];
-                }
-            }
-            payload_len = write_idx;
-            
-            // Perform Compression
-            // Args: window_sz2=8 (2^8=256), lookahead_sz2=4 (2^4=16)
-            heatshrink_encoder *hse = heatshrink_encoder_alloc(8, 4);
-            if (hse) {
-                size_t sunk = 0;
-                size_t polled = 0;
-                size_t comp_sz = 0;
-                
-                // Sink the whole payload
-                heatshrink_encoder_sink(hse, (uint8_t*)payload, payload_len, &sunk);
-                
-                // Poll compressed data
-                HSE_poll_res pres;
-                do {
-                    size_t p = 0;
-                    pres = heatshrink_encoder_poll(hse, &compressed_buf[comp_sz], 
-                                                 sizeof(compressed_buf) - comp_sz, &p);
-                    comp_sz += p;
-                } while (pres == HSER_POLL_MORE && comp_sz < sizeof(compressed_buf));
-                
-                // Finish
-                HSE_finish_res fres = heatshrink_encoder_finish(hse);
-                if (fres == HSER_FINISH_MORE) {
-                     size_t p = 0;
-                     heatshrink_encoder_poll(hse, &compressed_buf[comp_sz], 
-                                           sizeof(compressed_buf) - comp_sz, &p);
-                     comp_sz += p;
-                }
-                
-                heatshrink_encoder_free(hse);
-                
-                printf("[FILEB] Compressed %zu -> %zu bytes (%.1f%%)\n", 
-                       payload_len, comp_sz, (1.0 - (float)comp_sz/payload_len)*100.0);
-                
-                // Replace message buffer with compressed data
-                if (comp_sz < sizeof(message_buffer)) {
-                    memcpy(message_buffer, compressed_buf, comp_sz);
-                    msg_len = comp_sz;
-                    current_msg_type = MSG_TYPE_FILE; // Set type to FILE for receiver to decompress
-                } else {
-                    printf("[Error] Compressed data too large for buffer!\n");
-                    // Fallback to uncompressed if expansion happened (unlikely for text)
-                    memmove(message_buffer, payload, payload_len);
-                    msg_len = payload_len;
-                    current_msg_type = MSG_TYPE_ENCRYPTED;
-                }
-            } else {
-                printf("[Error] Encoder alloc failed. Sending uncompressed.\n");
-                memmove(message_buffer, payload, payload_len);
-                msg_len = payload_len;
-                current_msg_type = MSG_TYPE_ENCRYPTED;
-            }
-        }
-        // Check for FILE: prefix (legacy single-chunk)
-        else if (strncmp(message_buffer, "FILE:", 5) == 0) {
-            char *payload = message_buffer + 5;
-            size_t payload_len = msg_len - 5;
-            
-            // TEST MODE: Skip compression, send as regular encrypted message
-            // printf("[FILE] TEST MODE - NO COMPRESSION. Sending %zu bytes as regular message.\n", payload_len);
-            memmove(message_buffer, payload, payload_len);
-            msg_len = payload_len;
-            current_msg_type = MSG_TYPE_ENCRYPTED;  // Send as regular message
-        }
 
         if (strncmp(message_buffer, "CMD:", 4) == 0) {
             // Extract the command part (skip the "CMD:" prefix)
@@ -465,6 +408,50 @@ int main() {
 
             // Skip the normal "send over LiFi" logic since this was a command.
             continue;
+        }
+
+        // Auto-Compression for large payloads (>128 bytes) logic
+        // This effectively replaces the old FILEB: specific logic with a general purpose one.
+        if (msg_len > 128) { 
+             heatshrink_encoder *hse = heatshrink_encoder_alloc(8, 4);
+             if (hse) {
+                 size_t sunk = 0;
+                 size_t comp_sz = 0;
+                 
+                 // Sink the whole payload to encoder
+                 heatshrink_encoder_sink(hse, (uint8_t*)message_buffer, msg_len, &sunk);
+                 
+                 // Poll compressed data
+                 HSE_poll_res pres;
+                 do {
+                     size_t p = 0;
+                     pres = heatshrink_encoder_poll(hse, &compressed_buf[comp_sz], 
+                                                  sizeof(compressed_buf) - comp_sz, &p);
+                     comp_sz += p;
+                 } while (pres == HSER_POLL_MORE && comp_sz < sizeof(compressed_buf));
+                 
+                 // Finish
+                 if (heatshrink_encoder_finish(hse) == HSER_FINISH_MORE) {
+                      size_t p = 0;
+                      heatshrink_encoder_poll(hse, &compressed_buf[comp_sz], 
+                                            sizeof(compressed_buf) - comp_sz, &p);
+                      comp_sz += p;
+                 }
+                 
+                 heatshrink_encoder_free(hse);
+                 
+                 // Only use compressed version if it is actually smaller
+                 if (comp_sz < msg_len) {
+                     printf("[Auto-Compress] %zu -> %zu bytes (%.1f%% saved)\n", 
+                            msg_len, comp_sz, (1.0f - (float)comp_sz/msg_len)*100.0f);
+                     
+                     if (comp_sz < sizeof(message_buffer)) {
+                         memcpy(message_buffer, compressed_buf, comp_sz);
+                         msg_len = comp_sz;
+                         current_msg_type = MSG_TYPE_FILE; // Signals receiver to decompress
+                     }
+                 }
+             }
         }
 
         // Check if message exceeds the encryption buffer size

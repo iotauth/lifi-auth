@@ -115,59 +115,31 @@ def handle_bulk_text(message):
     
     original_lines = len(data.splitlines())
     original_bytes = len(data.encode('utf-8'))
-    emit('log_message', {'data': f"Starting file upload: {filename} ({original_lines} lines, {original_bytes} bytes)"})
+    emit('log_message', {'data': f"Streaming file: {filename} ({original_bytes} bytes)..."})
     
     transmission_running = True
     
     conn = serial_conn
-    if conn and conn.is_open:
-        try:
-            # Send in small chunks to fit within optical link's reliable window
-            # Keep chunks small - similar to manually typed messages
-            CHUNK_SIZE = 100  # Small chunks for reliability
-            
-            lines = data.split('\n')
-            current_chunk = ""
-            chunk_num = 0
-            total_chunks = (len(data) + CHUNK_SIZE - 1) // CHUNK_SIZE
-            
-            emit('log_message', {'data': f"Splitting into ~{total_chunks} chunks for reliability..."})
-            
-            for line in lines:
-                # If adding this line would exceed chunk size, send current chunk first
-                if len(current_chunk) + len(line) + 1 > CHUNK_SIZE and current_chunk:
-                    chunk_num += 1
-                    cmd = "FILE:" + current_chunk + "\n"
-                    with serial_lock:
-                        if conn and conn.is_open:
-                            conn.write(cmd.encode('utf-8'))
-                            conn.flush()
-                        else:
-                            raise Exception("Serial port closed")
-                    time.sleep(1.5)  # Longer delay for optical transmission reliability
-                    current_chunk = ""
+    with serial_lock: 
+        if conn and conn.is_open:
+            try:
+                # Send the entire payload at once. 
+                # The Pico firmware's smart buffering (2ms timeout) will accumulate this 
+                # into a single buffer (up to 8KB) and auto-compress/send it.
                 
-                if current_chunk:
-                    current_chunk += "\n" + line
-                else:
-                    current_chunk = line
-            
-            # Send remaining chunk
-            if current_chunk:
-                chunk_num += 1
-                cmd = "FILE:" + current_chunk + "\n"
-                with serial_lock:
-                    if conn and conn.is_open:
-                        conn.write(cmd.encode('utf-8'))
-                        conn.flush()
-            
-            emit('log_message', {'data': f"✓ File sent in {chunk_num} chunks"})
-            
-        except Exception as e:
-            print(f"Serial Write Error (Bulk): {e}")
-            emit('log_message', {'data': f"Error during transmission: {e}"})
-    else:
-        emit('log_message', {'data': "Error: Serial port not open"})
+                # Ensure it ends with newline to trigger the buffer flush on the Pico side
+                if not data.endswith('\n'):
+                     data += '\n'
+                
+                conn.write(data.encode('utf-8'))
+                conn.flush()
+                
+                emit('log_message', {'data': f"✓ Sent {original_bytes} bytes to Sender."})
+            except Exception as e:
+                print(f"Serial Write Error (Bulk): {e}")
+                emit('log_message', {'data': f"Error during transmission: {e}"})
+        else:
+            emit('log_message', {'data': "Error: Serial port not open"})
     
     transmission_running = False
 
