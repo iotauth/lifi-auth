@@ -6,12 +6,12 @@ This diagram illustrates how a LiFi-enabled device (Sender/Tag) enters a room, c
 sequenceDiagram
     autonumber
     
-    box rgb(255, 248, 240) Smart Room (Physical Space)
+    box Smart Room (Physical Space)
         participant Pico as Sender (LiFi Tag)
         participant Pi4 as Receiver (Detector)
     end
     
-    box rgb(235, 245, 255) Backend Network
+    box Backend Network
         participant SST as Auth Server (SST)
     end
 
@@ -38,9 +38,9 @@ sequenceDiagram
         SST->>SST: Database Lookup
         
         alt Valid Device
-            SST-->>Pi4: **Return Session Key**<br/>(Cipher Key + MAC Key)
+            SST-->>Pi4: ✅ **Return Session Key**<br/>(Cipher Key + MAC Key)
         else Unknown/Revoked
-            SST-->>Pi4: Error: Key Not Found
+            SST-->>Pi4: ❌ Error: Key Not Found
         end
         deactivate SST
     else Key Found Locally

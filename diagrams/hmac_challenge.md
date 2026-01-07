@@ -22,7 +22,7 @@ sequenceDiagram
     Pico->>Pico: sst_encrypt_gcm(session_key, "HMAC:...")
     
     Pico->>Pi4: Send MSG_TYPE_ENCRYPTED (0x01) + Encrypted Payload
-    Note left of Pico: Response is encrypted for security
+    Note left of Pico: Response is encrypted
     
     Pi4->>Pi4: sst_decrypt_gcm()
     Pi4->>Pi4: Parse "HMAC:[HEX]"
