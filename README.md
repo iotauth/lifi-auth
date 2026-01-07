@@ -34,7 +34,7 @@ This technology opens the door to **secure, high-speed connectivity** in areas w
 
 The core motivation of this project is to leverage the physical properties of light to legitimate **embedded security**. By equipping cheap, low-power embedded devices with valid photodiodes, we can establish a **Line-of-Sight (LoS)** restricted communication channel.
 
-In this architecture, a device (like the Pico) acts as a secure receiver that can decrypt critical commands or session keys only when "illuminated" by the trusted sender. This creates a physical layer of security—if you can't see the light, you can't intercept the key ID, encrypted message, or secret nonce.
+In this architecture, a device (like the Pi 4B) acts as a secure receiver that can decrypt critical commands or session keys only when "illuminated" by the trusted sender. This creates a physical layer of security—if you can't see the light, you can't intercept the key ID, encrypted message, or secret nonce.
 
 **Nonce (Number used ONCE)**: A random or unique number added to each encrypted message.
 > **Why it matters here:** It prevents **Replay Attacks**. Even if a sophisticated attacker manages to record the light sequence of a valid message (e.g., "Open Door") using a high-speed camera, they cannot simply play it back later. The system tracks used nonces and will reject the "replayed" old message, ensuring that only fresh, real-time commands are accepted.
