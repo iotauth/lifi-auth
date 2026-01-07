@@ -27,7 +27,7 @@ This technology opens the door to **secure, high-speed connectivity** in areas w
 ## Motivation: Securing the Edge
 
 <p align="center">
-  <img src="./img/lifi_motivation_ai.png" alt="Li-Fi Security Motivation" width="600"/>
+  <img src="./img/lifi_timer_wip.png" alt="Li-Fi Security Motivation" width="600"/>
 </p>
 
 > **In our system, security comes not from the secrecy of the optical signal, but from the inability of attackers to preserve its freshness over time.**
