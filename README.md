@@ -45,13 +45,10 @@ This work studies a new way to control access based on physical presence, not ju
 
 This approach means access depends on continuous, time-bounded physical coupling between a device and its environment, rather than one-time checks such as GPS coordinates or Wi-Fi signal strength. We formally describe this presence mechanism and evaluate its security using symbolic verification, focusing on the following properties:
 
-Token secrecy: An attacker who does not have physical access to the optical channel cannot learn or reconstruct a valid presence token.
-
-Freshness and replay resistance: Expired or previously observed tokens cannot be reused to maintain authorization.
-
-Relay-bounded authorization: Relay or forwarding attacks are limited by the token decay window and cannot extend authorization indefinitely.
-
-Revocation on interruption: Loss of the optical signal leads to timely expiration of authorization.
+*   **Token secrecy:** An attacker who does not have physical access to the optical channel cannot learn or reconstruct a valid presence token.
+*   **Freshness and replay resistance:** Expired or previously observed tokens cannot be reused to maintain authorization.
+*   **Relay-bounded authorization:** Relay or forwarding attacks are limited by the token decay window and cannot extend authorization indefinitely.
+*   **Revocation on interruption:** Loss of the optical signal leads to timely expiration of authorization.
 
 We model these properties using symbolic verification tools such as Verifpal (and optionally cross-check with ProVerif or Tamarin), under explicit attacker capabilities including relay, replay, and message injection. The results show that, under the stated assumptions, authorization is maintained only while fresh optical presence is continuously observed.
 
