@@ -56,7 +56,7 @@ We then build and test the system using low-cost, off-the-shelf hardware (a Pico
 
 ## DRAFT System Overview: Threat Model and Security Goals
 
-LumiBind includes (1) an optical beacon that emits short-lived presence refresh material via light, (2) a client device that receives the optical signal and maintains a time-decaying “presence capability,” and (3) a verifier/policy service that grants or revokes authorization based on the freshness of that capability.
+The system includes (1) an optical beacon that emits short-lived presence refresh material via light, (2) a client device that receives the optical signal and maintains a time-decaying “presence capability,” and (3) a verifier/policy service that grants or revokes authorization based on the freshness of that capability.
 
 ### Adversary Capabilities
 
