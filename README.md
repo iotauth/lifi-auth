@@ -39,20 +39,30 @@ In this architecture, a device (like the Pi 4B) acts as a secure receiver that c
 **Nonce (Number used ONCE)**: A random or unique number added to each encrypted message.
 > **Why it matters here:** It prevents **Replay Attacks**. Even if a sophisticated attacker manages to record the light sequence of a valid message (e.g., "Open Door") using a high-speed camera, they cannot simply play it back later. The system tracks used nonces and will reject the "replayed" old message, ensuring that only fresh, real-time commands are accepted.
 
-## Proposal of Research Direction
+## Proposal of Research Direction (Draft)
 
-This work studies a new way to control access based on physical presence, not just estimated location. Instead of asking where a device is, we ask whether it is still physically present in a designated space. We do this by giving the device a short-lived cryptographic token that is delivered using light. As long as the device continues to receive the light signal, the token remains valid. If the light is blocked or interrupted, the token expires and access is revoked. Depending on the policy, this revocation can occur immediately or after a time-based decay window that allows presence to be confirmed within a bounded time interval.
+This work explores access control based on continuous physical presence rather than estimated location. A device receives a short-lived cryptographic token over a light channel; the token remains valid only while the light signal is continuously observed. If the signal is blocked or interrupted, the token expires and access is revoked, either immediately or after a bounded decay window defined by policy.
 
-This approach means access depends on continuous, time-bounded physical coupling between a device and its environment, rather than one-time checks such as GPS coordinates or Wi-Fi signal strength. We formally describe this presence mechanism and evaluate its security using symbolic verification, focusing on the following properties:
+This design ties authorization to time-bounded physical coupling instead of one-time checks such as GPS or Wi-Fi. We formally model the mechanism and verify key security properties—including:
 
-*   **Token secrecy:** An attacker who does not have physical access to the optical channel cannot learn or reconstruct a valid presence token.
-*   **Freshness and replay resistance:** Expired or previously observed tokens cannot be reused to maintain authorization.
-*   **Relay-bounded authorization:** Relay or forwarding attacks are limited by the token decay window and cannot extend authorization indefinitely.
-*   **Revocation on interruption:** Loss of the optical signal leads to timely expiration of authorization.
+- **Token secrecy**  
+  Tokens are delivered only via the optical channel and are not observable without physical light access.
 
-We model these properties using symbolic verification tools such as Verifpal (and optionally cross-check with ProVerif or Tamarin), under explicit attacker capabilities including relay, replay, and message injection. The results show that, under the stated assumptions, authorization is maintained only while fresh optical presence is continuously observed.
+- **Freshness**  
+  Tokens are time-bound and require continuous, recent optical reception to remain valid.
 
-We then build and test the system using low-cost, off-the-shelf hardware (a Pico microcontroller, LEDs, and a photodiode) to demonstrate that this approach is practical. We evaluate how well the system enforces time-based presence, how effectively decay limits relay attacks, and whether the optical modulation remains imperceptible to users. The goal is to provide a clear and verifiable method for tying authorization decisions to real, ongoing physical presence.
+- **Replay resistance**  
+  Expired or previously observed tokens are rejected and cannot restore access.
+
+- **Relay-bounded authorization**  
+  Relay attacks are limited by the token decay window and cannot extend authorization indefinitely.
+
+- **Revocation on interruption**  
+  Blocking or loss of the light signal triggers timely expiration and access revocation.
+
+using symbolic verification tools. Under the stated assumptions, authorization is maintained only while fresh optical presence is continuously observed.
+
+We validate practicality with a prototype built from low-cost hardware (microcontroller, LEDs, and a photodiode), evaluating time-based enforcement, resistance to relay attacks, and imperceptible optical signaling. The result is a clear, verifiable method for binding authorization to ongoing physical presence.
 
 ## DRAFT System Overview: Threat Model and Security Goals
 
