@@ -157,7 +157,7 @@ gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
 ## Key Features:
 
 - **Authenticated Encryption:**  
-&nbsp;&nbsp;&nbsp;&nbsp;Utilizes **AES-128-GCM** for state-of-the-art encryption and message authentication, protecting against both eavesdropping and tampering.
+&nbsp;&nbsp;&nbsp;&nbsp;Utilizes **AES-128-GCM** for encryption and message authentication, protecting against both eavesdropping and tampering.
 
 - **Robust Key Persistence:**  
 &nbsp;&nbsp;&nbsp;&nbsp;Implements a redundant **A/B slot system** in the Pico's flash memory to ensure the session key survives reboots and power loss. The system automatically falls back to a valid key if one slot is corrupted.
