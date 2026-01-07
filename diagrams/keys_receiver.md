@@ -23,5 +23,6 @@ stateDiagram-v2
     STATE_FETCH_FAIL --> STATE_IDLE : Keep Old Keys
     
     %% Local Rotation
-    STATE_IDLE --> STATE_IDLE : Shortcut 'n' (Rotate Local Index)
+    STATE_IDLE --> STATE_ROTATING_LOCAL : Shortcut 'n'
+    STATE_ROTATING_LOCAL --> STATE_IDLE : Index Update
 ```
