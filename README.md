@@ -30,6 +30,8 @@ This technology opens the door to **secure, high-speed connectivity** in areas w
   <img src="./img/lifi_motivation_ai.png" alt="Li-Fi Security Motivation" width="600"/>
 </p>
 
+> **In our system, security comes not from the secrecy of the optical signal, but from the inability of attackers to preserve its freshness over time.**
+
 The core motivation of this project is to leverage the physical properties of light to legitimate **embedded security**. By equipping cheap, low-power embedded devices with valid photodiodes, we can establish a **Line-of-Sight (LoS)** restricted communication channel.
 
 In this architecture, a device (like the Pico) acts as a secure receiver that can decrypt critical commands or session keys only when "illuminated" by the trusted sender. This creates a physical layer of security—if you can't see the light, you can't intercept the key ID, encrypted message, or secret nonce.
