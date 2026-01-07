@@ -15,10 +15,8 @@ sequenceDiagram
     
     Pico->>Pico: Receive Challenge
     
-    rect rgb(255, 255, 200)
     Note over Pico: CRITICAL STEP: Compute HMAC
     Pico->>Pico: sst_hmac_sha256(session_mac_key, challenge, output)
-    end
     
     Pico->>Pico: Format String: "HMAC:[HEX_STRING]"
     Pico->>Pico: sst_encrypt_gcm(session_key, "HMAC:...")
@@ -32,9 +30,9 @@ sequenceDiagram
     Pi4->>Pi4: sst_hmac_sha256(mac_key, original_challenge) (Local Compute)
     Pi4->>Pi4: Compare(Received_HMAC, Expected_HMAC)
     
-    alt Match
-        Pi4->>Pi4: HMAC VERIFIED
-    else Mismatch
-        Pi4->>Pi4: Verification Failed
+    alt Signature Valid
+        Pi4->>Pi4: ✅ HMAC VERIFIED
+    else Signature Invalid
+        Pi4->>Pi4: ❌ Verification Failed
     end
 ```
