@@ -8,8 +8,8 @@ This project implements a secure, real-time Li-Fi communication channel between 
 
 This repository contains the embedded software for a secure Li-Fi transmitter (the Pico) and the necessary host-side components to manage it. The system is designed to showcase a secure communication workflow example, from initial key provisioning to real-time encrypted messaging.
 
--   **Sender (Raspberry Pi Pico)**: A powerful Li-Fi transmitter that encrypts messages using a persistent session key with AES-128-GCM. It operates autonomously and can be managed remotely via a command interface.
--   **Receiver/Controller (Host)**: A host system (like a Raspberry Pi 4 or a PC) is responsible for the initial provisioning of the session key and can be used to receive and decrypt the Li-Fi messages.
+-   **Sender (Raspberry Pi Pico)**: A powerful Li-Fi transmitter that encrypts messages using a persistent session key with AES-128-GCM.
+-   **Receiver/Controller (Host)**: A host system (like a Raspberry Pi 4 or a PC) is responsible for the initial provisioning of the session key to the pico and can be used to receive and decrypt the Li-Fi messages.
 
 ## What is Li-Fi?
 
@@ -38,6 +38,62 @@ In this architecture, a device (like the Pi 4B) acts as a secure receiver that c
 
 **Nonce (Number used ONCE)**: A random or unique number added to each encrypted message.
 > **Why it matters here:** It prevents **Replay Attacks**. Even if a sophisticated attacker manages to record the light sequence of a valid message (e.g., "Open Door") using a high-speed camera, they cannot simply play it back later. The system tracks used nonces and will reject the "replayed" old message, ensuring that only fresh, real-time commands are accepted.
+
+## Proposal of Research Direction
+
+This work studies a new way to control access based on physical presence, not just estimated location. Instead of asking where a device is, we ask whether it is still physically present in a designated space. We do this by giving the device a short-lived cryptographic token that is delivered using light. As long as the device continues to receive the light signal, the token remains valid. If the light is blocked or interrupted, the token expires and access is revoked. Depending on the policy, this revocation can occur immediately or after a time-based decay window that allows presence to be confirmed within a bounded time interval.
+
+This approach means access depends on continuous, time-bounded physical coupling between a device and its environment, rather than one-time checks such as GPS coordinates or Wi-Fi signal strength. We formally describe this presence mechanism and evaluate its security using symbolic verification, focusing on the following properties:
+
+Token secrecy: An attacker who does not have physical access to the optical channel cannot learn or reconstruct a valid presence token.
+
+Freshness and replay resistance: Expired or previously observed tokens cannot be reused to maintain authorization.
+
+Relay-bounded authorization: Relay or forwarding attacks are limited by the token decay window and cannot extend authorization indefinitely.
+
+Revocation on interruption: Loss of the optical signal leads to timely expiration of authorization.
+
+We model these properties using symbolic verification tools such as Verifpal (and optionally cross-check with ProVerif or Tamarin), under explicit attacker capabilities including relay, replay, and message injection. The results show that, under the stated assumptions, authorization is maintained only while fresh optical presence is continuously observed.
+
+We then build and test the system using low-cost, off-the-shelf hardware (a Pico microcontroller, LEDs, and a photodiode) to demonstrate that this approach is practical. We evaluate how well the system enforces time-based presence, how effectively decay limits relay attacks, and whether the optical modulation remains imperceptible to users. The goal is to provide a clear and verifiable method for tying authorization decisions to real, ongoing physical presence.
+
+## DRAFT System Overview: Threat Model and Security Goals
+
+LumiBind includes (1) an optical beacon that emits short-lived presence refresh material via light, (2) a client device that receives the optical signal and maintains a time-decaying “presence capability,” and (3) a verifier/policy service that grants or revokes authorization based on the freshness of that capability.
+
+### Adversary Capabilities
+
+We consider an attacker who can:
+
+*   **Network control (Wi-Fi path):** eavesdrop, replay, delay, drop, and inject packets between the client and verifier.
+*   **Optical observation:** observe the optical signal near the designated space using commodity sensors (e.g., camera/photodiode).
+*   **Relay:** capture the optical signal near the designated space and forward it to another device elsewhere, potentially with latency and jitter.
+*   **Injection (optional):** introduce a rogue light source to transmit crafted optical messages.
+*   **Disruption (DoS):** block or jam the light channel (“shadowing”) or disrupt Wi-Fi connectivity.
+
+### Trust Assumptions
+
+*   The verifier and its long-term keys are trusted.
+*   Standard cryptographic assumptions hold (e.g., AEAD integrity and confidentiality).
+*   The system has a bounded notion of freshness (e.g., epochs/counters or bounded clock drift) to support token decay.
+*   Full client compromise (malware extracting secrets) is out of scope for the core protocol guarantees.
+
+### Security Goals
+
+Our primary goal is presence-based authorization: a device should remain authorized only while it can demonstrate fresh physical presence within a bounded time window Δ.
+
+Concretely, we aim to provide:
+
+*   **G1 — Freshness / Expiration:** authorization depends on presence material that expires automatically after Δ.
+*   **G2 — Replay Resistance:** previously observed presence material cannot be reused after expiration.
+*   **G3 — Relay-Bounded Authorization:** relay attacks cannot extend authorization indefinitely; success is limited by Δ and degrades with relay delay/jitter.
+*   **G4 — Revocation on Interruption:** loss of optical reception leads to deauthorization within Δ (immediately or via the decay window).
+
+### Non-Goals (Explicit)
+
+*   We do not aim to provide precise indoor localization or positioning.
+*   We do not claim to prevent denial-of-service (blocking/jamming can always disrupt), but the system should fail closed and recover cleanly.
+*   We do not claim security if the client device is fully compromised.
 <div style="text-align:center;">
   <table style="width:100%; max-width:1100px; margin:0 auto; border-collapse:collapse; border:none;">
     <tr>
