@@ -26,30 +26,6 @@ In an outdoor or open environment, attackers can easily capture the optical sign
 #### Behavior Description
 As illustrated, a "Trusted Sender" (e.g., a drone) emits a session key or challenge. A legitimate node (receiver) captures this preamble and decrypts the key. An attacker ("Evil Attacker") might capture the signal, but cannot decrypt and respond fast enough or replay old capture due to Nonce freshness checks.
 
-Relevant firmware logic for detecting the preamble and receiving the key:
-
-```c
-// From src/pico_handler.c
-bool receive_new_key_with_timeout(uint8_t *id_out, uint8_t *key_out, uint32_t timeout_ms) {
-    absolute_time_t deadline = make_timeout_time_ms(timeout_ms);
-    while (absolute_time_diff_us(get_absolute_time(), deadline) > 0) {
-        if (uart_is_readable(UART_ID) &&
-            uart_getc(UART_ID) == PREAMBLE_BYTE_1) {
-            
-            // Spin wait
-            while (!uart_is_readable(UART_ID) && absolute_time_diff_us(get_absolute_time(), deadline) > 0) {}
-            
-            if (uart_is_readable(UART_ID) && uart_getc(UART_ID) == PREAMBLE_BYTE_2) {
-                printf("Receiving new session key (ID+Key)...\n");
-                // ... (Reading ID and Key)
-                return (recv_id == SST_KEY_ID_SIZE && recv_key == SST_KEY_SIZE);
-            }
-        }
-    }
-    return false;
-}
-```
-
 
 ## Proposal of Research Direction (Draft)
 
