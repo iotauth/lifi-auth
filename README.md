@@ -15,7 +15,7 @@ This repository contains the embedded software for a secure Li-Fi transmitter (t
 
 > **In our system, security comes not from the secrecy of the optical signal, but from the inability of attackers to preserve its freshness over time.**
 
-### Li-Fi-auth in an outside environment
+### Li-Fi-auth in an outside environment (WIP VISUALIZATION)
 
 <p align="center">
   <img src="./img/lifi_outside_environment.png" alt="Li-Fi in an outside environment" width="800"/>
