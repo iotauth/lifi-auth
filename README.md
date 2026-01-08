@@ -11,33 +11,45 @@ This repository contains the embedded software for a secure Li-Fi transmitter (t
 -   **Sender (Raspberry Pi Pico)**: A powerful Li-Fi transmitter that encrypts messages using a persistent session key with AES-128-GCM.
 -   **Receiver/Controller (Host)**: A host system (like a Raspberry Pi 4 or a PC) is responsible for the initial provisioning of the session key to the pico and can be used to receive and decrypt the Li-Fi messages.
 
-## What is Li-Fi?
-
-<p align="center">
-  <img src="./img/lifi_room_example_ai.png" alt="Li-Fi Future Smart Concept" width="600"/>
-</p>
-
-**Li-Fi (Light Fidelity)** is a wireless communication technology that utilizes light to transmit data and position between devices. Unlike Wi-Fi which uses radio frequency (RF), Li-Fi uses visible light, infrared, or ultraviolet spectrums.
-
-This technology opens the door to **secure, high-speed connectivity** in areas where RF is undesirable or restricted, such as:
-*   **Hospitals & Healthcare**: Interference-free communication near sensitive medical equipment.
-*   **Smart Homes & Offices**: High-bandwidth data streaming through existing lighting infrastructure.
-*   **Industrial Internet of Things (IIoT)**: Reliable low-latency connections in dense electromagnetic environments.
-
 ## Motivation: Securing the Edge
-
-<p align="center">
-  <img src="./img/lifi_timer_wip.png" alt="Li-Fi Security Motivation" width="600"/>
-</p>
 
 > **In our system, security comes not from the secrecy of the optical signal, but from the inability of attackers to preserve its freshness over time.**
 
-The core motivation of this project is to leverage the physical properties of light to legitimate **embedded security**. By equipping cheap, low-power embedded devices with valid photodiodes, we can establish a **Line-of-Sight (LoS)** restricted communication channel.
+### Li-Fi-auth in an outside environment
 
-In this architecture, a device (like the Pi 4B) acts as a secure receiver that can decrypt critical commands or session keys only when "illuminated" by the trusted sender. This creates a physical layer of security—if you can't see the light, you can't intercept the key ID, encrypted message, or secret nonce.
+<p align="center">
+  <img src="./img/lifi_outside_environment.png" alt="Li-Fi in an outside environment" width="800"/>
+</p>
 
-**Nonce (Number used ONCE)**: A random or unique number added to each encrypted message.
-> **Why it matters here:** It prevents **Replay Attacks**. Even if a sophisticated attacker manages to record the light sequence of a valid message (e.g., "Open Door") using a high-speed camera, they cannot simply play it back later. The system tracks used nonces and will reject the "replayed" old message, ensuring that only fresh, real-time commands are accepted.
+In an outdoor or open environment, attackers can easily capture the optical signal. However, the system ensures security through **time-bounded authorization**. The receiver must respond to a challenge with valid credentials within a tight time window.
+
+#### Behavior Description
+As illustrated, a "Trusted Sender" (e.g., a drone) emits a session key or challenge. A legitimate node (receiver) captures this preamble and decrypts the key. An attacker ("Evil Attacker") might capture the signal, but cannot decrypt and respond fast enough or replay old capture due to Nonce freshness checks.
+
+Relevant firmware logic for detecting the preamble and receiving the key:
+
+```c
+// From src/pico_handler.c
+bool receive_new_key_with_timeout(uint8_t *id_out, uint8_t *key_out, uint32_t timeout_ms) {
+    absolute_time_t deadline = make_timeout_time_ms(timeout_ms);
+    while (absolute_time_diff_us(get_absolute_time(), deadline) > 0) {
+        if (uart_is_readable(UART_ID) &&
+            uart_getc(UART_ID) == PREAMBLE_BYTE_1) {
+            
+            // Spin wait
+            while (!uart_is_readable(UART_ID) && absolute_time_diff_us(get_absolute_time(), deadline) > 0) {}
+            
+            if (uart_is_readable(UART_ID) && uart_getc(UART_ID) == PREAMBLE_BYTE_2) {
+                printf("Receiving new session key (ID+Key)...\n");
+                // ... (Reading ID and Key)
+                return (recv_id == SST_KEY_ID_SIZE && recv_key == SST_KEY_SIZE);
+            }
+        }
+    }
+    return false;
+}
+```
+
 
 ## Proposal of Research Direction (Draft)
 
