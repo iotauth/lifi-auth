@@ -21,7 +21,7 @@ target_include_directories(receiver_common PUBLIC
 )
 
 # ---- sst-c-api (submodule under deps/) ----
-set(SST_C_API_DIR "${CMAKE_SOURCE_DIR}/deps/sst-c-api")
+set(SST_C_API_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../deps/sst-c-api")
 
 add_executable(flash_receiver
   ${CMAKE_CURRENT_SOURCE_DIR}/src/flash_receiver.c
@@ -35,9 +35,9 @@ add_executable(flash_receiver
 
 target_include_directories(flash_receiver PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include
   ${SST_C_API_DIR}
-  ${MBEDTLS_DIR}/include  
+  ${CMAKE_CURRENT_SOURCE_DIR}/../lib/mbedtls/include  
   ${CURSES_INCLUDE_DIRS}
 )
 
@@ -56,7 +56,7 @@ target_compile_options(flash_receiver PRIVATE -Wall -Wextra -Wno-unused-paramete
 
 # Use an absolute default config path
 target_compile_definitions(flash_receiver PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_SOURCE_DIR}/receiver.config\"
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/../receiver.config\"
 )
 
 # --- Receiver Keys (Sender Logic) ---
@@ -71,9 +71,9 @@ add_executable(keys_receiver
 )
 target_include_directories(keys_receiver PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include
   ${SST_C_API_DIR}
-  ${MBEDTLS_DIR}/include  
+  ${CMAKE_CURRENT_SOURCE_DIR}/../lib/mbedtls/include  
   ${CURSES_INCLUDE_DIRS}
 )
 target_link_libraries(keys_receiver PRIVATE
@@ -86,7 +86,7 @@ target_link_libraries(keys_receiver PRIVATE
 )
 set_property(TARGET keys_receiver PROPERTY C_STANDARD 11)
 target_compile_definitions(keys_receiver PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_SOURCE_DIR}/receiver.config\"
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/../receiver.config\"
 )
 
 
@@ -102,9 +102,9 @@ add_executable(ask_receiver
 )
 target_include_directories(ask_receiver PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include
   ${SST_C_API_DIR}
-  ${MBEDTLS_DIR}/include  
+  ${CMAKE_CURRENT_SOURCE_DIR}/../lib/mbedtls/include  
   ${CURSES_INCLUDE_DIRS}
 )
 target_link_libraries(ask_receiver PRIVATE
@@ -117,5 +117,15 @@ target_link_libraries(ask_receiver PRIVATE
 )
 set_property(TARGET ask_receiver PROPERTY C_STANDARD 11)
 target_compile_definitions(ask_receiver PRIVATE
-  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_SOURCE_DIR}/ask_receiver.config\"
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/../ask_receiver.config\"
 )
+
+# --- Speed Test Tools ---
+add_executable(speed_test_sender
+  ${CMAKE_CURRENT_SOURCE_DIR}/../sender/src/speed_test_sender.c
+)
+add_executable(speed_test_receiver
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/speed_test_receiver.c
+)
+
+set_property(TARGET speed_test_sender speed_test_receiver PROPERTY C_STANDARD 11)
