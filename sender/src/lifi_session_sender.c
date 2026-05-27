@@ -5,6 +5,7 @@
 #include "../../include/pico_handler.h"
 #include "../../include/protocol.h"
 #include "../../include/sst_crypto_embedded.h"
+#include "mbedtls/aes.h"
 #include "../../include/crc16.h"
 #include "heatshrink_encoder.h"
 #include "hardware/flash.h"
@@ -18,6 +19,9 @@
 #include "pico/stdio_usb.h"
 #include "pico/stdlib.h"
 #include "pico/time.h"
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
+#include "lifi_multi_tx.pio.h" // Generated header
 
 #define UART_ID_DEBUG uart0
 #define UART_RX_PIN_DEBUG 1
@@ -25,11 +29,57 @@
 
 #define UART_ID uart1
 #define UART_RX_PIN 5
-#define UART_TX_PIN 4
+// TX is now handled by PIO on multiple pins
+#define PIO_TX_PIN_BASE 6 // GP6
+#define PIO_TX_PIN_COUNT 4 // GP6, GP7, GP8, GP9
 
 #define BAUD_RATE 1000000
 #define SST_MAC_KEY_SIZE 32
-/* Preamble and message types now in protocol.h */
+
+// PIO Globals
+PIO pio = pio0;
+uint sm = 0;
+
+// LED Mask Global (Default: All On = 0xF)
+// Bit 0: GP6 (White)
+// Bit 1: GP7 (Green)
+// Bit 2: GP8 (Blue)
+// Bit 3: GP9 (Red)
+static uint8_t active_led_mask = 0x0F;
+
+void set_led_mask(uint8_t mask) {
+    active_led_mask = mask;
+    for (int i = 0; i < PIO_TX_PIN_COUNT; i++) {
+        uint pin = PIO_TX_PIN_BASE + i;
+        if (mask & (1 << i)) {
+            // Enable: Set to PIO function
+            gpio_set_function(pin, GPIO_FUNC_PIO0);
+        } else {
+            // Disable: Set to SIO and drive Low
+            gpio_set_function(pin, GPIO_FUNC_SIO);
+            gpio_put(pin, 0);
+        }
+    }
+}
+
+void lifi_send_byte(uint8_t byte) {
+    pio_sm_put_blocking(pio, sm, (uint32_t)byte);
+}
+
+void lifi_send_bytes(const uint8_t *src, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        lifi_send_byte(src[i]);
+    }
+}
+
+// Helper for waiting? PIO blocks on FIFO full, so no wait needed unless we want to wait for drain.
+void lifi_wait_tx() {
+    // Wait until SM is stalled (TX buffer empty)
+    // There isn't a direct "fifo empty" check that guarantees the shift register is empty too
+    // checking stall is a decent proxy if we know we stopped pushing.
+    while (!pio_sm_is_tx_fifo_empty(pio, sm)) tight_loop_contents();
+    // sleep_us(100); // Small guard
+}
 
 // Helper: Read bytes with a total timeout
 bool uart_read_blocking_timeout_us(uart_inst_t *uart, uint8_t *dst, size_t len, uint32_t timeout_us) {
@@ -60,14 +110,7 @@ int main() {
     } else {
         printf("Fresh power-on boot or reboot via flash.\n");
     }
-    // boot with last saved slot
-    // boot with last saved slot -- IGNORED per user request
-    // int saved_slot = load_last_used_slot();
-    // if (saved_slot == 0 || saved_slot == 1) {
-    //     current_slot = saved_slot;
-    // } else {
-    //     current_slot = 0;  // Default to A if not found
-    // }
+
     current_slot = 0; // Always default to A
     printf("Defaulting to Slot A (per configuration).\n");
 
@@ -80,9 +123,24 @@ int main() {
     gpio_set_function(UART_TX_PIN_DEBUG, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN_DEBUG, GPIO_FUNC_UART);
 
+    // Init UART for RX Only (TX is PIO)
     uart_init(UART_ID, BAUD_RATE);
-    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+    // gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART); // Disable Hardware UART TX on GP4
+
+    // Init PIO for Multi-Channel TX
+    uint offset = pio_add_program(pio, &lifi_multi_tx_program);
+    
+    // Calculate 1Mbps divider
+    // sys_clk / (div * cycles_per_bit) = baud
+    // cycles_per_bit in PIO = 8 (see .pio file)
+    // 125MHz / (div * 8) = 1MHz => div = 125/8 = 15.625
+    float div = (float)clock_get_hz(clk_sys) / (8 * BAUD_RATE);
+    
+    lifi_multi_tx_program_init(pio, sm, offset, PIO_TX_PIN_BASE, PIO_TX_PIN_COUNT, div);
+    
+    // Set initial mask (Enables PIO function on all pins)
+    set_led_mask(0x0F);
 
     // Flush UART input buffer to discard any leftover or garbage data.
     while (uart_is_readable(UART_ID)) {
@@ -92,6 +150,8 @@ int main() {
     uint8_t session_key[SST_KEY_SIZE] = {0};
     uint8_t session_mac_key[SST_MAC_KEY_SIZE] = {0}; // 32 bytes
     uint8_t session_key_id[SST_KEY_ID_SIZE] = {0};
+    // Preserved across HS1→HS3: Pico's own nonce sent in HS2; zeroed after HS3 verify
+    static uint8_t saved_pico_nonce[SST_HS_NONCE_SIZE];
 
     // Try to load an existing valid session key from flash
     if (!load_session_key(session_key_id, session_key)) {
@@ -111,8 +171,6 @@ int main() {
     static uint8_t crc_buf[1 + 2 + 12 + 8192 + 16];  // TYPE + LEN + NONCE + CIPHERTEXT + TAG
 
     while (true) {
-        // can add function to show A(VALID): or A(INVALID): or B(VALID): etc..
-        //  in message preview -- show validity and which slot we are on !
         size_t msg_len = 0;
         int ch;  // character
         memset(ciphertext, 0, sizeof(ciphertext));
@@ -123,7 +181,6 @@ int main() {
             while (uart_is_readable(UART_ID)) {
                 static uint8_t uart_byte;
                 static int challenge_state = 0;
-                static uint8_t challenge_buffer[CHALLENGE_SIZE];
                 
                 uart_byte = uart_getc(UART_ID);
                 
@@ -148,83 +205,219 @@ int main() {
                         break;
                     case 4:
                         // 4-byte preamble matched. Check type.
-                        if (uart_byte == MSG_TYPE_CHALLENGE) {
-                            // Read length (2 bytes) then challenge
+                        if (uart_byte == MSG_TYPE_SST_HS1) {
+                            // SST 3-way handshake step 1 received from Pi4
+                            // Format: [KEY_ID:8][IV:16][AES-128-CBC({0x01,nonce_e}):16][HMAC-SHA256:32]
                             uint8_t len_bytes[2];
-                            if (uart_read_blocking_timeout_us(UART_ID, len_bytes, 2, 50000) &&
-                                uart_read_blocking_timeout_us(UART_ID, challenge_buffer, CHALLENGE_SIZE, 100000)) {
-                                printf("\n[Received HMAC challenge from Pi4]\n");
-                                
-                                // DEBUG: Print what we are hashing
-                                printf("DEBUG: Hashing Challenge[0..3]: %02X %02X %02X %02X using MAC_KEY[0..3]: %02X %02X %02X %02X\n",
-                                    challenge_buffer[0], challenge_buffer[1], challenge_buffer[2], challenge_buffer[3],
-                                    session_mac_key[0], session_mac_key[1], session_mac_key[2], session_mac_key[3]);
-
-                                // Compute HMAC response using MAC KEY (32 bytes)
-                                uint8_t hmac[HMAC_SIZE];
-                                int hmac_ret = sst_hmac_sha256(session_mac_key, challenge_buffer, 
-                                                         CHALLENGE_SIZE, hmac);
-                                
-                                if (hmac_ret == 0) {
-                                    // Convert HMAC to hex string
-                                    char hmac_msg[5 + HMAC_SIZE * 2 + 1];  // "HMAC:" + hex + null
-                                    strcpy(hmac_msg, "HMAC:");
-                                    for (int i = 0; i < HMAC_SIZE; i++) {
-                                        sprintf(hmac_msg + 5 + (i * 2), "%02X", hmac[i]);
-                                    }
-                                    printf("Computed Response: %s\n", hmac_msg);
-                                    
-                                    // Send HMAC response as encrypted LiFi message
-                                    uint8_t nonce[SST_NONCE_SIZE];
-                                    pico_nonce_generate(nonce);
-                                    
-                                    uint8_t ciphertext_hmac[sizeof(hmac_msg)];
-                                    uint8_t tag_hmac[SST_TAG_SIZE];
-                                    
-                                    hmac_ret = sst_encrypt_gcm(session_key, nonce, 
-                                                         (uint8_t*)hmac_msg, strlen(hmac_msg),
-                                                         ciphertext_hmac, tag_hmac);
-                                    
-                                    if (hmac_ret == 0) {
-                                        // Build frame with new format
-                                        size_t msg_len_hmac = strlen(hmac_msg);
-                                        size_t payload_len = SST_NONCE_SIZE + msg_len_hmac + SST_TAG_SIZE;
-                                        uint8_t len_bytes_out[2] = {(payload_len >> 8) & 0xFF, payload_len & 0xFF};
-                                        
-                                        // CRC buffer
-                                        uint8_t crc_buf_hmac[1 + 2 + SST_NONCE_SIZE + sizeof(hmac_msg) + SST_TAG_SIZE];
-                                        size_t crc_idx = 0;
-                                        crc_buf_hmac[crc_idx++] = MSG_TYPE_ENCRYPTED;
-                                        crc_buf_hmac[crc_idx++] = len_bytes_out[0];
-                                        crc_buf_hmac[crc_idx++] = len_bytes_out[1];
-                                        memcpy(&crc_buf_hmac[crc_idx], nonce, SST_NONCE_SIZE); crc_idx += SST_NONCE_SIZE;
-                                        memcpy(&crc_buf_hmac[crc_idx], ciphertext_hmac, msg_len_hmac); crc_idx += msg_len_hmac;
-                                        memcpy(&crc_buf_hmac[crc_idx], tag_hmac, SST_TAG_SIZE); crc_idx += SST_TAG_SIZE;
-                                        uint16_t crc = crc16_ccitt(crc_buf_hmac, crc_idx);
-                                        uint8_t crc_bytes[2] = {(crc >> 8) & 0xFF, crc & 0xFF};
-                                        
-                                        uart_putc_raw(UART_ID, PREAMBLE_BYTE_1);
-                                        uart_putc_raw(UART_ID, PREAMBLE_BYTE_2);
-                                        uart_putc_raw(UART_ID, PREAMBLE_BYTE_3);
-                                        uart_putc_raw(UART_ID, PREAMBLE_BYTE_4);
-                                        uart_putc_raw(UART_ID, MSG_TYPE_ENCRYPTED);
-                                        uart_write_blocking(UART_ID, len_bytes_out, 2);
-                                        uart_write_blocking(UART_ID, nonce, SST_NONCE_SIZE);
-                                        uart_write_blocking(UART_ID, ciphertext_hmac, msg_len_hmac);
-                                        uart_write_blocking(UART_ID, tag_hmac, SST_TAG_SIZE);
-                                        uart_write_blocking(UART_ID, crc_bytes, 2);
-                                        
-                                        printf("[Sent HMAC response via LiFi]\n");
-                                    }
-                                }
-                            } else {
-                                printf("\n[Error] Challenge timeout. Flushing RX.\n");
-                                // Flush any remaining garbage (noise/partial frame) to clean the line
-                                while (uart_is_readable(UART_ID)) {
-                                    (void)uart_getc(UART_ID);
-                                }
+                            if (!uart_read_blocking_timeout_us(UART_ID, len_bytes, 2, 50000)) {
+                                printf("[SST HS1] Timeout reading length. Flushing.\n");
+                                while (uart_is_readable(UART_ID)) (void)uart_getc(UART_ID);
+                                challenge_state = 0; break;
                             }
-                        } 
+                            uint16_t hs1_len = ((uint16_t)len_bytes[0] << 8) | len_bytes[1];
+                            if (hs1_len != SST_HS1_PAYLOAD_SIZE) {
+                                printf("[SST HS1] Bad length %u. Flushing.\n", hs1_len);
+                                while (uart_is_readable(UART_ID)) (void)uart_getc(UART_ID);
+                                challenge_state = 0; break;
+                            }
+
+                            uint8_t hs1[SST_HS1_PAYLOAD_SIZE];
+                            if (!uart_read_blocking_timeout_us(UART_ID, hs1, hs1_len, 200000)) {
+                                printf("[SST HS1] Timeout reading payload.\n");
+                                challenge_state = 0; break;
+                            }
+
+                            // Parse: key_id(8) | blob(64): iv(16)|ctext(16)|hmac(32)
+                            const uint8_t *key_id   = hs1;
+                            const uint8_t *blob     = hs1 + SESSION_KEY_ID_SIZE;
+                            const uint8_t *iv       = blob;
+                            const uint8_t *ctext    = blob + SST_HS_IV_SIZE;
+                            const uint8_t *recv_mac = blob + SST_HS_IV_SIZE + 16;
+
+                            // 1. Verify key_id
+                            if (memcmp(key_id, session_key_id, SESSION_KEY_ID_SIZE) != 0) {
+                                printf("[SST HS1] Key ID mismatch.\n");
+                                challenge_state = 0; break;
+                            }
+
+                            // 2. Verify HMAC-SHA256(mac_key_32, IV||ctext)
+                            uint8_t computed_mac[SST_HS_MAC_SIZE];
+                            if (sst_hmac_sha256_ex(session_mac_key, SST_MAC_KEY_SIZE,
+                                                   blob, SST_HS_IV_SIZE + 16,
+                                                   computed_mac) != 0 ||
+                                memcmp(computed_mac, recv_mac, SST_HS_MAC_SIZE) != 0) {
+                                printf("[SST HS1] HMAC verification failed.\n");
+                                secure_zero(computed_mac, sizeof(computed_mac));
+                                challenge_state = 0; break;
+                            }
+                            secure_zero(computed_mac, sizeof(computed_mac));
+
+                            // 3. AES-128-CBC decrypt → {indicator(1), entity_nonce(8), pkcs7_pad}
+                            uint8_t decrypted[16];
+                            if (sst_aes_128_cbc_decrypt(session_key, iv, ctext, 16, decrypted) != 0) {
+                                printf("[SST HS1] Decrypt failed.\n");
+                                challenge_state = 0; break;
+                            }
+
+                            // Validate PKCS7 pad (9 bytes input → 7 bytes of 0x07 padding)
+                            uint8_t pad = decrypted[15];
+                            if (pad < 1 || pad > 16) {
+                                printf("[SST HS1] Invalid PKCS7 padding.\n");
+                                secure_zero(decrypted, sizeof(decrypted));
+                                challenge_state = 0; break;
+                            }
+
+                            // 4. Extract entity_nonce from decrypted[1..8]
+                            uint8_t entity_nonce[SST_HS_NONCE_SIZE];
+                            memcpy(entity_nonce, decrypted + 1, SST_HS_NONCE_SIZE);
+                            secure_zero(decrypted, sizeof(decrypted));
+                            printf("[SST HS1] OK. Building HS2.\n");
+
+                            // 5. Generate pico_nonce (8 bytes)
+                            uint8_t pico_nonce[SST_HS_NONCE_SIZE];
+                            uint32_t r0 = get_rand_32(), r1 = get_rand_32();
+                            memcpy(pico_nonce,     &r0, 4);
+                            memcpy(pico_nonce + 4, &r1, 4);
+
+                            // 6. Build HS2 plaintext: [0x02][pico_nonce:8][entity_nonce:8] = 17 bytes
+                            uint8_t hs2_plain[1 + SST_HS_NONCE_SIZE * 2];
+                            hs2_plain[0] = 2;
+                            memcpy(hs2_plain + 1,                    pico_nonce,   SST_HS_NONCE_SIZE);
+                            memcpy(hs2_plain + 1 + SST_HS_NONCE_SIZE, entity_nonce, SST_HS_NONCE_SIZE);
+
+                            // 7. Generate IV2 (16 bytes)
+                            uint8_t iv2[SST_HS_IV_SIZE];
+                            uint32_t r2=get_rand_32(), r3=get_rand_32(),
+                                     r4=get_rand_32(), r5=get_rand_32();
+                            memcpy(iv2,    &r2,4); memcpy(iv2+4, &r3,4);
+                            memcpy(iv2+8,  &r4,4); memcpy(iv2+12,&r5,4);
+
+                            // 8. AES-128-CBC encrypt with PKCS7 → 32 bytes
+                            uint8_t hs2_ctext[32];
+                            size_t  hs2_ctext_len = 0;
+                            if (sst_aes_128_cbc_encrypt_pkcs7(session_key, iv2,
+                                    hs2_plain, sizeof(hs2_plain),
+                                    hs2_ctext, &hs2_ctext_len) != 0) {
+                                printf("[SST HS1] HS2 encrypt failed.\n");
+                                secure_zero(entity_nonce, sizeof(entity_nonce));
+                                secure_zero(pico_nonce,   sizeof(pico_nonce));
+                                secure_zero(hs2_plain,    sizeof(hs2_plain));
+                                challenge_state = 0; break;
+                            }
+
+                            // 9. Build HS2 blob = IV2(16)|ctext(32)|HMAC(32) = 80 bytes
+                            uint8_t hs2_blob[SST_HS2_PAYLOAD_SIZE];
+                            memcpy(hs2_blob,                          iv2,       SST_HS_IV_SIZE);
+                            memcpy(hs2_blob + SST_HS_IV_SIZE,          hs2_ctext, hs2_ctext_len);
+                            uint8_t hs2_mac[SST_HS_MAC_SIZE];
+                            if (sst_hmac_sha256_ex(session_mac_key, SST_MAC_KEY_SIZE,
+                                                   hs2_blob, SST_HS_IV_SIZE + hs2_ctext_len,
+                                                   hs2_mac) != 0) {
+                                printf("[SST HS1] HS2 HMAC failed.\n");
+                                secure_zero(entity_nonce, sizeof(entity_nonce));
+                                secure_zero(pico_nonce,   sizeof(pico_nonce));
+                                secure_zero(hs2_plain,    sizeof(hs2_plain));
+                                challenge_state = 0; break;
+                            }
+                            memcpy(hs2_blob + SST_HS_IV_SIZE + hs2_ctext_len, hs2_mac, SST_HS_MAC_SIZE);
+
+                            // 10. Frame and send HS2 over LiFi
+                            uint8_t hs2_len_bytes[2] = {
+                                (SST_HS2_PAYLOAD_SIZE >> 8) & 0xFF,
+                                 SST_HS2_PAYLOAD_SIZE & 0xFF
+                            };
+                            // CRC over TYPE|LEN|PAYLOAD
+                            uint8_t crc_buf_hs2[1 + 2 + SST_HS2_PAYLOAD_SIZE];
+                            crc_buf_hs2[0] = MSG_TYPE_SST_HS2;
+                            crc_buf_hs2[1] = hs2_len_bytes[0];
+                            crc_buf_hs2[2] = hs2_len_bytes[1];
+                            memcpy(&crc_buf_hs2[3], hs2_blob, SST_HS2_PAYLOAD_SIZE);
+                            uint16_t crc = crc16_ccitt(crc_buf_hs2, sizeof(crc_buf_hs2));
+                            uint8_t crc_bytes[2] = {(crc >> 8) & 0xFF, crc & 0xFF};
+
+                            lifi_send_byte(PREAMBLE_BYTE_1);
+                            lifi_send_byte(PREAMBLE_BYTE_2);
+                            lifi_send_byte(PREAMBLE_BYTE_3);
+                            lifi_send_byte(PREAMBLE_BYTE_4);
+                            lifi_send_byte(MSG_TYPE_SST_HS2);
+                            lifi_send_bytes(hs2_len_bytes, 2);
+                            lifi_send_bytes(hs2_blob, SST_HS2_PAYLOAD_SIZE);
+                            lifi_send_bytes(crc_bytes, 2);
+                            lifi_wait_tx();
+
+                            // Save pico_nonce so HS3 handler can verify Pi4 echoed it correctly
+                            memcpy(saved_pico_nonce, pico_nonce, SST_HS_NONCE_SIZE);
+
+                            // Clear sensitive stack data (pico_nonce lives in saved_pico_nonce now)
+                            secure_zero(entity_nonce, sizeof(entity_nonce));
+                            secure_zero(pico_nonce,   sizeof(pico_nonce));
+                            secure_zero(hs2_plain,    sizeof(hs2_plain));
+                            secure_zero(hs2_ctext,    sizeof(hs2_ctext));
+                            secure_zero(hs2_mac,      sizeof(hs2_mac));
+                            printf("[SST HS2] Sent over LiFi. Waiting for HS3.\n");
+                        }
+                        else if (uart_byte == MSG_TYPE_SST_HS3) {
+                            // HS3: Pi4→Pico over UART.
+                            // Format: IV(16) | AES-CBC({0x03,entity_nonce,pico_nonce}→32)(32) | HMAC(32)
+                            // Verifying HS3 proves Pi4 holds the SST key issued by Auth.
+                            uint8_t len_bytes[2];
+                            if (!uart_read_blocking_timeout_us(UART_ID, len_bytes, 2, 50000)) {
+                                printf("[SST HS3] Timeout reading length.\n");
+                                challenge_state = 0; break;
+                            }
+                            uint16_t hs3_len = ((uint16_t)len_bytes[0] << 8) | len_bytes[1];
+                            if (hs3_len != SST_HS3_PAYLOAD_SIZE) {
+                                printf("[SST HS3] Bad length %u.\n", hs3_len);
+                                challenge_state = 0; break;
+                            }
+                            uint8_t hs3[SST_HS3_PAYLOAD_SIZE];
+                            if (!uart_read_blocking_timeout_us(UART_ID, hs3, hs3_len, 200000)) {
+                                printf("[SST HS3] Timeout reading payload.\n");
+                                challenge_state = 0; break;
+                            }
+
+                            // Split: IV(16) | ctext(32) | HMAC(32)
+                            const uint8_t *iv3    = hs3;
+                            const uint8_t *ctext3 = hs3 + SST_HS_IV_SIZE;
+                            const uint8_t *mac3   = hs3 + SST_HS_IV_SIZE + 32;
+
+                            // 1. Verify HMAC(mac_key:32, IV||ctext:48)
+                            uint8_t computed_mac3[SST_HS_MAC_SIZE];
+                            if (sst_hmac_sha256_ex(session_mac_key, SST_MAC_KEY_SIZE,
+                                                   hs3, SST_HS_IV_SIZE + 32,
+                                                   computed_mac3) != 0 ||
+                                memcmp(computed_mac3, mac3, SST_HS_MAC_SIZE) != 0) {
+                                printf("[SST HS3] HMAC verification FAILED – Pi4 not trusted.\n");
+                                secure_zero(computed_mac3, sizeof(computed_mac3));
+                                secure_zero(saved_pico_nonce, sizeof(saved_pico_nonce));
+                                challenge_state = 0; break;
+                            }
+                            secure_zero(computed_mac3, sizeof(computed_mac3));
+
+                            // 2. AES-128-CBC decrypt → {indicator(1), entity_nonce(8), pico_nonce(8), pad}
+                            uint8_t plain3[32];
+                            if (sst_aes_128_cbc_decrypt(session_key, iv3, ctext3, 32, plain3) != 0) {
+                                printf("[SST HS3] Decrypt failed.\n");
+                                secure_zero(saved_pico_nonce, sizeof(saved_pico_nonce));
+                                challenge_state = 0; break;
+                            }
+
+                            // 3. Validate PKCS7 padding and indicator byte
+                            uint8_t pad3 = plain3[31];
+                            bool hs3_ok = (pad3 >= 1 && pad3 <= 16 && plain3[0] == 0x03);
+
+                            // 4. Compare echoed pico_nonce (plain3[9..16]) with what we sent in HS2
+                            if (hs3_ok && memcmp(plain3 + 1 + SST_HS_NONCE_SIZE,
+                                                 saved_pico_nonce, SST_HS_NONCE_SIZE) == 0) {
+                                printf("[SST HS3] MUTUAL AUTH OK: Pi4 verified via SST Auth key.\n");
+                                gpio_put(25, 1); // LED on = authenticated
+                            } else {
+                                printf("[SST HS3] FAILED: Pi4 nonce echo mismatch – not trusted.\n");
+                            }
+
+                            secure_zero(plain3, sizeof(plain3));
+                            secure_zero(saved_pico_nonce, sizeof(saved_pico_nonce));
+                        }
                         else if (uart_byte == MSG_TYPE_KEY) {
                             // New key format: [LEN:2][KEY_ID:8][CIPHER_KEY:16][MAC_KEY:32]
                             uint8_t len_bytes[2];
@@ -369,19 +562,15 @@ int main() {
                  uint8_t crc_bytes[2] = {(crc >> 8) & 0xFF, crc & 0xFF};
                  
                  // Send Frame
-                 uart_putc_raw(UART_ID, PREAMBLE_BYTE_1);
-                 uart_putc_raw(UART_ID, PREAMBLE_BYTE_2);
-                 uart_putc_raw(UART_ID, PREAMBLE_BYTE_3);
-                 uart_putc_raw(UART_ID, PREAMBLE_BYTE_4);
-                 uart_putc_raw(UART_ID, MSG_TYPE_KEY_ID_ONLY);
-                 uart_write_blocking(UART_ID, len_bytes, 2);
-                 uart_tx_wait_blocking(UART_ID);
-                 
-                 uart_write_blocking(UART_ID, payload, payload_len);
-                 uart_tx_wait_blocking(UART_ID);
-                 
-                 uart_write_blocking(UART_ID, crc_bytes, 2);
-                 uart_tx_wait_blocking(UART_ID);
+                 lifi_send_byte(PREAMBLE_BYTE_1);
+                 lifi_send_byte(PREAMBLE_BYTE_2);
+                 lifi_send_byte(PREAMBLE_BYTE_3);
+                 lifi_send_byte(PREAMBLE_BYTE_4);
+                 lifi_send_byte(MSG_TYPE_KEY_ID_ONLY);
+                 lifi_send_bytes(len_bytes, 2);
+                 lifi_send_bytes(payload, payload_len);
+                 lifi_send_bytes(crc_bytes, 2);
+                 lifi_wait_tx();
                  
                  memset(message_buffer, 0, sizeof(message_buffer));
                  continue;
@@ -496,37 +685,33 @@ int main() {
         uint8_t crc_bytes[2] = {(crc >> 8) & 0xFF, crc & 0xFF};
         
         // Send preamble and header
-        uart_putc_raw(UART_ID, PREAMBLE_BYTE_1);
-        uart_putc_raw(UART_ID, PREAMBLE_BYTE_2);
-        uart_putc_raw(UART_ID, PREAMBLE_BYTE_3);
-        uart_putc_raw(UART_ID, PREAMBLE_BYTE_4);
-        uart_putc_raw(UART_ID, current_msg_type);
-        uart_write_blocking(UART_ID, len_bytes, 2);
-        uart_tx_wait_blocking(UART_ID);
+        lifi_send_byte(PREAMBLE_BYTE_1);
+        lifi_send_byte(PREAMBLE_BYTE_2);
+        lifi_send_byte(PREAMBLE_BYTE_3);
+        lifi_send_byte(PREAMBLE_BYTE_4);
+        lifi_send_byte(current_msg_type);
+        lifi_send_bytes(len_bytes, 2);
         sleep_us(250);  // 250us after header
         
         // Send nonce in small chunks
-        uart_write_blocking(UART_ID, nonce, SST_NONCE_SIZE);
-        uart_tx_wait_blocking(UART_ID);
+        lifi_send_bytes(nonce, SST_NONCE_SIZE);
         sleep_us(250);  // 250us after nonce
         
         // Send ciphertext in 256-byte chunks with delays
         const size_t CHUNK_SIZE = 256;
         for (size_t offset = 0; offset < msg_len; offset += CHUNK_SIZE) {
             size_t chunk = (msg_len - offset > CHUNK_SIZE) ? CHUNK_SIZE : (msg_len - offset);
-            uart_write_blocking(UART_ID, ciphertext + offset, chunk);
-            uart_tx_wait_blocking(UART_ID);
+            lifi_send_bytes(ciphertext + offset, chunk);
             sleep_us(250);  // 250us after each chunk
         }
         
-        // Send tag in chunks
-        uart_write_blocking(UART_ID, tag, SST_TAG_SIZE);
-        uart_tx_wait_blocking(UART_ID);
+        // Send tag
+        lifi_send_bytes(tag, SST_TAG_SIZE);
         sleep_us(250);  // 250us after tag
         
         // Send CRC
-        uart_write_blocking(UART_ID, crc_bytes, 2);
-        uart_tx_wait_blocking(UART_ID);
+        lifi_send_bytes(crc_bytes, 2);
+        lifi_wait_tx();
 
         // Clear sensitive data from memory
         secure_zero(ciphertext, sizeof(ciphertext));

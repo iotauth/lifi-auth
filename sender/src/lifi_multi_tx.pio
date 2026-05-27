@@ -1,0 +1,50 @@
+.program lifi_multi_tx
+
+; 8n1 UART TX driving 4 pins simultaneously (Mapped to GP6-GP9 via SET pins)
+; Input: Data in OSR (shifted right)
+; Frequency: executed at 8 cycles per bit for 1Mbps (requires clock divider)
+
+.wrap_target
+    pull block              ; Wait for data
+    set pins, 0   [7]       ; Start bit (Low), delay 7 cycles
+    set x, 7                ; Counter for 8 bits
+bitloop:
+    out y, 1                ; Shift 1 bit into Y          (1 cycle)
+    jmp !y do_zero          ; If 0, jump                  (1 cycle)
+    set pins, 15  [3]       ; 1-bit: pins High, delay 3   (4 cycles) → total 8
+    jmp continue            ;                              (1 cycle)
+do_zero:
+    set pins, 0   [4]       ; 0-bit: pins Low, delay 4    (5 cycles) → total 8
+continue:
+    jmp x-- bitloop         ; Loop 8 times                (1 cycle)
+    set pins, 15  [7]       ; Stop bit (High), delay 7
+.wrap
+
+% c-sdk {
+static inline void lifi_multi_tx_program_init(PIO pio, uint sm, uint offset, uint pin_base, uint pin_count, float div) {
+    pio_sm_config c = lifi_multi_tx_program_get_default_config(offset);
+
+    // Set the 'set' pins to the LED range (GP6-GP9)
+    sm_config_set_set_pins(&c, pin_base, pin_count);
+
+    // Set pin direction to output at the PIO level (though we toggle func later)
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_base, pin_count, true);
+
+    // Initialize GPIOs to PIO function? 
+    // No, main code will handle GPIO function switching for masking.
+    // But we should ensure PIO can drive them when selected.
+    for(uint i=0; i<pin_count; i++) {
+        pio_gpio_init(pio, pin_base + i);
+    }
+
+    // Shift right (LSB first), autopull off, threshold 32 (doesn't matter if logic pulls)
+    sm_config_set_out_shift(&c, true, false, 32);
+    
+    // Set clock divider
+    sm_config_set_clkdiv(&c, div);
+
+    // Initialize SM
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}

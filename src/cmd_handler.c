@@ -221,10 +221,76 @@ bool handle_commands(const char *cmd, uint8_t *session_key, int *current_slot) {
         pico_reboot();
         return false;
 
+    } else if (strncmp(cmd, " key ", 5) == 0) {
+        // Command format: "CMD: key <hex_string>"
+        // Expects strictly SST_KEY_SIZE bytes (e.g. 32 hex chars for 16-byte key)
+        const char *hex_str = cmd + 5;
+        // Skip leading spaces
+        while (*hex_str == ' ') hex_str++;
+
+        size_t expected_hex_len = SST_KEY_SIZE * 2;
+        if (strlen(hex_str) < expected_hex_len) {
+            printf("[Error] Key too short. Expected %d hex chars.\n", expected_hex_len);
+            return false;
+        }
+
+        uint8_t new_key[SST_KEY_SIZE];
+        // Parse hex string
+        for (size_t i = 0; i < SST_KEY_SIZE; i++) {
+            char byte_str[3] = { hex_str[i*2], hex_str[i*2+1], '\0' };
+            char *endptr;
+            new_key[i] = (uint8_t)strtoul(byte_str, &endptr, 16);
+            if (*endptr != '\0') {
+                 printf("[Error] Invalid hex character at pos %d\n", i*2);
+                 return false;
+            }
+        }
+
+        // Apply new key
+        // We set ID to all zeros (or a specific "MANUAL" pattern) to distinguish
+        uint8_t new_id[SST_KEY_ID_SIZE] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01}; 
+        
+        // Write to current slot
+        if (!pico_write_key_to_slot(*current_slot, new_id, new_key)) {
+            printf("[Error] Flash write failed.\n");
+            return false;
+        }
+        
+        store_last_used_slot((uint8_t)*current_slot);
+        keyram_set_with_id(new_id, new_key);
+        memcpy(session_key, new_key, SST_KEY_SIZE);
+        
+        printf("Manual Key Set (Slot %c).\n", *current_slot ? 'B' : 'A');
+        printf("Key ID: ");
+        for(int i=0; i<SST_KEY_ID_SIZE; i++) printf("%02X", new_id[i]);
+        printf("\n");
+        print_hex("New Key: ", new_key, SST_KEY_SIZE);
+        
+        return true;
+
+    } else if (strncmp(cmd, " leds ", 6) == 0) {
+        // Command format: "CMD: leds <mask_hex>"
+        // <mask_hex> is 1 hex char (0-F) representing 4 bits: R B G W
+        const char *hex_str = cmd + 6;
+        while (*hex_str == ' ') hex_str++;
+        
+        char *endptr;
+        unsigned long mask = strtoul(hex_str, &endptr, 16);
+        
+        // Pass to main loop via a global or extern function
+        // defined in lifi_session_sender.c
+        extern void set_led_mask(uint8_t mask);
+        set_led_mask((uint8_t)mask);
+        
+        printf("LED Mask Set: %02X\n", (uint8_t)mask);
+        return false;
+
     } else if (strcmp(cmd, " help") == 0) {
         printf("Available Commands:\n");
         printf("  CMD: print slot key      (print key in current slot)\n");
         printf("  CMD: print slot key *    (print keys in all slots)\n");
+        printf("  CMD: key <hex>           (manually set session key)\n");
+        printf("  CMD: leds <hex>          (set active LED mask: 1=W, 2=G, 4=B, 8=R)\n");
         printf("  CMD: clear slot A\n");
         printf("  CMD: clear slot B\n");
         printf("  CMD: clear slot *        (clear all slot keys)\n");

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LiFi Sender Control</title>
+    <title>LiFi Speed Test Sender</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="{{ url_for('static', filename='script.js') }}" defer></script>
@@ -14,7 +14,7 @@
     <div class="container">
         <!-- Sidebar: Controls -->
         <aside class="sidebar">
-            <h1 class="logo">LIFI SENDER <span class="blink">_</span></h1>
+            <h1 class="logo">LIFI TX <span class="blink">_</span></h1>
 
             <div class="status-panel">
                 <div class="status-item">
@@ -23,41 +23,106 @@
                 </div>
                 <div class="status-item">
                     <span class="label">PORT:</span>
-                    <span class="value">/dev/ttyACM0</span>
+                    <span id="active-port" class="value">—</span>
                 </div>
             </div>
 
+            <!-- Loop Control -->
             <div class="control-group">
-                <h3>SESSION INFO</h3>
-                <div class="status-item" style="justify-content: flex-start; gap: 15px;">
-                    <span class="label">ACTIVE SLOT:</span>
-                    <div class="slot-toggles">
-                        <button class="btn-mini" id="btn-slot-a" onclick="switchSlot('A')">A</button>
-                        <button class="btn-mini" id="btn-slot-B" onclick="switchSlot('B')">B</button>
-                    </div>
+                <h3>LOOP CONTROL</h3>
+                <div class="status-item" style="gap: 5px;">
+                    <input type="text" id="loop-msg-input" placeholder="Loop message..."
+                        style="flex-grow: 1; min-width: 0; background: #222; border: 1px solid #444; color: #0f0; padding: 4px; font-family: monospace;">
+                    <button class="btn-cmd" onclick="startLoop()"
+                        style="width: auto; white-space: nowrap; margin-bottom: 0;">START</button>
+                    <button class="btn-cmd warning" onclick="stopLoop()"
+                        style="width: auto; white-space: nowrap; margin-bottom: 0;">STOP</button>
                 </div>
-                <div class="status-item column-flex">
-                    <span class="label">KEY ID:</span>
-                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                        <span id="key-id" class="value dim tiny-text">--</span>
-                        <button class="btn-cmd" onclick="sendCommand('CMD: send_id')"
-                            style="padding: 4px 12px; font-size: 0.9em; width: auto; margin: 0;">SEND ID</button>
-                    </div>
+                <div class="status-item" style="gap: 5px; margin-top: 5px;">
+                    <input type="number" id="loop-delay-input" value="1000" placeholder="Delay ms"
+                        style="flex-grow: 1; min-width: 0; background: #222; border: 1px solid #444; color: #0f0; padding: 4px; font-family: monospace;">
+                    <button class="btn-cmd" onclick="setLoopDelay()"
+                        style="width: auto; white-space: nowrap;">DELAY</button>
                 </div>
             </div>
 
+            <!-- Commands -->
             <div class="control-group">
                 <h3>COMMANDS</h3>
                 <div class="btn-row">
-                    <button class="btn-cmd half" onclick="confirmGenerateKey()">New Key</button>
-                    <button class="btn-cmd half" onclick="reconnectSerial()">Reconnect</button>
+                    <button class="btn-cmd half" onclick="sendCommand('status')">Status</button>
+                    <button class="btn-cmd half" onclick="sendCommand('help')">Help</button>
                 </div>
                 <div class="btn-row">
-                    <button class="btn-cmd half warning" onclick="sendCommand('CMD: clear flash')">Clear Flash</button>
-                    <button class="btn-cmd half" onclick="clearLogs()">Clear Log</button>
+                    <button class="btn-cmd half" id="btn-raw-mode" onclick="toggleRawMode()">RAW: OFF</button>
+                    <button class="btn-cmd half" onclick="sendCommand('send_id')" style="border-color:var(--accent-cyan); color:var(--accent-cyan);">⟳ KEY ID</button>
                 </div>
             </div>
 
+            <!-- Active LED Channels -->
+            <div class="control-group">
+                <h3>ACTIVE CHANNELS</h3>
+                <div class="led-row" style="display: flex; gap: 8px; justify-content: space-between;">
+                    <button id="btn-led-w" class="btn-led led-w active" onclick="toggleLed('W')">W</button>
+                    <button id="btn-led-g" class="btn-led led-g active" onclick="toggleLed('G')">G</button>
+                    <button id="btn-led-b" class="btn-led led-b active" onclick="toggleLed('B')">B</button>
+                    <button id="btn-led-r" class="btn-led led-r active" onclick="toggleLed('R')">R</button>
+                </div>
+                <div class="btn-row" style="margin-top: 8px;">
+                    <button class="btn-cmd half" onclick="setAllLeds()">ALL</button>
+                    <button class="btn-cmd half" onclick="setNoLeds()">NONE</button>
+                </div>
+            </div>
+
+            <!-- Range Test -->
+            <div class="control-group">
+                <h3>RANGE TEST</h3>
+                <div class="status-item" style="gap:5px; flex-wrap:nowrap; margin-bottom:5px;">
+                    <span class="label" style="white-space:nowrap; font-size:0.75rem;">Rf:</span>
+                    <input type="text" id="range-rf" value="470k" placeholder="e.g. 470k"
+                        style="width:48px; flex-shrink:0; background:#222; border:1px solid #444; color:#ffaa00; padding:4px; font-family:monospace;">
+                    <span class="label" style="white-space:nowrap; font-size:0.75rem;">PKTS:</span>
+                    <input type="number" id="range-n" value="50" min="1" max="500"
+                        style="width:44px; flex-shrink:0; background:#222; border:1px solid #444; color:#0f0; padding:4px; font-family:monospace;">
+                    <span class="label" style="white-space:nowrap; font-size:0.75rem;">DIST:</span>
+                    <input type="number" id="range-dist" value="2" min="1" step="1"
+                        style="width:44px; flex-shrink:0; background:#222; border:1px solid #444; color:var(--accent-cyan); padding:4px; font-family:monospace; font-weight:bold;">
+                </div>
+                <div class="status-item" style="gap:5px; margin-bottom:5px;">
+                    <span class="label" style="white-space:nowrap; font-size:0.75rem;">BAUDS:</span>
+                    <input type="text" id="range-bauds" value="100000,150000,200000,250000,300000"
+                        style="flex:1; min-width:0; background:#222; border:1px solid #444; color:#0f0; padding:4px; font-family:monospace; font-size:0.7rem;">
+                </div>
+                <div class="status-item" style="gap:5px; flex-wrap:nowrap; margin-bottom:5px;">
+                    <button class="btn-cmd" id="btn-range-fire" onclick="fireRangeTest()"
+                        style="flex:1; margin-bottom:0; text-align:center; border-color:var(--accent-cyan); color:var(--accent-cyan);">⚡ FIRE</button>
+                    <button class="btn-cmd warning" onclick="clearRangeResults()"
+                        style="width:auto; white-space:nowrap; margin-bottom:0;">CLR</button>
+                </div>
+                <!-- Live results table -->
+                <div id="range-table-wrap" style="display:none;">
+                    <table class="bench-table">
+                        <thead>
+                            <tr>
+                                <th>DIST</th>
+                                <th class="br">BAUD</th>
+                                <th class="br">SENT</th>
+                                <th class="br">RECV</th>
+                                <th class="br">LOSS</th>
+                                <th class="br">OK%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="range-tbody"></tbody>
+                    </table>
+                    <button onclick="downloadRangeCsv()"
+                        style="margin-top:6px; width:100%; background:#111; border:1px solid #333; color:#555;
+                               font-family:monospace; font-size:0.7rem; padding:3px; cursor:pointer;">
+                        ↓ download CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- File Transmit -->
             <div class="control-group">
                 <h3>FILE TRANSMIT</h3>
                 <div class="file-row">
@@ -73,31 +138,195 @@
                     selected</div>
             </div>
 
+            <!-- Auto Benchmark -->
             <div class="control-group">
-                <h3>DEBUG LOG</h3>
-                <div id="log-console" class="console-box">
-                    <!-- Logs go here -->
+                <h3>AUTO BENCHMARK</h3>
+                <div class="status-item" style="gap:5px; flex-wrap:nowrap; margin-bottom:5px;">
+                    <span class="label" style="white-space:nowrap; font-size:0.75rem;">Rf:</span>
+                    <input type="text" id="bench-rf" value="470k" placeholder="e.g. 470k"
+                        style="width:52px; flex-shrink:0; background:#222; border:1px solid #444; color:#ffaa00; padding:4px; font-family:monospace;">
+                    <span class="label" style="white-space:nowrap; font-size:0.75rem;">PKTS:</span>
+                    <input type="number" id="bench-n" value="50" min="1" max="10000"
+                        style="width:52px; flex-shrink:0; background:#222; border:1px solid #444; color:#0f0; padding:4px; font-family:monospace;">
+                    <button class="btn-cmd" id="btn-bench-run" onclick="runBenchmark()"
+                        style="flex:1; margin-bottom:0; text-align:center; border-color:var(--accent-green); color:var(--accent-green);">▶ RUN</button>
+                    <button class="btn-cmd warning" onclick="abortBenchmark()"
+                        style="flex:1; margin-bottom:0; text-align:center;">■ STOP</button>
+                </div>
+                <div class="status-item" style="gap:5px; flex-wrap:nowrap; margin-bottom:5px;">
+                    <span class="label" style="white-space:nowrap; font-size:0.75rem;">BAUDS:</span>
+                    <input type="text" id="bench-bauds"
+                        value="9600,50000,100000,150000,200000,250000,300000,350000,400000,500000"
+                        style="flex:1; min-width:0; background:#222; border:1px solid #444; color:#0f0; padding:4px; font-family:monospace; font-size:0.7rem;">
+                </div>
+                <!-- Progress bar -->
+                <div id="bench-progress-wrap" style="display:none; margin-top:8px;">
+                    <div style="display:flex; justify-content:space-between; font-family:monospace; font-size:0.7rem; color:var(--text-dim); margin-bottom:3px;">
+                        <span id="bench-status-text">—</span>
+                        <span id="bench-pct-text">0%</span>
+                    </div>
+                    <div style="height:6px; background:#1a1a1a; border:1px solid #2a2a2a; overflow:hidden; position:relative;">
+                        <div id="bench-bar" style="height:100%; width:0%; background:var(--accent-cyan); box-shadow:0 0 8px var(--accent-cyan); transition:width 0.35s ease;"></div>
+                    </div>
+                </div>
+                <!-- Results table -->
+                <div id="bench-table-wrap" style="display:none; margin-top:8px;">
+                    <table class="bench-table">
+                        <thead>
+                            <tr>
+                                <th>BAUD</th>
+                                <th class="br">SENT</th>
+                                <th class="br">RECV</th>
+                                <th class="br">LOSS</th>
+                                <th class="br">OK%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bench-tbody"></tbody>
+                    </table>
                 </div>
             </div>
+
         </aside>
 
-        <!-- Main Content: Chat Interface -->
-        <main class="chat-interface">
-            <div class="chat-header">
-                <h2>SECURE TRANSMISSION STREAM</h2>
-            </div>
+        <!-- Main Content: Transmission Stream -->
+        <main class="chat-interface" style="min-width:0;">
 
-            <div id="chat-history" class="chat-history">
-                <div class="message system">
-                    <span class="timestamp">[SYSTEM]</span> Welcome to LiFi Sender Dashboard.
+            <!-- Port + Baud bar -->
+            <div class="port-baud-bar">
+
+                <!-- Global row: scan all + set baud for both -->
+                <div class="pb-global">
+                    <button class="pb-btn pb-scan-all" onclick="scanAllPorts()">⟳ SCAN FOR PORTS</button>
+                    <div class="pb-global-baud">
+                        <span class="pb-label" style="white-space:nowrap; margin-bottom:0;">BOTH BAUD:</span>
+                        <input type="number" id="global-baud-input" value="115200" class="pb-input" style="max-width:90px;">
+                        <button class="pb-btn" onclick="setGlobalBaud()">SET BOTH</button>
+                    </div>
+                </div>
+
+                <!-- Per-side controls -->
+                <div class="pb-sides">
+                    <div class="pb-half">
+                        <div class="pb-label">TX PORT</div>
+                        <div class="pb-row">
+                            <select id="port-select" class="pb-select">
+                                <option value="">-- scan --</option>
+                            </select>
+                            <button class="pb-btn" onclick="connectToPort()">CONNECT</button>
+                        </div>
+                        <div class="pb-row">
+                            <input type="number" id="baud-input" value="1000000" class="pb-input">
+                            <button class="pb-btn" onclick="setBaud()">SET BAUD</button>
+                        </div>
+                    </div>
+                    <div class="pb-half" style="border-left:1px solid #2a2a2a; padding-left:12px;">
+                        <div class="pb-label">RX PORT</div>
+                        <div class="pb-row">
+                            <select id="rx-port-select" class="pb-select">
+                                <option value="">-- scan --</option>
+                            </select>
+                            <button class="pb-btn" onclick="rxConnect()">CONNECT</button>
+                        </div>
+                        <div class="pb-row">
+                            <input type="number" id="rx-baud-input" value="115200" class="pb-input">
+                            <button class="pb-btn" onclick="rxSetBaud()">SET BAUD</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="chat-input-area">
-                <input type="text" id="message-input" placeholder="Type message to transmit..." autocomplete="off">
-                <button id="send-btn" onclick="sendMessage()">TRANSMIT</button>
+            <!-- Transmission stream -->
+            <div class="stream-section">
+                <div class="chat-header">
+                    <h2>LIFI TRANSMISSION STREAM</h2>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="message-input" placeholder="Message to transmit over LiFi..." autocomplete="off">
+                    <button id="send-btn" onclick="sendMessage()">TRANSMIT</button>
+                </div>
+            </div>
+
+            <!-- TX Log (matches RX Log style) -->
+            <div class="control-group tx-log-section" style="min-height:0; overflow:hidden;">
+                <h3>TX LOG</h3>
+                <div id="log-console" class="console-box" style="flex:1; min-height:0;"></div>
+                <button class="btn-cmd" onclick="clearLogs()" style="margin-top:6px; width:100%; font-size:0.7rem; padding:4px; flex-shrink:0;">CLEAR LOG</button>
             </div>
         </main>
+        <!-- RX Panel: Receiver -->
+        <aside class="rx-panel">
+            <h1 class="logo">LIFI RX <span class="blink">_</span></h1>
+
+            <div class="status-panel" style="margin-bottom:12px;">
+                <div class="status-item">
+                    <span class="label">STATUS:</span>
+                    <span id="rx-conn-status" class="value offline">DISCONNECTED</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">PORT:</span>
+                    <span id="rx-active-port" class="value">—</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">BAUD:</span>
+                    <span id="rx-live-baud" class="value">—</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">MSGS:</span>
+                    <span id="rx-live-msgs" class="value">—</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">ALIVE:</span>
+                    <span id="rx-live-dot" class="live-dot-off">●</span>
+                    <span id="rx-live-age" style="font-family:monospace; font-size:0.75rem; color:#555;">—</span>
+                </div>
+            </div>
+
+            <!-- RX Source -->
+            <div class="control-group">
+                <h3>RX SOURCE</h3>
+                <div class="btn-row">
+                    <button class="btn-cmd" id="btn-src-uart" onclick="setRxSource('uart')" style="flex:1;">UART</button>
+                    <button class="btn-cmd" id="btn-src-wifi" onclick="setRxSource('wifi')" style="flex:1; border-color:var(--accent-cyan); color:var(--accent-cyan);">WiFi Pi4</button>
+                </div>
+                <div class="btn-row" style="margin-top:4px;">
+                    <button class="btn-cmd" id="btn-src-both" onclick="setRxSource('both')" style="flex:1; border-color:var(--accent-green); color:var(--accent-green);">BOTH</button>
+                    <button class="btn-cmd" id="btn-src-none" onclick="setRxSource('none')" style="flex:1; border-color:#555; color:#555;">NONE</button>
+                </div>
+                <div class="status-item" style="margin-top:4px;">
+                    <span class="label">ACTIVE:</span>
+                    <span id="rx-source-label" class="value" style="color:var(--accent-cyan);">uart</span>
+                </div>
+            </div>
+
+            <!-- SST Security -->
+            <div class="control-group">
+                <h3>SST SECURITY</h3>
+                <div class="btn-row">
+                    <button class="btn-cmd" id="btn-new-key" onclick="provisionNewKey()"
+                        style="flex:1; border-color:var(--accent-cyan); color:var(--accent-cyan);">⟳ NEW KEY</button>
+                    <button class="btn-cmd" id="btn-challenge" onclick="challengePi4()"
+                        style="flex:1; border-color:var(--accent-green); color:var(--accent-green);">⚡ VERIFY Pi4</button>
+                </div>
+                <div class="status-item" style="margin-top:6px;">
+                    <span class="label">AUTH:</span>
+                    <span id="sst-auth-status" class="value" style="color:#555;">—</span>
+                </div>
+            </div>
+
+            <!-- RX Raw Mode -->
+            <div class="control-group">
+                <div class="btn-row">
+                    <button class="btn-cmd half" id="btn-rx-raw-mode" onclick="rxToggleRawMode()">RAW: OFF</button>
+                </div>
+            </div>
+
+            <!-- RX Log -->
+            <div class="control-group" style="flex:1; display:flex; flex-direction:column; min-height:0; overflow:hidden;">
+                <h3>RX LOG</h3>
+                <div id="rx-log-console" class="console-box" style="flex:1; min-height:0;"></div>
+                <button class="btn-cmd" onclick="clearRxLog()" style="margin-top:6px; width:100%; font-size:0.7rem; padding:4px; flex-shrink:0;">CLEAR LOG</button>
+            </div>
+        </aside>
     </div>
 </body>
 

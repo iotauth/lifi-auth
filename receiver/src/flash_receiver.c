@@ -7,7 +7,11 @@
 #include <termios.h>  // Linux serial
 #include <time.h>
 #include <unistd.h>
-#include <sys/time.h> // For gettimeofday
+#include <sys/time.h>    // gettimeofday
+#include <sys/socket.h>  // reporter HTTP
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <pthread.h>
 
 //for ui on pi4
 #include <fcntl.h>  // for open()
@@ -17,6 +21,7 @@
 
 // Project headers (use -I include dirs instead of ../../../)
 #include "c_api.h"
+#include "c_secure_comm.h"   // parse_handshake_1, check_handshake_2_send_handshake_3
 #include "config_handler.h"  // change_directory_to_config_path, get_config_path
 #include "key_exchange.h"
 #include "../../include/protocol.h"
@@ -372,6 +377,229 @@ typedef struct {
     unsigned long keys_consumed;
 } SessionStats;
 
+// --- Dashboard Reporter ---
+// Change DASHBOARD_HOST to your laptop's IP on the hotspot.
+#ifndef DASHBOARD_HOST
+#define DASHBOARD_HOST "172.20.10.2"
+#endif
+#define DASHBOARD_PORT 5000
+
+typedef struct {
+    char     key_id_hex[SESSION_KEY_ID_SIZE * 2 + 1];
+    char     payload_preview[65];
+    unsigned long total, ok, fail;
+} ReporterEvent;
+
+static ReporterEvent    g_rep_event;
+static bool             g_rep_pending = false;
+static uint8_t          g_rep_mac_key[32];
+static bool             g_rep_key_valid = false;
+static pthread_mutex_t  g_rep_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t   g_rep_cond  = PTHREAD_COND_INITIALIZER;
+
+static void reporter_post(const ReporterEvent *ev) {
+    char json[512];
+    int jlen = snprintf(json, sizeof(json),
+        "{\"event\":\"frame_decrypted\","
+        "\"key_id\":\"%s\","
+        "\"payload_preview\":\"%s\","
+        "\"stats\":{\"total\":%lu,\"ok\":%lu,\"fail\":%lu}}",
+        ev->key_id_hex, ev->payload_preview,
+        ev->total, ev->ok, ev->fail);
+
+    // HMAC-SHA256 sign the JSON body
+    uint8_t hmac_out[32];
+    sst_hmac_sha256_ex(g_rep_mac_key, 32, (const uint8_t*)json, (size_t)jlen, hmac_out);
+    char hmac_hex[65];
+    for (int i = 0; i < 32; i++) sprintf(hmac_hex + i * 2, "%02x", hmac_out[i]);
+    hmac_hex[64] = '\0';
+
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) return;
+
+    struct timeval tv = {0, 200000};  // 200 ms connect+send timeout
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port   = htons(DASHBOARD_PORT);
+    inet_pton(AF_INET, DASHBOARD_HOST, &addr.sin_addr);
+
+    if (connect(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        close(sock);
+        return;
+    }
+
+    char req[1024];
+    int rlen = snprintf(req, sizeof(req),
+        "POST /pi4_frame HTTP/1.1\r\n"
+        "Host: %s:%d\r\n"
+        "Content-Type: application/json\r\n"
+        "Content-Length: %d\r\n"
+        "X-SST-HMAC: %s\r\n"
+        "Connection: close\r\n"
+        "\r\n"
+        "%s",
+        DASHBOARD_HOST, DASHBOARD_PORT, jlen, hmac_hex, json);
+    write(sock, req, (size_t)rlen);
+    close(sock);
+}
+
+static void *reporter_thread(void *arg) {
+    (void)arg;
+    while (1) {
+        pthread_mutex_lock(&g_rep_mutex);
+        while (!g_rep_pending)
+            pthread_cond_wait(&g_rep_cond, &g_rep_mutex);
+        ReporterEvent ev = g_rep_event;
+        g_rep_pending = false;
+        pthread_mutex_unlock(&g_rep_mutex);
+
+        if (g_rep_key_valid)
+            reporter_post(&ev);
+    }
+    return NULL;
+}
+
+static void reporter_signal(const uint8_t *key_id, const uint8_t *payload,
+                             size_t payload_len, const SessionStats *st) {
+    pthread_mutex_lock(&g_rep_mutex);
+    for (int i = 0; i < SESSION_KEY_ID_SIZE; i++)
+        sprintf(g_rep_event.key_id_hex + i * 2, "%02x", key_id[i]);
+    g_rep_event.key_id_hex[SESSION_KEY_ID_SIZE * 2] = '\0';
+
+    size_t prev = payload_len < 64 ? payload_len : 64;
+    memcpy(g_rep_event.payload_preview, payload, prev);
+    // sanitise non-printable bytes for JSON
+    for (size_t i = 0; i < prev; i++)
+        if (g_rep_event.payload_preview[i] < 0x20 || g_rep_event.payload_preview[i] > 0x7e)
+            g_rep_event.payload_preview[i] = '.';
+    g_rep_event.payload_preview[prev] = '\0';
+
+    g_rep_event.total = st->total_pkts;
+    g_rep_event.ok    = st->decrypt_success;
+    g_rep_event.fail  = st->decrypt_fail;
+    g_rep_pending = true;
+    pthread_cond_signal(&g_rep_cond);
+    pthread_mutex_unlock(&g_rep_mutex);
+}
+
+// --- Dashboard Challenge Server ---
+// Listens on CHALLENGE_PORT for HMAC challenge requests from the dashboard.
+// POST /challenge  body: {"nonce":"<64 hex chars>"}
+// Response:        {"hmac":"<64 hex chars>","key_id":"<16 hex chars>"}
+#define CHALLENGE_PORT 5001
+
+static void challenge_handle(int client) {
+    char buf[2048];
+    ssize_t n = recv(client, buf, sizeof(buf) - 1, 0);
+    if (n <= 0) { close(client); return; }
+    buf[n] = '\0';
+
+    // Find body after \r\n\r\n
+    char *body = strstr(buf, "\r\n\r\n");
+    if (!body) { close(client); return; }
+    body += 4;
+
+    // Parse {"nonce":"<hex>"} — find the hex string after "nonce":"
+    char *p = strstr(body, "\"nonce\"");
+    if (!p) { close(client); return; }
+    p = strchr(p, ':');
+    if (!p) { close(client); return; }
+    while (*p == ':' || *p == ' ' || *p == '"') p++;
+
+    // Read up to 64 hex chars
+    char nonce_hex[65] = {0};
+    size_t i = 0;
+    while (i < 64 && *p && *p != '"') nonce_hex[i++] = *p++;
+    nonce_hex[i] = '\0';
+    if (i != 64) { close(client); return; }
+
+    // Hex-decode nonce
+    uint8_t nonce_bytes[32];
+    for (int j = 0; j < 32; j++) {
+        unsigned int byte;
+        sscanf(nonce_hex + j * 2, "%02x", &byte);
+        nonce_bytes[j] = (uint8_t)byte;
+    }
+
+    // Compute HMAC-SHA256(mac_key, nonce)
+    pthread_mutex_lock(&g_rep_mutex);
+    bool key_ready = g_rep_key_valid;
+    uint8_t mac_key_copy[32];
+    uint8_t key_id_copy[SESSION_KEY_ID_SIZE];
+    if (key_ready) {
+        memcpy(mac_key_copy, g_rep_mac_key, 32);
+        memcpy(key_id_copy,  g_rep_event.key_id_hex, SESSION_KEY_ID_SIZE);
+    }
+    pthread_mutex_unlock(&g_rep_mutex);
+
+    if (!key_ready) {
+        const char *resp =
+            "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 25\r\n\r\n"
+            "{\"error\":\"no key loaded\"}";
+        send(client, resp, strlen(resp), 0);
+        close(client);
+        return;
+    }
+
+    uint8_t hmac_out[32];
+    sst_hmac_sha256_ex(mac_key_copy, 32, nonce_bytes, 32, hmac_out);
+
+    char hmac_hex[65];
+    for (int j = 0; j < 32; j++) sprintf(hmac_hex + j * 2, "%02x", hmac_out[j]);
+    hmac_hex[64] = '\0';
+
+    // key_id hex (use g_rep_event.key_id_hex which is already hex)
+    pthread_mutex_lock(&g_rep_mutex);
+    char key_id_str[SESSION_KEY_ID_SIZE * 2 + 1];
+    strncpy(key_id_str, g_rep_event.key_id_hex, sizeof(key_id_str));
+    pthread_mutex_unlock(&g_rep_mutex);
+
+    char json[256];
+    int jlen = snprintf(json, sizeof(json),
+        "{\"hmac\":\"%s\",\"key_id\":\"%s\"}", hmac_hex, key_id_str);
+
+    char resp[512];
+    int rlen = snprintf(resp, sizeof(resp),
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: application/json\r\n"
+        "Content-Length: %d\r\n"
+        "\r\n%s", jlen, json);
+    send(client, resp, (size_t)rlen, 0);
+    close(client);
+}
+
+static void *challenge_server_thread(void *arg) {
+    (void)arg;
+    int srv = socket(AF_INET, SOCK_STREAM, 0);
+    if (srv < 0) return NULL;
+
+    int yes = 1;
+    setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family      = AF_INET;
+    addr.sin_port        = htons(CHALLENGE_PORT);
+    addr.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(srv, (struct sockaddr*)&addr, sizeof(addr)) < 0 ||
+        listen(srv, 4) < 0) {
+        close(srv);
+        return NULL;
+    }
+
+    printf("[CHALLENGE] Server listening on port %d\n", CHALLENGE_PORT);
+    while (1) {
+        int client = accept(srv, NULL, NULL);
+        if (client >= 0) challenge_handle(client);
+    }
+    return NULL;
+}
+
 int main(int argc, char* argv[]) {
     SessionStats stats = {0};
 
@@ -416,6 +644,7 @@ int main(int argc, char* argv[]) {
          printf("Failed to get initial session key. Auth connection might be down or config invalid.\n");
          printf("Attempting to continue with empty list (Reactive Mode)...\n");
          key_list = init_empty_session_key_list();
+
     } else {
          if (key_list->num_key > 0) {
              printf("Success! Initial Session Key ID: ");
@@ -424,6 +653,17 @@ int main(int argc, char* argv[]) {
          } else {
              printf("Connected to Auth, but received 0 keys.\n");
          }
+    }
+
+    // --- Start Dashboard Reporter + Challenge Server Threads ---
+    {
+        pthread_t tid;
+        pthread_attr_t attr;
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+        pthread_create(&tid, &attr, reporter_thread,          NULL);
+        pthread_create(&tid, &attr, challenge_server_thread,  NULL);
+        pthread_attr_destroy(&attr);
     }
 
     // --- Serial Init (Before UI) ---
@@ -451,11 +691,16 @@ int main(int argc, char* argv[]) {
 
     // Initial key extraction
     static int current_key_idx = 0;
-    session_key_t s_key = {0}; 
+    session_key_t s_key = {0};
     if (key_list && key_list->num_key > 0) {
         s_key = key_list->s_key[current_key_idx];
+        // Seed reporter mac key
+        pthread_mutex_lock(&g_rep_mutex);
+        memcpy(g_rep_mac_key, s_key.mac_key, 32);
+        g_rep_key_valid = true;
+        pthread_mutex_unlock(&g_rep_mutex);
     }
-    
+
     bool key_valid = (key_list && key_list->num_key > 0);
     receiver_state_t state = STATE_IDLE;
 
@@ -469,9 +714,8 @@ int main(int argc, char* argv[]) {
     replay_window_t rwin;
     replay_window_init(&rwin, NONCE_SIZE, NONCE_HISTORY_SIZE);
 
-    // Challenge tracking for HMAC verification
-    uint8_t pending_challenge[CHALLENGE_SIZE] = {0};
-    bool challenge_active = false;
+    // SST handshake entity nonce (Pi4's challenge nonce, generated per HS1)
+    uint8_t sst_entity_nonce[SST_HS_NONCE_SIZE] = {0};
 
     // Initial key push retry machinery
     struct timespec next_send = {0};
@@ -604,6 +848,10 @@ int main(int argc, char* argv[]) {
                         s_key = key_list->s_key[0];
                         key_valid = true;
                         stats.keys_consumed++;
+                        pthread_mutex_lock(&g_rep_mutex);
+                        memcpy(g_rep_mac_key, s_key.mac_key, 32);
+                        g_rep_key_valid = true;
+                        pthread_mutex_unlock(&g_rep_mutex);
                         cmd_printf("✓ New key fetched from SST.");
                         
                         if (fd >= 0) {
@@ -636,49 +884,35 @@ int main(int argc, char* argv[]) {
                 }
 
                 case '2': {
-                    cmd_printf("[Shortcut] Initiating HMAC challenge...");
+                    cmd_printf("[Shortcut] Initiating SST 3-way handshake...");
                     if (fd < 0) { cmd_printf("Serial not open. Press 'r' to retry."); break; }
                     if (!key_valid) { cmd_printf("No valid session key loaded."); break; }
 
-                    if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
-                        cmd_printf("Error: Failed to generate challenge nonce.");
+                    uint32_t hs1_len = 0;
+                    uint8_t *hs1 = parse_handshake_1(&s_key, sst_entity_nonce, &hs1_len);
+                    if (!hs1 || hs1_len != SST_HS1_PAYLOAD_SIZE) {
+                        cmd_printf("Error: parse_handshake_1 failed.");
+                        free(hs1);
                         break;
                     }
-
-                    // Use 4-byte preamble + type + length
-                    uint8_t header[] = {
+                    uint8_t hdr[7] = {
                         PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
-                        MSG_TYPE_CHALLENGE,
-                        (CHALLENGE_SIZE >> 8) & 0xFF,  // Length high byte
-                        CHALLENGE_SIZE & 0xFF          // Length low byte
+                        MSG_TYPE_SST_HS1,
+                        (hs1_len >> 8) & 0xFF, hs1_len & 0xFF
                     };
-                    
-                    if (write_all(fd, header, sizeof(header)) < 0 ||
-                        write_all(fd, pending_challenge, CHALLENGE_SIZE) < 0) {
-                        cmd_printf("Error: Failed to send challenge.");
+                    if (write_all(fd, hdr, sizeof(hdr)) < 0 ||
+                        write_all(fd, hs1, hs1_len) < 0) {
+                        cmd_printf("Error: Failed to send HS1.");
+                        explicit_bzero(sst_entity_nonce, sizeof(sst_entity_nonce));
                     } else {
                         tcdrain(fd);
-                        
-                        // Pre-calculate expected HMAC for display (Use MAC Key now)
-                        uint8_t expected_hmac[HMAC_SIZE];
-                        cmd_printf("[DEBUG] Exp Challenge[0..3]: %02X %02X %02X %02X using MAC_KEY[0..3]: %02X %02X %02X %02X",
-                            pending_challenge[0], pending_challenge[1], pending_challenge[2], pending_challenge[3],
-                            s_key.mac_key[0], s_key.mac_key[1], s_key.mac_key[2], s_key.mac_key[3]);
-
-                        sst_hmac_sha256(s_key.mac_key, pending_challenge, CHALLENGE_SIZE, expected_hmac);
-                        
-                        cmd_print_partial("Challenge sent. [Exp: ");
-                        for(int i=0; i<4; i++) wprintw(win_cmd, "%02X", expected_hmac[i]); // Direct wprintw to continue line
-                        wprintw(win_cmd, "..] ");
-                        wrefresh(win_cmd); // Refresh
-
-                        state = STATE_WAITING_FOR_HMAC_RESP;
+                        state = STATE_WAITING_FOR_SST_HS2;
                         clock_gettime(CLOCK_MONOTONIC, &state_deadline);
                         state_deadline.tv_sec += 5;
-                        challenge_active = true;
-                        last_countdown = 5; // Reset countdown
-                        cmd_print_partial("Waiting... ");
+                        last_countdown = 5;
+                        cmd_printf("[SST HS1] Sent. Waiting for HS2...");
                     }
+                    free(hs1);
                     mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
                     break;
                 }
@@ -772,7 +1006,7 @@ int main(int argc, char* argv[]) {
         }
 
         // --- Handle Countdown Display ---
-        if (state == STATE_WAITING_FOR_HMAC_RESP) {
+        if (state == STATE_WAITING_FOR_SST_HS2) {
             int remaining = (int)(state_deadline.tv_sec - now_ts.tv_sec);
             if (remaining < 0) remaining = 0;
             if (remaining != last_countdown) {
@@ -794,12 +1028,10 @@ int main(int argc, char* argv[]) {
                     "key.\n");
                 explicit_bzero(pending_key, sizeof pending_key);
                 // keep old key; key_valid stays true
-            } else if (state == STATE_WAITING_FOR_HMAC_RESP) {
-                // The partial line "3.. 2.. 1.. 0.." needs a newline before the error
-                cmd_printf("\nHMAC challenge timed out. Pico did not respond.\n");
+            } else if (state == STATE_WAITING_FOR_SST_HS2) {
+                cmd_printf("\nSST HS2 timed out – Pico did not respond.\n");
                 stats.timeouts++;
-                explicit_bzero(pending_challenge, sizeof(pending_challenge));
-                challenge_active = false;
+                explicit_bzero(sst_entity_nonce, sizeof(sst_entity_nonce));
             }
             state = STATE_IDLE;
             state_deadline = (struct timespec){0, 0};
@@ -932,29 +1164,118 @@ int main(int argc, char* argv[]) {
                             cmd_printf("[NATIVE] Found Key ID: %u", found_native);
                             s_key = *found_key;
                             key_valid = true;
-                            
-                            // Check if it was a local find or a fetch (heuristic: pointer check)
-                            bool is_local = false;
-                            if (key_list && key_list->s_key) {
-                                // If pointer is within the array bounds of our local list
-                                if (found_key >= key_list->s_key && 
-                                    found_key < key_list->s_key + key_list->num_key) {
-                                    is_local = true;
+                            // This key matches the provisioner's key — sync reporter mac_key
+                            pthread_mutex_lock(&g_rep_mutex);
+                            memcpy(g_rep_mac_key, found_key->mac_key, 32);
+                            g_rep_key_valid = true;
+                            pthread_mutex_unlock(&g_rep_mutex);
+                            cmd_printf("✓ Key ready. Initiating SST handshake.");
+                            mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
+
+                            // Trigger SST 3-way handshake immediately
+                            if (fd >= 0 && state == STATE_IDLE) {
+                                uint32_t hs1_len = 0;
+                                uint8_t *hs1 = parse_handshake_1(&s_key, sst_entity_nonce, &hs1_len);
+                                if (hs1 && hs1_len == SST_HS1_PAYLOAD_SIZE) {
+                                    uint8_t hdr[7] = {
+                                        PREAMBLE_BYTE_1, PREAMBLE_BYTE_2,
+                                        PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                                        MSG_TYPE_SST_HS1,
+                                        (hs1_len >> 8) & 0xFF, hs1_len & 0xFF
+                                    };
+                                    if (write_all(fd, hdr, sizeof(hdr)) >= 0 &&
+                                        write_all(fd, hs1, hs1_len) >= 0) {
+                                        tcdrain(fd);
+                                        state = STATE_WAITING_FOR_SST_HS2;
+                                        clock_gettime(CLOCK_MONOTONIC, &state_deadline);
+                                        state_deadline.tv_sec += 5;
+                                        last_countdown = 5;
+                                        cmd_printf("[SST HS1] Sent. Waiting for HS2...");
+                                    } else {
+                                        cmd_printf("[SST HS1] UART write failed.");
+                                        explicit_bzero(sst_entity_nonce, sizeof(sst_entity_nonce));
+                                    }
+                                    free(hs1);
+                                } else {
+                                    cmd_printf("[SST HS1] parse_handshake_1 failed.");
+                                    free(hs1);
                                 }
                             }
-                            
-                            if (is_local) {
-                                cmd_printf("✓ Found in local cache.");
-                            } else {
-                                cmd_printf("✓ Fetched from Auth Server!");
-                            }
                         } else {
-                             cmd_printf("Error: Key ID not found (Local or Auth).");
+                            cmd_printf("Error: Key ID not found (Local or Auth).");
                         }
 
-                        // Update UI immediately
                         mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
-                        
+                        uart_state = 0;
+                    }
+                    else if (byte == MSG_TYPE_SST_HS2) {
+                        stats.total_pkts++;
+                        uint8_t len_bytes[2];
+                        if (read_exact_timeout(fd, len_bytes, 2, 100) != 2) {
+                            log_printf("[SST HS2] Length read timeout\n");
+                            uart_state = 0;
+                            continue;
+                        }
+                        uint16_t hs2_len = ((uint16_t)len_bytes[0] << 8) | len_bytes[1];
+                        if (hs2_len != SST_HS2_PAYLOAD_SIZE) {
+                            log_printf("[SST HS2] Unexpected length: %u\n", hs2_len);
+                            uart_state = 0;
+                            continue;
+                        }
+                        uint8_t hs2_payload[SST_HS2_PAYLOAD_SIZE];
+                        uint8_t crc_rx[2];
+                        if (read_exact_timeout(fd, hs2_payload, hs2_len, 200) != (ssize_t)hs2_len ||
+                            read_exact_timeout(fd, crc_rx, 2, 100) != 2) {
+                            log_printf("[SST HS2] Payload read timeout\n");
+                            uart_state = 0;
+                            continue;
+                        }
+                        uint8_t crc_check[1 + 2 + SST_HS2_PAYLOAD_SIZE];
+                        crc_check[0] = MSG_TYPE_SST_HS2;
+                        crc_check[1] = len_bytes[0];
+                        crc_check[2] = len_bytes[1];
+                        memcpy(&crc_check[3], hs2_payload, hs2_len);
+                        uint16_t computed_crc = crc16_ccitt(crc_check, sizeof(crc_check));
+                        uint16_t received_crc = ((uint16_t)crc_rx[0] << 8) | crc_rx[1];
+                        if (computed_crc != received_crc) {
+                            log_printf("[SST HS2] CRC fail\n");
+                            uart_state = 0;
+                            continue;
+                        }
+                        if (state != STATE_WAITING_FOR_SST_HS2) {
+                            log_printf("[SST HS2] Received but not waiting for HS2\n");
+                            uart_state = 0;
+                            continue;
+                        }
+
+                        uint32_t hs3_len = 0;
+                        uint8_t *hs3 = check_handshake_2_send_handshake_3(
+                            hs2_payload, hs2_len, sst_entity_nonce, &s_key, &hs3_len);
+
+                        if (hs3 != NULL) {
+                            cmd_printf("✓ SST HS2 VERIFIED: Pico holds SST key. Sending HS3.");
+                            if (hs3_len == SST_HS3_PAYLOAD_SIZE) {
+                                uint8_t hdr3[7] = {
+                                    PREAMBLE_BYTE_1, PREAMBLE_BYTE_2,
+                                    PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                                    MSG_TYPE_SST_HS3,
+                                    (hs3_len >> 8) & 0xFF, hs3_len & 0xFF
+                                };
+                                write_all(fd, hdr3, sizeof(hdr3));
+                                write_all(fd, hs3, hs3_len);
+                                tcdrain(fd);
+                            } else {
+                                cmd_printf("✗ Unexpected HS3 length %u.", hs3_len);
+                            }
+                            free(hs3);
+                        } else {
+                            cmd_printf("✗ SST HS FAILED: Nonce mismatch – possible replay or wrong key.");
+                        }
+
+                        explicit_bzero(sst_entity_nonce, sizeof(sst_entity_nonce));
+                        state = STATE_IDLE;
+                        state_deadline = (struct timespec){0, 0};
+                        mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
                         uart_state = 0;
                     }
                     else if (byte == MSG_TYPE_ENCRYPTED || byte == MSG_TYPE_FILE) {
@@ -1139,39 +1460,9 @@ int main(int argc, char* argv[]) {
                                 // Handle Normal Chat / Commands
                                 else {
                                     log_printf("%s\n", decrypted);
-                                    
-                                    // If waiting for HMAC response, check prefix
-                                    if (challenge_active && 
-                                        strncmp((char*)decrypted, HMAC_RESPONSE_PREFIX, 5) == 0) {
-                                        // ... HMac Verification Logic ...
-                                        // Extract HMAC from message (format: "HMAC:HEXSTRING")
-                                        const char* hmac_hex = (char*)decrypted + 5;
-                                        
-                                        // Convert hex string to bytes
-                                        uint8_t received_hmac[HMAC_SIZE];
-                                        for (int i = 0; i < HMAC_SIZE; i++) {
-                                            sscanf(hmac_hex + (i * 2), "%2hhx", &received_hmac[i]);
-                                        }
-                                        
-                                        // Compute expected HMAC (Use MAC Key now)
-                                        uint8_t expected_hmac[HMAC_SIZE];
-                                        int ret = sst_hmac_sha256(s_key.mac_key, pending_challenge, 
-                                                                  CHALLENGE_SIZE, expected_hmac);
-                                        
-                                        if (ret == 0 && memcmp(received_hmac, expected_hmac, HMAC_SIZE) == 0) {
-                                            cmd_printf("\n✅ HMAC VERIFIED! Pico identity confirmed.\n");
-                                        } else {
-                                            // Ensure "Failed" is present for auto-red coloring
-                                            cmd_printf("\n❌ HMAC Verification Failed! Invalid response.\n");
-                                        }
-                                        
-                                        explicit_bzero(pending_challenge, sizeof(pending_challenge));
-                                        challenge_active = false;
-                                        state = STATE_IDLE;
-                                    }
 
                                     // ... Other commands ...
-                                    else if (strcmp((char*)decrypted, "I have the key") == 0) {
+                                    if (strcmp((char*)decrypted, "I have the key") == 0) {
                                          log_printf("Pico has confirmed receiving the key.\n");
                                     }
                                     
@@ -1249,35 +1540,42 @@ int main(int argc, char* argv[]) {
                                         mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
                                     }
 
-                                    // Handle "verify key" command - initiate HMAC challenge
+                                    // Handle "verify key" command - initiate SST handshake
                                     else if (strcmp((char*)decrypted, "verify key") == 0) {
-                                        cmd_printf("Initiating HMAC challenge to verify Pico has session key...\n");
-                                        
-                                        if (rand_bytes(pending_challenge, CHALLENGE_SIZE) != 0) {
-                                            cmd_printf("Failed to generate challenge nonce.\n");
-                                        } else {
-                                            uint8_t header[] = {
-                                                PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
-                                                MSG_TYPE_CHALLENGE,
-                                                (CHALLENGE_SIZE >> 8) & 0xFF,
-                                                CHALLENGE_SIZE & 0xFF
-                                            };
-                                            write_all(fd, header, sizeof(header));
-                                            write_all(fd, pending_challenge, CHALLENGE_SIZE);
-                                            tcdrain(fd);
-                                            
-                                            state = STATE_WAITING_FOR_HMAC_RESP;
-                                            clock_gettime(CLOCK_MONOTONIC, &state_deadline);
-                                            state_deadline.tv_sec += 5;
-                                            challenge_active = true;
-                                            last_countdown = 5;
-                                            
-                                            cmd_print_partial("Challenge sent. Waiting for HMAC response...\n");
+                                        cmd_printf("Initiating SST handshake to verify Pico holds SST key...\n");
+                                        if (fd >= 0 && key_valid && state == STATE_IDLE) {
+                                            uint32_t hs1_len = 0;
+                                            uint8_t *hs1 = parse_handshake_1(&s_key, sst_entity_nonce, &hs1_len);
+                                            if (hs1 && hs1_len == SST_HS1_PAYLOAD_SIZE) {
+                                                uint8_t hdr[7] = {
+                                                    PREAMBLE_BYTE_1, PREAMBLE_BYTE_2,
+                                                    PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                                                    MSG_TYPE_SST_HS1,
+                                                    (hs1_len >> 8) & 0xFF, hs1_len & 0xFF
+                                                };
+                                                if (write_all(fd, hdr, sizeof(hdr)) >= 0 &&
+                                                    write_all(fd, hs1, hs1_len) >= 0) {
+                                                    tcdrain(fd);
+                                                    state = STATE_WAITING_FOR_SST_HS2;
+                                                    clock_gettime(CLOCK_MONOTONIC, &state_deadline);
+                                                    state_deadline.tv_sec += 5;
+                                                    last_countdown = 5;
+                                                    cmd_printf("[SST HS1] Sent. Waiting for HS2...");
+                                                } else {
+                                                    cmd_printf("[SST HS1] UART write failed.");
+                                                    explicit_bzero(sst_entity_nonce, sizeof(sst_entity_nonce));
+                                                }
+                                            } else {
+                                                cmd_printf("[SST HS1] parse_handshake_1 failed.");
+                                            }
+                                            free(hs1);
                                         }
                                     }
                                 }
                                 
                                 stats.decrypt_success++;
+                                reporter_signal(s_key.key_id, decrypted,
+                                                ctext_len, &stats);
 
                             } else {
                                 // AES-GCM decryption failed

@@ -6,10 +6,7 @@
 #include <termios.h>
 #include <errno.h>
 
-#define PREAMBLE_BYTE_1 0xAB
-#define PREAMBLE_BYTE_2 0xCD
-#define PREAMBLE_BYTE_3 0xEF
-#define PREAMBLE_BYTE_4 0x12
+#include "../../include/protocol.h"
 
 speed_t get_baud(int baud) {
     switch (baud) {

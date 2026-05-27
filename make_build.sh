@@ -177,14 +177,28 @@ write_manifest() {
 }
 
 if [[ "$BUILD_TARGET" == "pico" ]]; then
-  uf2="$(find "$build_dir/sender" -maxdepth 1 -name '*.uf2' -print -quit)"
-  if [[ -n "$uf2" ]]; then
-    fname="${ts}_pico_sender.uf2"
+  # 1. LiFi session sender (SST auth + provisioner support) — primary firmware
+  uf2="$build_dir/sender/lifi_session_sender.uf2"
+  if [[ -f "$uf2" ]]; then
+    fname="${ts}_lifi_session_sender.uf2"
+    cp -f -- "$uf2" "$art_dir/$fname"
+    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256" && ln -sf "$fname" "lifi_session_sender.uf2")
+    manifest="$art_dir/${ts}_lifi_session_sender.json"
+    write_manifest "$manifest" "pico" "$ver_tag" "$ts" "$fname"
+    echo "📦 UF2 (session/SST): $art_dir/$fname"
+  else
+    echo "⚠️ lifi_session_sender.uf2 not found"
+  fi
+
+  # 2. Speed test sender
+  uf2="$build_dir/sender/pico_speed_test_sender.uf2"
+  if [[ -f "$uf2" ]]; then
+    fname="${ts}_pico_speed_test_sender.uf2"
     cp -f -- "$uf2" "$art_dir/$fname"
     (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
-    manifest="$art_dir/${ts}_pico_sender.json"
+    manifest="$art_dir/${ts}_pico_speed_test_sender.json"
     write_manifest "$manifest" "pico" "$ver_tag" "$ts" "$fname"
-    echo "📦 UF2: $art_dir/$fname"
+    echo "📦 UF2 (speed test): $art_dir/$fname"
   fi
 
 elif [[ "$BUILD_TARGET" == "pi4" || "$BUILD_TARGET" == "receiver" ]]; then
@@ -237,25 +251,19 @@ elif [[ "$BUILD_TARGET" == "pi4" || "$BUILD_TARGET" == "receiver" ]]; then
     echo "⚠️ ask_receiver executable not found"
   fi
 
-#elif [[ "$BUILD_TARGET" == "host" ]]; then
-#  # sender_host is the host-side binary; locate it anywhere under build_dir.
-#  exe="$(find "$build_dir" -type f -name 'sender_host' -executable -print -quit)"
-#
-#  if [[ -z "$exe" ]]; then
-#    echo "⚠️ sender_host executable not found under $build_dir"
-#  else
-#    exename="$(basename "$exe")"    # sender_host
-#    fname="${ts}_${exename}_${ver_tag}"
-#
-#    install -m 0755 -- "$exe" "$art_dir/$fname"
-#    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
-#
-#    manifest="$art_dir/${ts}_${exename}_${ver_tag}.json"
-#    write_manifest "$manifest" "host" "$ver_tag" "$ts" "$fname"
-#
-#    echo "📦 EXE (host): $art_dir/$fname"
-#    echo "ℹ️  Binary info: $(file "$art_dir/$fname" | sed 's/.*: //')"
-#  fi
+elif [[ "$BUILD_TARGET" == "host" ]]; then
+  exe="$(find "$build_dir" -type f -name 'pico_provisioner' -executable -print -quit)"
+  if [[ -z "$exe" ]]; then
+    echo "⚠️ pico_provisioner executable not found under $build_dir"
+  else
+    fname="${ts}_pico_provisioner"
+    install -m 0755 -- "$exe" "$art_dir/$fname"
+    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256" && ln -sf "$fname" "pico_provisioner")
+    manifest="$art_dir/${ts}_pico_provisioner.json"
+    write_manifest "$manifest" "host" "$ver_tag" "$ts" "$fname"
+    echo "📦 EXE (host): $art_dir/$fname"
+    echo "🔗 Link: $art_dir/pico_provisioner"
+  fi
 fi
 
 

@@ -1,0 +1,27 @@
+.program lifi_rx
+; 8n1 UART RX - inverted polarity (reverse biased photodiode)
+; 8 PIO cycles per bit. Shift right so LSB-first bits land correctly.
+.wrap_target
+    wait 1 pin 0        ; Wait for start bit (inverted: HIGH = start)
+    set x, 7    [10]    ; 11 cycles: skip start bit + center on first data bit
+bitloop:
+    in pins, 1  [6]     ; Sample bit, 7 cycles total
+    jmp x-- bitloop     ; 1 cycle -> 8 cycles per bit
+    wait 0 pin 0        ; Wait for stop bit (inverted: LOW = stop)
+.wrap
+
+% c-sdk {
+static inline void lifi_rx_program_init(PIO pio, uint sm, uint offset, uint pin, float div) {
+    pio_sm_config c = lifi_rx_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, pin);
+    sm_config_set_jmp_pin(&c, pin);
+    // Shift RIGHT, autopush at 8 bits — data lands in bits [31:24], extract with >> 24
+    sm_config_set_in_shift(&c, true, true, 8);
+    sm_config_set_clkdiv(&c, div);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, false);
+    pio_gpio_init(pio, pin);
+    gpio_pull_down(pin);  // idle LOW (inverted polarity)
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}

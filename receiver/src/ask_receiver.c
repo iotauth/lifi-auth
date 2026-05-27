@@ -19,6 +19,7 @@
 
 // Project headers (use -I include dirs instead of ../../../)
 #include "c_api.h"
+#include "c_secure_comm.h"   // parse_handshake_1, check_handshake_2_send_handshake_3
 #include "config_handler.h"  // change_directory_to_config_path, get_config_path
 #include "key_exchange.h"
 #include "../../include/protocol.h"
@@ -533,9 +534,8 @@ int main(int argc, char* argv[]) {
     replay_window_t rwin;
     replay_window_init(&rwin, NONCE_SIZE, NONCE_HISTORY_SIZE);
 
-    // Challenge tracking for HMAC verification
-    uint8_t pending_challenge[CHALLENGE_SIZE] = {0};
-    bool challenge_active = false;
+    // SST handshake state
+    uint8_t sst_entity_nonce[SST_HS_NONCE_SIZE] = {0};
 
 
     // UART framing state
@@ -665,6 +665,36 @@ int main(int argc, char* argv[]) {
                              key_valid = true;
                              cmd_printf("✓ Switched to Manual Key.");
                              mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
+
+                             // Trigger SST handshake
+                             if (fd >= 0) {
+                                 uint32_t hs1_len = 0;
+                                 uint8_t *hs1 = parse_handshake_1(&s_key, sst_entity_nonce, &hs1_len);
+                                 if (hs1 && hs1_len == SST_HS1_PAYLOAD_SIZE) {
+                                     uint8_t hdr[7] = {
+                                         PREAMBLE_BYTE_1, PREAMBLE_BYTE_2,
+                                         PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                                         MSG_TYPE_SST_HS1,
+                                         (hs1_len >> 8) & 0xFF, hs1_len & 0xFF
+                                     };
+                                     if (write_all(fd, hdr, sizeof(hdr)) >= 0 &&
+                                         write_all(fd, hs1, hs1_len) >= 0) {
+                                         tcdrain(fd);
+                                         state = STATE_WAITING_FOR_SST_HS2;
+                                         clock_gettime(CLOCK_MONOTONIC, &state_deadline);
+                                         state_deadline.tv_sec += 5;
+                                         last_countdown = 5;
+                                         cmd_printf("[SST HS1] Sent. Waiting for HS2...");
+                                     } else {
+                                         cmd_printf("[SST HS1] UART write failed.");
+                                         explicit_bzero(sst_entity_nonce, sizeof(sst_entity_nonce));
+                                     }
+                                     free(hs1);
+                                 } else {
+                                     cmd_printf("[SST HS1] Failed to build handshake.");
+                                     if (hs1) free(hs1);
+                                 }
+                             }
                          } else {
                              cmd_printf("✗ Key search/fetch failed.");
                          }
@@ -689,7 +719,7 @@ int main(int argc, char* argv[]) {
         }
 
         // --- Handle Countdown Display ---
-        if (state == STATE_WAITING_FOR_HMAC_RESP) {
+        if (state == STATE_WAITING_FOR_SST_HS2) {
             int remaining = (int)(state_deadline.tv_sec - now_ts.tv_sec);
             if (remaining < 0) remaining = 0;
             if (remaining != last_countdown) {
@@ -700,12 +730,10 @@ int main(int argc, char* argv[]) {
 
         // --- Handle State Timeouts ---
         if (state != STATE_IDLE && timespec_passed(&state_deadline)) {
-            if (state == STATE_WAITING_FOR_HMAC_RESP) {
-                // The partial line "3.. 2.. 1.. 0.." needs a newline before the error
-                cmd_printf("\nHMAC challenge timed out. Pico did not respond.\n");
+            if (state == STATE_WAITING_FOR_SST_HS2) {
+                cmd_printf("\nSST HS2 timed out – Pico did not respond.\n");
                 stats.timeouts++;
-                explicit_bzero(pending_challenge, sizeof(pending_challenge));
-                challenge_active = false;
+                explicit_bzero(sst_entity_nonce, sizeof(sst_entity_nonce));
             }
             state = STATE_IDLE;
             state_deadline = (struct timespec){0, 0};
@@ -825,10 +853,119 @@ int main(int argc, char* argv[]) {
                             key_valid = true;
                             cmd_printf("✓ Switched to LiFi Key.");
                             mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
+
+                            // --- Trigger SST 3-way handshake ---
+                            if (fd >= 0) {
+                                uint32_t hs1_len = 0;
+                                uint8_t *hs1 = parse_handshake_1(&s_key, sst_entity_nonce, &hs1_len);
+                                if (hs1 && hs1_len == SST_HS1_PAYLOAD_SIZE) {
+                                    uint8_t hdr[7] = {
+                                        PREAMBLE_BYTE_1, PREAMBLE_BYTE_2,
+                                        PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                                        MSG_TYPE_SST_HS1,
+                                        (hs1_len >> 8) & 0xFF, hs1_len & 0xFF
+                                    };
+                                    if (write_all(fd, hdr, sizeof(hdr)) >= 0 &&
+                                        write_all(fd, hs1, hs1_len) >= 0) {
+                                        tcdrain(fd);
+                                        state = STATE_WAITING_FOR_SST_HS2;
+                                        clock_gettime(CLOCK_MONOTONIC, &state_deadline);
+                                        state_deadline.tv_sec += 5;
+                                        last_countdown = 5;
+                                        cmd_printf("[SST HS1] Sent. Waiting for HS2...");
+                                    } else {
+                                        cmd_printf("[SST HS1] UART write failed.");
+                                        explicit_bzero(sst_entity_nonce, sizeof(sst_entity_nonce));
+                                    }
+                                    free(hs1);
+                                } else {
+                                    cmd_printf("[SST HS1] Failed to generate handshake.");
+                                    if (hs1) free(hs1);
+                                }
+                            }
+                            // ------------------------------------
                         } else {
                             cmd_printf("✗ LiFi Key search failed.");
                         }
                         // ---------------------------------------------
+                    }
+                    else if (byte == MSG_TYPE_SST_HS2) {
+                        stats.total_pkts++;
+
+                        uint8_t len_bytes[2];
+                        if (read_exact_timeout(fd, len_bytes, 2, 100) != 2) {
+                            log_printf("[SST HS2] Length read timeout\n");
+                            uart_state = 0;
+                            continue;
+                        }
+                        uint16_t hs2_len = ((uint16_t)len_bytes[0] << 8) | len_bytes[1];
+
+                        if (hs2_len != SST_HS2_PAYLOAD_SIZE) {
+                            log_printf("[SST HS2] Unexpected length: %u\n", hs2_len);
+                            uart_state = 0;
+                            continue;
+                        }
+
+                        uint8_t hs2_payload[SST_HS2_PAYLOAD_SIZE];
+                        uint8_t crc_rx[2];
+                        if (read_exact_timeout(fd, hs2_payload, hs2_len, 200) != (ssize_t)hs2_len ||
+                            read_exact_timeout(fd, crc_rx, 2, 100) != 2) {
+                            log_printf("[SST HS2] Payload read timeout\n");
+                            uart_state = 0;
+                            continue;
+                        }
+
+                        // Verify CRC
+                        uint8_t crc_check[1 + 2 + SST_HS2_PAYLOAD_SIZE];
+                        crc_check[0] = MSG_TYPE_SST_HS2;
+                        crc_check[1] = len_bytes[0];
+                        crc_check[2] = len_bytes[1];
+                        memcpy(&crc_check[3], hs2_payload, hs2_len);
+                        uint16_t computed_crc = crc16_ccitt(crc_check, sizeof(crc_check));
+                        uint16_t received_crc = ((uint16_t)crc_rx[0] << 8) | crc_rx[1];
+                        if (computed_crc != received_crc) {
+                            log_printf("[SST HS2] CRC fail\n");
+                            uart_state = 0;
+                            continue;
+                        }
+
+                        if (state != STATE_WAITING_FOR_SST_HS2) {
+                            log_printf("[SST HS2] Received but not waiting for HS2\n");
+                            uart_state = 0;
+                            continue;
+                        }
+
+                        uint32_t hs3_len = 0;
+                        uint8_t *hs3 = check_handshake_2_send_handshake_3(
+                            hs2_payload, hs2_len, sst_entity_nonce, &s_key, &hs3_len);
+
+                        if (hs3 != NULL) {
+                            cmd_printf("✓ SST HS2 VERIFIED: Pico holds SST key. Sending HS3 for mutual auth.");
+                            // Send HS3 over UART so Pico can verify Pi4 holds the same key from Auth
+                            if (hs3_len == SST_HS3_PAYLOAD_SIZE) {
+                                uint8_t hdr3[7] = {
+                                    PREAMBLE_BYTE_1, PREAMBLE_BYTE_2,
+                                    PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                                    MSG_TYPE_SST_HS3,
+                                    (hs3_len >> 8) & 0xFF, hs3_len & 0xFF
+                                };
+                                write_all(fd, hdr3, sizeof(hdr3));
+                                write_all(fd, hs3, hs3_len);
+                                tcdrain(fd);
+                            } else {
+                                cmd_printf("✗ Unexpected HS3 length %u – not sending.", hs3_len);
+                            }
+                            free(hs3);
+                        } else {
+                            cmd_printf("✗ SST HS FAILED: Nonce mismatch – possible replay or wrong key.");
+                        }
+
+                        explicit_bzero(sst_entity_nonce, sizeof(sst_entity_nonce));
+                        state = STATE_IDLE;
+                        state_deadline = (struct timespec){0, 0};
+                        mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
+                        uart_state = 0;
+                        continue;
                     }
                     else if (byte == MSG_TYPE_ENCRYPTED || byte == MSG_TYPE_FILE) {
                         uint8_t packet_type = byte; 
@@ -977,35 +1114,6 @@ int main(int argc, char* argv[]) {
                                 // Handle Normal Chat / Commands
                                 else {
                                     log_printf("%s\n", decrypted);
-                                    
-                                    // If waiting for HMAC response, check prefix
-                                    if (challenge_active && 
-                                        strncmp((char*)decrypted, HMAC_RESPONSE_PREFIX, 5) == 0) {
-                                        // ... HMac Verification Logic ...
-                                        // Extract HMAC from message (format: "HMAC:HEXSTRING")
-                                        const char* hmac_hex = (char*)decrypted + 5;
-                                        
-                                        // Convert hex string to bytes
-                                        uint8_t received_hmac[HMAC_SIZE];
-                                        for (int i = 0; i < HMAC_SIZE; i++) {
-                                            sscanf(hmac_hex + (i * 2), "%2hhx", &received_hmac[i]);
-                                        }
-                                        
-                                        // Compute expected HMAC
-                                        uint8_t expected_hmac[HMAC_SIZE];
-                                        int ret = sst_hmac_sha256(s_key.cipher_key, pending_challenge, 
-                                                                  CHALLENGE_SIZE, expected_hmac);
-                                        
-                                        if (ret == 0 && memcmp(received_hmac, expected_hmac, HMAC_SIZE) == 0) {
-                                            cmd_printf("\n✅ HMAC VERIFIED! Pico identity confirmed.\n");
-                                        } else {
-                                            cmd_printf("\n❌ HMAC FAILED! Invalid response.\n");
-                                        }
-                                        
-                                        explicit_bzero(pending_challenge, sizeof(pending_challenge));
-                                        challenge_active = false;
-                                        state = STATE_IDLE;
-                                    }
                                 }
                                 
                                 stats.decrypt_success++;

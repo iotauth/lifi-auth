@@ -12,12 +12,15 @@
 #define PREAMBLE_SIZE   4
 
 /* Message types */
-#define MSG_TYPE_ENCRYPTED 0x02
-#define MSG_TYPE_CHALLENGE 0x04
-#define MSG_TYPE_RESPONSE  0x05
-#define MSG_TYPE_FILE      0x06
-#define MSG_TYPE_KEY_ID_ONLY 0x07 /* Plaintext Key ID broadcast */
-#define MSG_TYPE_KEY       0x10  /* Key provisioning */
+#define MSG_TYPE_ENCRYPTED   0x02
+#define MSG_TYPE_CHALLENGE   0x04  /* Legacy HMAC challenge – superseded by SST HS */
+#define MSG_TYPE_RESPONSE    0x05  /* Legacy HMAC response  – superseded by SST HS */
+#define MSG_TYPE_FILE        0x06
+#define MSG_TYPE_KEY_ID_ONLY 0x07  /* Plaintext Key ID broadcast */
+#define MSG_TYPE_SST_HS1     0x08  /* SST handshake step 1: Pi4→Pico over UART */
+#define MSG_TYPE_SST_HS2     0x09  /* SST handshake step 2: Pico→Pi4 over LiFi */
+#define MSG_TYPE_SST_HS3     0x0A  /* SST handshake step 3: Pi4→Pico over UART (mutual auth) */
+#define MSG_TYPE_KEY         0x10  /* Key provisioning */
 
 /* Cooldown to avoid thrashing key updates */
 #define KEY_UPDATE_COOLDOWN_S 15
@@ -54,9 +57,18 @@
 #error "This project assumes a 12-byte GCM nonce."
 #endif
 
-// HMAC Handshake
+// Legacy HMAC handshake (kept for flash_receiver backward compat)
 #define CHALLENGE_SIZE      32
 #define HMAC_SIZE           32
-
-// HMAC response is sent as encrypted message with this prefix
 #define HMAC_RESPONSE_PREFIX "HMAC:"
+
+// SST 3-way handshake sizes (AES-128-CBC + HMAC-SHA256, matches c_common.h)
+#define SST_HS_NONCE_SIZE      8   /* HS_NONCE_SIZE in SST */
+#define SST_HS_IV_SIZE         16  /* AES-128-CBC IV */
+#define SST_HS_MAC_SIZE        32  /* HMAC-SHA256 output */
+// HS1: KEY_ID(8) + IV(16) + CBC({indicator,nonce} 9→16 bytes)(16) + HMAC(32) = 72
+#define SST_HS1_PAYLOAD_SIZE   72
+// HS2: IV(16) + CBC({indicator,nonce_p,nonce_e} 17→32 bytes)(32) + HMAC(32) = 80
+#define SST_HS2_PAYLOAD_SIZE   80
+// HS3: IV(16) + CBC({indicator,nonce_e,nonce_p} 17→32 bytes)(32) + HMAC(32) = 80
+#define SST_HS3_PAYLOAD_SIZE   80

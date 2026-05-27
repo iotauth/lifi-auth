@@ -22,3 +22,19 @@ if [[ "$noclean" != "--no-clean" ]] && [[ -d "$build_dir" ]]; then
 fi
 
 "$here/make_build.sh"
+
+# When building pico firmware, also build the laptop-side host tools
+# (pico_provisioner etc.) using the native host compiler in a separate pass.
+if [[ "$target" == "pico" ]]; then
+  echo ""
+  echo "🖥️  Also building host tools (pico_provisioner)..."
+  "$here/set_build.sh" host >/dev/null
+  host_build_dir="$here/build/host"
+  if [[ "$noclean" != "--no-clean" ]] && [[ -d "$host_build_dir" ]]; then
+    rm -rf "$host_build_dir"
+  fi
+  "$here/make_build.sh"
+  # Restore pico as the active target so .build_target stays consistent
+  "$here/set_build.sh" pico >/dev/null
+  echo "✅ Host tools ready: artifacts/host/pico_provisioner"
+fi

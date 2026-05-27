@@ -32,14 +32,29 @@ body {
 
 /* Sidebar */
 .sidebar {
-    width: 60%;
-    /* Requested 3/5ths */
+    flex: 1;
+    min-width: 0;
     background-color: var(--bg-panel);
     border-right: 1px solid var(--border-color);
     padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 20px;
+    overflow-y: auto;
+}
+
+/* RX Panel */
+.rx-panel {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    background-color: var(--bg-panel);
+    border-left: 1px solid var(--border-color);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: hidden;
 }
 
 .logo {
@@ -324,11 +339,119 @@ body {
 
 /* Light Blue */
 
+/* Port + Baud bar */
+.port-baud-bar {
+    display: flex;
+    flex-direction: column;
+    background: #0d0d0d;
+    border-bottom: 1px solid var(--border-color);
+    padding: 10px 12px;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.pb-global {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1e1e1e;
+}
+
+.pb-global-baud {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+}
+
+.pb-scan-all {
+    font-size: 0.85rem !important;
+    padding: 9px 16px !important;
+    border-color: var(--accent-green) !important;
+    color: var(--accent-green) !important;
+}
+
+.pb-scan-all:hover {
+    background: var(--accent-green) !important;
+    color: #000 !important;
+    box-shadow: 0 0 8px var(--accent-green) !important;
+}
+
+.pb-sides {
+    display: flex;
+    gap: 0;
+}
+
+.pb-half {
+    flex: 1;
+    min-width: 0;
+    padding-right: 12px;
+    font-family: var(--font-mono);
+}
+
+.pb-label {
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.pb-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.pb-select {
+    flex: 1;
+    min-width: 0;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: var(--accent-green);
+    padding: 9px 10px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+}
+
+.pb-input {
+    flex: 1;
+    min-width: 0;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: var(--accent-green);
+    padding: 9px 10px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+}
+
+.pb-btn {
+    background: #1a1a1a;
+    border: 1px solid #444;
+    color: var(--accent-cyan);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    padding: 9px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+
+.pb-btn:hover {
+    background: var(--accent-cyan);
+    color: #000;
+}
+
+
 /* Chat Interface */
 .chat-interface {
     flex: 1;
+    min-width: 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     background: radial-gradient(circle at center, #1a1a1a 0%, #0a0a0a 100%);
 }
 
@@ -346,13 +469,20 @@ body {
     text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
 }
 
-.chat-history {
+/* Stream section wrapper */
+.stream-section {
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* TX Log section */
+.tx-log-section {
     flex: 1;
-    overflow-y: auto;
-    padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    min-height: 0;
+    padding: 16px;
+    border-top: none;
 }
 
 .message {
@@ -445,4 +575,132 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #555;
+}
+
+/* LED Buttons */
+.btn-led {
+    flex: 1;
+    background: #111;
+    border: 2px solid #555;
+    /* Default fallback */
+    padding: 10px 0;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.btn-led:hover {
+    filter: brightness(1.2);
+}
+
+/* White LED */
+.btn-led.led-w {
+    border-color: #ffffff;
+    color: #ffffff;
+}
+
+.btn-led.led-w.active {
+    background-color: #ffffff;
+    color: #000000;
+    box-shadow: 0 0 10px 4px rgba(255, 255, 255, 0.8), 0 0 25px rgba(255, 255, 255, 0.4);
+}
+
+/* Green LED */
+.btn-led.led-g {
+    border-color: #00ff00;
+    color: #00ff00;
+}
+
+.btn-led.led-g.active {
+    background-color: #00ff00;
+    color: #000000;
+    box-shadow: 0 0 15px #00ff00;
+}
+
+/* Blue LED */
+.btn-led.led-b {
+    border-color: #0088ff;
+    color: #0088ff;
+}
+
+/* Lighter blue for visibility */
+.btn-led.led-b.active {
+    background-color: #0088ff;
+    color: #000000;
+    box-shadow: 0 0 15px #0088ff;
+}
+
+/* Red LED */
+.btn-led.led-r {
+    border-color: #ff0000;
+    color: #ff0000;
+}
+
+.btn-led.led-r.active {
+    background-color: #ff0000;
+    color: #000000;
+    box-shadow: 0 0 15px #ff0000;
+}
+
+/* Live heartbeat dot */
+.live-dot-on {
+    color: var(--accent-green);
+    text-shadow: 0 0 6px var(--accent-green);
+    animation: live-pulse 0.4s ease-out;
+}
+
+.live-dot-off {
+    color: #333;
+    text-shadow: none;
+}
+
+@keyframes live-pulse {
+    0%   { text-shadow: 0 0 12px var(--accent-green), 0 0 24px var(--accent-green); }
+    100% { text-shadow: 0 0 4px var(--accent-green); }
+}
+
+/* Benchmark table */
+.bench-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+}
+
+.bench-table th {
+    color: var(--text-dim);
+    text-align: left;
+    padding: 2px 4px;
+    border-bottom: 1px solid #2a2a2a;
+    font-weight: normal;
+}
+
+.bench-table th.br,
+.bench-table td.br {
+    text-align: right;
+}
+
+.bench-table td {
+    padding: 3px 4px;
+    border-bottom: 1px solid #1a1a1a;
+    color: #555;
+    transition: color 0.3s;
+}
+
+.bench-table tr.brow-active td { color: var(--accent-cyan); }
+.bench-table tr.brow-ok   td   { color: var(--accent-green); }
+.bench-table tr.brow-warn td   { color: #ffaa00; }
+.bench-table tr.brow-fail td   { color: var(--accent-red); }
+
+#btn-bench-run:hover {
+    background: var(--accent-green);
+    color: #000;
+    box-shadow: 0 0 10px var(--accent-green);
+}
+
+#btn-bench-run.bench-running {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    animation: blinker 0.8s linear infinite;
 }

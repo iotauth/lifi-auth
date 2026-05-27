@@ -1,0 +1,2305 @@
+[18:27:04.361] [ALIVE] listening... | baud=9600 | msgs=0
+[18:27:06.328] [ALIVE] listening... | baud=9600 | msgs=0
+[18:27:08.327] [ALIVE] listening... | baud=9600 | msgs=0
+[18:27:10.327] [ALIVE] listening... | baud=9600 | msgs=0
+[18:27:12.327] [ALIVE] listening... | baud=9600 | msgs=0
+[18:27:14.327] [ALIVE] listening... | baud=9600 | msgs=0
+[18:27:16.301] [ALIVE] listening... | baud=9600 | msgs=0
+[18:27:18.271] [ALIVE] listening... | baud=9600 | msgs=0
+[18:27:20.246] [ALIVE] listening... | baud=9600 | msgs=0
+[18:27:22.228] [ALIVE] listening... | baud=9600 | msgs=0
+[18:27:23.993] [TEST] baud_switch=9600
+[18:27:24.214] [ALIVE] listening... | baud=9600 | msgs=1
+[18:27:24.608] [TEST_START] baud=9600
+[18:27:26.206] [ALIVE] listening... | baud=9600 | msgs=44
+[18:27:26.518] [TEST_RESULT] baud=9600 sent=50 recv=50
+[18:27:27.730] [TEST] baud_switch=50000
+[18:27:28.201] [ALIVE] listening... | baud=50000 | msgs=54
+[18:27:28.328] [TEST_START] baud=50000
+[18:27:28.932] [TEST_RESULT] baud=50000 sent=50 recv=50
+[18:27:30.134] [TEST] baud_switch=100000
+[18:27:30.197] [ALIVE] listening... | baud=100000 | msgs=107
+[18:27:30.735] [TEST_START] baud=100000
+[18:27:31.302] [TEST_RESULT] baud=100000 sent=50 recv=50
+[18:27:32.209] [ALIVE] listening... | baud=100000 | msgs=159
+[18:27:32.508] [TEST] baud_switch=150000
+[18:27:33.123] [TEST_START] baud=150000
+[18:27:33.435] [TEST_RESULT] baud=150000 sent=50 recv=50
+[18:27:34.238] [ALIVE] listening... | baud=150000 | msgs=212
+[18:27:34.663] [TEST] baud_switch=200000
+[18:27:35.279] [TEST_START] baud=200000
+[18:27:35.584] [TEST_RESULT] baud=200000 sent=50 recv=50
+[18:27:36.281] [ALIVE] listening... | baud=200000 | msgs=265
+[18:27:36.799] [TEST] baud_switch=250000
+[18:27:37.399] [TEST_START] baud=250000
+[18:27:37.694] [TEST_RESULT] baud=250000 sent=50 recv=50
+[18:27:38.285] [ALIVE] listening... | baud=250000 | msgs=318
+[18:27:38.894] [TEST] baud_switch=300000
+[18:27:39.494] [TEST_START] baud=300000
+[18:27:39.787] [TEST_RESULT] baud=300000 sent=50 recv=48
+[18:27:40.277] [ALIVE] listening... | baud=300000 | msgs=369
+[18:27:40.991] [TEST] baud_switch=350000
+[18:27:41.595] [TEST_START] baud=350000
+[18:27:41.888] [TEST_RESULT] baud=350000 sent=50 recv=43
+[18:27:42.288] [ALIVE] listening... | baud=350000 | msgs=415
+[18:27:43.098] [TEST] baud_switch=400000
+[18:27:43.699] [TEST_START] baud=400000
+[18:27:44.299] [ALIVE] listening... | baud=400000 | msgs=449
+[18:27:45.199] [TEST] baud_switch=500000
+[18:27:45.802] [TEST_START] baud=500000
+[18:27:46.310] [ALIVE] listening... | baud=500000 | msgs=467
+[18:27:48.298] [ALIVE] listening... | baud=500000 | msgs=467
+[18:27:50.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:27:52.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:27:54.259] [ALIVE] listening... | baud=500000 | msgs=467
+[18:27:56.249] [ALIVE] listening... | baud=500000 | msgs=467
+[18:27:58.250] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:00.253] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:02.258] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:04.259] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:06.255] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:08.252] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:10.250] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:12.248] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:14.328] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:16.327] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:18.326] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:20.319] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:22.290] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:24.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:26.255] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:28.240] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:30.250] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:32.263] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:34.256] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:36.250] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:38.285] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:40.298] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:42.296] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:44.294] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:46.314] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:48.328] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:50.327] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:52.321] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:54.293] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:56.275] [ALIVE] listening... | baud=500000 | msgs=467
+[18:28:58.259] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:00.243] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:02.261] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:04.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:06.259] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:08.254] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:10.297] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:12.302] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:14.299] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:16.297] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:18.319] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:20.333] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:22.333] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:24.330] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:26.306] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:28.296] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:30.288] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:32.280] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:34.279] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:36.280] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:38.285] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:40.290] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:42.296] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:44.302] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:46.309] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:48.317] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:50.326] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:52.334] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:54.345] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:56.345] [ALIVE] listening... | baud=500000 | msgs=467
+[18:29:58.315] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:00.292] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:02.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:04.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:06.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:08.264] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:10.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:12.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:14.273] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:16.280] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:18.287] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:20.294] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:22.303] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:24.311] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:26.320] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:28.330] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:30.314] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:32.293] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:34.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:36.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:38.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:40.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:42.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:44.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:46.275] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:48.282] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:50.289] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:52.297] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:54.306] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:56.315] [ALIVE] listening... | baud=500000 | msgs=467
+[18:30:58.325] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:00.335] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:02.318] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:04.296] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:06.280] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:08.271] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:10.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:12.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:14.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:16.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:18.276] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:20.282] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:22.289] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:24.298] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:26.306] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:28.316] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:30.326] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:32.335] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:34.318] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:36.295] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:38.280] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:40.271] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:42.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:44.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:46.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:48.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:50.274] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:52.281] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:54.288] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:56.297] [ALIVE] listening... | baud=500000 | msgs=467
+[18:31:58.306] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:00.315] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:02.325] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:04.335] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:06.318] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:08.295] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:10.280] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:12.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:14.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:16.264] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:18.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:20.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:22.274] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:24.312] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:26.290] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:28.297] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:30.306] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:32.315] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:34.325] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:36.335] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:38.337] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:40.309] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:42.291] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:44.279] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:46.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:48.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:50.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:52.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:54.276] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:56.282] [ALIVE] listening... | baud=500000 | msgs=467
+[18:32:58.289] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:00.296] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:02.305] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:04.314] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:06.323] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:08.333] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:10.335] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:12.308] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:14.289] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:16.277] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:18.271] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:20.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:22.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:24.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:26.276] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:28.284] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:30.293] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:32.302] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:34.311] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:36.320] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:38.329] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:40.338] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:42.341] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:44.311] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:46.291] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:48.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:50.271] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:52.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:54.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:56.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:33:58.273] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:00.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:02.285] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:04.293] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:06.301] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:08.310] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:10.320] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:12.329] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:14.332] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:16.305] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:18.286] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:20.275] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:22.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:24.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:26.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:28.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:30.273] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:32.279] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:34.287] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:36.294] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:38.304] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:40.315] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:42.327] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:44.339] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:46.349] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:48.329] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:50.303] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:52.285] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:54.274] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:56.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:34:58.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:00.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:02.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:04.275] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:06.281] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:08.288] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:10.296] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:12.305] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:14.313] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:16.322] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:18.332] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:20.316] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:22.294] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:24.280] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:26.274] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:28.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:30.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:32.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:34.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:36.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:38.285] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:40.292] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:42.300] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:44.308] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:46.317] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:48.327] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:50.336] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:52.319] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:54.296] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:56.281] [ALIVE] listening... | baud=500000 | msgs=467
+[18:35:58.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:00.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:02.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:04.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:06.271] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:08.277] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:10.283] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:12.290] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:14.298] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:16.307] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:18.316] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:20.326] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:22.336] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:24.318] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:26.295] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:28.280] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:30.271] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:32.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:34.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:36.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:38.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:40.275] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:42.281] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:44.288] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:46.297] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:48.305] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:50.315] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:52.324] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:54.334] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:56.336] [ALIVE] listening... | baud=500000 | msgs=467
+[18:36:58.309] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:00.290] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:02.279] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:04.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:06.271] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:08.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:10.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:12.277] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:14.283] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:16.294] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:18.297] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:20.305] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:22.314] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:24.323] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:26.333] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:28.335] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:30.308] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:32.289] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:34.277] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:36.271] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:38.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:40.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:42.280] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:44.275] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:46.281] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:48.288] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:50.295] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:52.304] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:54.313] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:56.322] [ALIVE] listening... | baud=500000 | msgs=467
+[18:37:58.331] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:00.334] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:02.306] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:04.288] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:06.276] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:08.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:10.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:11.992] R P27 | au:500  oe S  ss 67
+[18:38:14.268] iud=50000|mEn.  ad500  ss47
+[18:38:18.275] ]en..|bu=000|mg=6
+[18:38:18.281] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:22.176] [ALIVE] listenng..  baud=5000 |mg=6: GP27 | Baud: 500000 | Mode: SST | Msgs: 467
+[18:38:24.296] s u=000|msgs=467
+[18:38:26.310] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:28.320] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:30.329] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:32.332] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:34.305] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:36.286] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:38.274] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:40.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:42.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:44.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:46.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:48.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:50.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:52.286] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:54.292] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:56.301] [ALIVE] listening... | baud=500000 | msgs=467
+[18:38:58.309] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:00.319] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:02.328] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:04.337] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:06.321] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:08.298] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:10.283] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:12.277] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:14.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:16.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:18.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:20.274] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:22.279] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:24.286] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:26.294] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:28.302] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:30.311] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:32.320] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:34.331] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:36.339] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:38.322] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:40.299] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:42.284] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:44.274] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:46.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:48.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:50.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:52.273] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:54.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:56.285] [ALIVE] listening... | baud=500000 | msgs=467
+[18:39:58.292] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:00.300] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:02.309] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:04.318] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:06.329] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:08.337] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:10.320] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:12.297] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:14.288] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:16.273] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:18.276] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:20.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:22.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:24.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:26.277] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:28.293] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:30.291] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:32.299] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:34.308] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:36.317] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:38.326] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:40.336] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:42.319] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:44.295] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:46.281] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:48.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:50.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:52.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:54.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:56.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:40:58.274] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:00.282] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:02.289] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:04.297] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:06.305] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:08.315] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:10.324] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:12.334] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:14.336] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:16.309] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:18.290] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:20.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:22.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:24.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:26.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:28.271] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:30.275] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:32.281] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:34.288] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:36.296] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:38.316] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:40.313] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:42.322] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:44.332] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:46.334] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:48.307] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:50.288] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:52.276] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:54.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:56.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:41:58.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:00.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:02.273] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:04.279] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:06.286] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:08.294] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:10.302] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:12.311] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:14.320] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:16.329] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:18.332] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:20.305] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:22.286] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:24.274] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:26.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:28.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:30.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:32.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:34.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:36.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:38.285] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:40.293] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:42.302] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:44.311] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:46.320] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:48.329] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:50.331] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:52.304] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:54.286] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:56.274] [ALIVE] listening... | baud=500000 | msgs=467
+[18:42:58.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:00.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:02.264] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:04.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:06.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:08.277] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:10.284] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:12.292] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:14.301] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:16.310] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:18.320] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:20.329] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:22.338] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:24.320] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:26.297] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:28.281] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:30.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:32.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:34.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:36.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:38.271] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:40.276] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:42.282] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:44.290] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:46.298] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:48.306] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:50.315] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:52.325] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:54.337] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:56.317] [ALIVE] listening... | baud=500000 | msgs=467
+[18:43:58.295] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:00.280] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:02.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:04.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:06.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:08.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:10.271] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:12.281] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:14.283] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:16.290] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:18.298] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:20.307] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:22.316] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:24.325] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:26.334] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:28.317] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:30.293] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:32.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:34.269] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:36.264] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:38.262] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:40.264] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:42.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:44.273] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:46.279] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:48.286] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:50.294] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:52.303] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:54.312] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:56.321] [ALIVE] listening... | baud=500000 | msgs=467
+[18:44:58.330] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:00.313] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:02.291] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:04.276] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:06.267] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:08.262] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:10.261] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:12.262] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:14.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:16.271] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:18.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:20.285] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:22.293] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:24.302] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:26.311] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:28.320] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:30.329] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:32.332] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:34.305] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:36.286] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:38.274] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:40.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:42.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:44.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:46.268] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:48.272] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:50.278] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:52.285] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:54.293] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:56.302] [ALIVE] listening... | baud=500000 | msgs=467
+[18:45:58.310] [ALIVE] listening... | baud=500000 | msgs=467
+[18:46:00.740] [ALIVE] listenng...  bu=0: GP27 | Baud: 500000 | Mode: SST | Msgs: 467
+[18:46:01.695] RX: GP27 | Baud: 50000 | Mode:SST | Mgs: 46
+[18:46:04.329] [LIVE] listeig.  admg=6
+[18:46:04.330] l.. | baud500  ss47
+[18:46:05.202] RX: GP27 | Baud: 500000 | Mode: SST | Msgs: 467
+[18:46:06.304] [LIEig.  ad50  ss47
+[18:46:08.286] Lstening.  500  ss47
+[18:46:10.275] e.  ad500  ss47
+[18:46:14.267] .000|msgs=4i0  ss47
+[18:46:16.267] Eng...  ad500  ss47
+[18:46:20.274] [ itnng...  aud0|mg=6
+[18:46:20.275] [ALIV] lseig.  ad500  ss47
+[18:46:24.288] IV]lsein..|bu=00s7
+[18:46:28.301] [AIVE itnn..|bu=000|mg=6
+[18:46:28.304] 047
+[18:46:29.688] Unknown: 'test 50 100000'
+[18:46:30.313] [ALIVE] listening... | baud=500000 | msgs=467
+[18:46:40.285] [ALIVE] istnn..|bu=000|mg=6[E itenn..|bu=000|mg=6ebd500ss47
+[18:46:42.273] Iig. | baud500  ss47
+[18:46:44.266] |
+[18:46:46.263] [ALIVE] listening... | baud=500000 | msgs=467
+[18:46:48.263] [ALIVE] listening... | baud=500000 | msgs=467
+[18:46:50.266] [ALIVE] listening... | baud=500000 | msgs=467
+[18:46:52.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:46:54.276] [ALIVE] listening... | baud=500000 | msgs=467
+[18:46:56.287] [ALIVE] listening... | baud=500000 | msgs=467
+[18:46:58.291] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:00.299] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:02.307] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:04.316] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:06.325] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:08.328] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:10.301] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:12.283] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:14.274] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:16.264] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:18.262] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:20.262] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:22.265] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:24.270] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:26.275] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:28.282] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:30.289] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:32.298] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:34.306] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:36.315] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:38.322] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:40.329] [ALIVE] listening... | baud=500000 | msgs=467
+[18:47:40.564] Baud set to 100000 (div=187.500)
+[18:47:42.311] [ALIVE] listening... | baud=100000 | msgs=467
+[18:47:43.738] [TEST_START] baud=100000
+[18:47:44.290] [ALIVE] listening... | baud=100000 | msgs=518
+[18:47:44.300] [TEST_RESULT] baud=100000 sent=50 recv=50
+[18:47:45.493] [TEST] baud_switch=9600
+[18:47:45.903] [TEST_DONE]
+[18:47:46.276] [ALIVE] listening... | baud=9600 | msgs=521
+[18:47:48.267] [ALIVE] listening... | baud=9600 | msgs=521
+[18:47:50.263] [ALIVE] listening... | baud=9600 | msgs=521
+[18:47:52.264] [ALIVE] listening... | baud=9600 | msgs=521
+[18:47:54.264] [ALIVE] listening... | baud=9600 | msgs=521
+[18:47:56.267] [ALIVE] listening... | baud=9600 | msgs=521
+[18:47:58.272] [ALIVE] listening... | baud=9600 | msgs=521
+[18:48:00.231] [TEST] baud_switch=100000
+[18:48:00.279] [ALIVE] listening... | baud=100000 | msgs=522
+[18:48:00.830] [TEST_START] baud=100000
+[18:48:01.400] [TEST_RESULT] baud=100000 sent=50 recv=50
+[18:48:02.286] [ALIVE] listening... | baud=100000 | msgs=574
+[18:48:02.606] [TEST] baud_switch=9600
+[18:48:03.025] [TEST_DONE]
+[18:48:04.294] [ALIVE] listening... | baud=9600 | msgs=576
+[18:48:05.223] [TEST] baud_switch=100000
+[18:48:05.822] [TEST_START] baud=100000
+[18:48:06.302] [ALIVE] listening... | baud=100000 | msgs=620
+[18:48:06.393] [TEST_RESULT] baud=100000 sent=50 recv=50
+[18:48:07.600] [TEST] baud_switch=9600
+[18:48:08.014] [TEST_DONE]
+[18:48:08.311] [ALIVE] listening... | baud=9600 | msgs=631
+[18:48:10.319] [ALIVE] listening... | baud=9600 | msgs=631
+[18:48:12.328] [ALIVE] listening... | baud=9600 | msgs=631
+[18:48:14.311] [ALIVE] listening... | baud=9600 | msgs=631
+[18:48:16.289] [ALIVE] listening... | baud=9600 | msgs=631
+[18:48:17.784] [TEST] baud_switch=100000
+[18:48:18.275] [ALIVE] listening... | baud=100000 | msgs=632
+[18:48:18.377] [TEST_START] baud=100000
+[18:48:18.943] [TEST_RESULT] baud=100000 sent=50 recv=50
+[18:48:20.140] [TEST] baud_switch=9600
+[18:48:20.266] [ALIVE] listening... | baud=9600 | msgs=685
+[18:48:20.551] [TEST_DONE]
+[18:48:22.261] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:24.260] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:26.261] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:28.265] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:30.270] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:32.276] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:34.284] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:36.291] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:38.300] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:40.308] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:42.316] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:44.325] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:46.309] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:48.287] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:50.273] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:52.264] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:54.262] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:56.284] [ALIVE] listening... | baud=9600 | msgs=686
+[18:48:58.259] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:00.263] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:02.268] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:04.276] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:06.281] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:08.289] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:10.297] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:12.307] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:14.314] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:16.322] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:18.306] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:20.285] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:22.271] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:24.262] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:26.258] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:28.257] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:30.259] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:32.262] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:34.267] [ALIVE] listening... | baud=9600 | msgs=686
+[18:49:36.111] [TEST_DONE]
+[18:49:36.273] [ALIVE] listening... | baud=9600 | msgs=687
+[18:49:38.280] [ALIVE] listening... | baud=9600 | msgs=687
+[18:49:40.288] [ALIVE] listening... | baud=9600 | msgs=687
+[18:49:42.296] [ALIVE] listening... | baud=9600 | msgs=687
+[18:49:42.617] Baud set to 100000 (div=187.500)
+[18:49:44.305] [ALIVE] listening... | baud=100000 | msgs=687
+[18:49:46.313] [ALIVE] listening... | baud=100000 | msgs=687
+[18:49:48.321] [ALIVE] listening... | baud=100000 | msgs=687
+[18:49:50.324] [ALIVE] listening... | baud=100000 | msgs=687
+[18:49:52.298] [ALIVE] listening... | baud=100000 | msgs=687
+[18:49:54.281] [ALIVE] listening... | baud=100000 | msgs=687
+[18:49:56.270] [ALIVE] listening... | baud=100000 | msgs=687
+[18:49:57.692] [TEST] baud_switch=100000
+[18:49:58.264] [ALIVE] listening... | baud=100000 | msgs=688
+[18:49:58.297] [TEST_START] baud=100000
+[18:49:58.859] [TEST_RESULT] baud=100000 sent=50 recv=50
+[18:50:00.060] [TEST] baud_switch=9600
+[18:50:00.262] [ALIVE] listening... | baud=9600 | msgs=741
+[18:50:00.473] [TEST_DONE]
+[18:50:02.261] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:04.264] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:06.268] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:08.282] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:10.279] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:12.287] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:14.294] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:16.303] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:18.310] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:20.318] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:22.320] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:24.295] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:26.278] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:28.267] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:30.261] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:32.258] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:34.258] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:36.260] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:38.266] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:40.268] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:42.275] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:44.282] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:46.290] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:48.298] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:50.306] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:52.314] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:54.328] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:56.292] [ALIVE] listening... | baud=9600 | msgs=742
+[18:50:58.275] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:00.264] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:02.258] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:04.256] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:06.256] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:08.259] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:10.263] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:12.269] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:14.275] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:16.283] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:18.290] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:20.299] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:22.306] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:24.314] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:26.316] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:28.291] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:30.274] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:32.263] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:34.257] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:36.254] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:38.254] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:40.257] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:42.261] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:44.267] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:46.273] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:48.280] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:50.288] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:52.296] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:54.303] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:56.311] [ALIVE] listening... | baud=9600 | msgs=742
+[18:51:58.319] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:00.323] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:02.316] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:04.312] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:06.322] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:08.325] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:10.308] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:12.305] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:14.314] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:16.314] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:18.285] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:20.294] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:22.304] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:24.294] [ALIVE] listening... | baud=9600 | msgs=742
+[18:52:25.348] [TEST] baud_switch=9600
+[18:52:25.966] [TEST_START] baud=9600
+[18:52:26.276] [ALIVE] listening... | baud=9600 | msgs=752
+[18:52:27.896] [TEST_RESULT] baud=9600 sent=50 recv=50
+[18:52:28.286] [ALIVE] listening... | baud=9600 | msgs=795
+[18:52:29.116] [TEST] baud_switch=9600
+[18:52:29.526] [TEST_DONE]
+[18:52:30.295] [ALIVE] listening... | baud=9600 | msgs=797
+[18:52:32.270] [ALIVE] listening... | baud=9600 | msgs=797
+[18:52:34.226] [ALIVE] listening... | baud=9600 | msgs=797
+[18:52:36.212] [ALIVE] listening... | baud=9600 | msgs=797
+[18:52:36.551] [TEST] baud_switch=100000
+[18:52:37.145] [TEST_START] baud=100000
+[18:52:37.711] [TEST_RESULT] baud=100000 sent=50 recv=50
+[18:52:38.204] [ALIVE] listening... | baud=100000 | msgs=850
+[18:52:38.909] [TEST] baud_switch=9600
+[18:52:39.321] [TEST_DONE]
+[18:52:40.214] [ALIVE] listening... | baud=9600 | msgs=852
+[18:52:42.198] [ALIVE] listening... | baud=9600 | msgs=852
+[18:52:44.201] [ALIVE] listening... | baud=9600 | msgs=852
+[18:52:46.204] [ALIVE] listening... | baud=9600 | msgs=852
+[18:52:48.215] [ALIVE] listening... | baud=9600 | msgs=852
+[18:52:50.257] [ALIVE] listening... | baud=9600 | msgs=852
+[18:52:52.266] [ALIVE] listening... | baud=9600 | msgs=852
+[18:52:54.283] [ALIVE] listening... | baud=9600 | msgs=852
+[18:52:56.274] [ALIVE] listening... | baud=9600 | msgs=852
+[18:52:58.287] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:00.284] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:02.290] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:04.275] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:06.258] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:08.244] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:10.237] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:12.233] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:14.232] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:16.233] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:18.236] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:20.247] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:22.261] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:24.270] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:26.273] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:28.277] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:30.282] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:32.287] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:34.293] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:36.279] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:38.262] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:40.251] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:42.244] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:44.240] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:46.242] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:48.247] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:50.252] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:52.258] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:54.265] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:56.272] [ALIVE] listening... | baud=9600 | msgs=852
+[18:53:58.279] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:00.287] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:02.292] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:04.297] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:06.302] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:08.307] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:10.308] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:12.310] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:14.314] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:16.321] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:18.325] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:20.330] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:22.335] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:24.332] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:26.278] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:28.285] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:30.292] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:32.296] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:34.269] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:36.276] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:38.283] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:40.285] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:42.229] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:44.209] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:46.194] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:48.183] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:50.178] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:52.175] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:54.174] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:56.174] [ALIVE] listening... | baud=9600 | msgs=852
+[18:54:58.214] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:00.240] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:02.238] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:04.238] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:06.243] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:08.250] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:10.259] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:12.261] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:14.243] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:16.230] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:18.221] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:20.215] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:22.219] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:24.226] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:26.229] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:28.226] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:30.227] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:32.232] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:34.232] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:36.234] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:38.263] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:40.264] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:42.264] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:44.261] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:46.243] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:48.230] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:50.227] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:52.214] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:54.216] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:56.221] [ALIVE] listening... | baud=9600 | msgs=852
+[18:55:58.220] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:00.217] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:02.227] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:04.238] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:06.239] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:08.239] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:10.250] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:12.263] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:14.272] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:16.277] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:18.268] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:20.249] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:22.239] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:24.230] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:26.226] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:28.225] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:30.226] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:32.226] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:34.230] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:36.235] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:38.241] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:40.247] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:42.254] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:44.260] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:46.266] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:48.273] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:50.263] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:52.247] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:54.238] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:56.230] [ALIVE] listening... | baud=9600 | msgs=852
+[18:56:58.227] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:00.230] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:02.226] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:04.228] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:06.231] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:08.235] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:10.239] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:12.245] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:14.251] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:16.258] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:18.264] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:20.273] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:22.261] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:24.246] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:26.237] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:28.239] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:30.228] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:32.228] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:34.230] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:36.235] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:38.234] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:40.238] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:42.246] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:44.247] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:46.253] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:48.259] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:50.265] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:52.272] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:54.264] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:56.247] [ALIVE] listening... | baud=9600 | msgs=852
+[18:57:58.237] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:00.231] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:02.237] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:04.226] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:06.227] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:08.229] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:10.232] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:12.235] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:14.240] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:16.245] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:18.251] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:20.256] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:22.263] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:24.269] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:26.271] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:28.254] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:30.243] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:32.235] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:34.231] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:36.229] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:38.229] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:40.232] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:42.233] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:44.237] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:46.241] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:48.246] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:50.251] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:52.256] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:54.262] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:56.268] [ALIVE] listening... | baud=9600 | msgs=852
+[18:58:58.271] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:00.253] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:02.242] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:04.234] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:06.230] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:08.229] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:10.229] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:12.230] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:14.234] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:16.237] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:18.241] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:20.247] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:22.251] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:24.256] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:26.262] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:28.268] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:30.270] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:32.253] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:34.241] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:36.233] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:38.229] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:40.226] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:42.227] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:44.228] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:46.231] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:48.234] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:50.238] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:52.243] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:54.248] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:56.254] [ALIVE] listening... | baud=9600 | msgs=852
+[18:59:58.259] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:00.265] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:02.268] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:04.251] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:06.240] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:08.233] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:10.228] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:12.226] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:14.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:16.228] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:18.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:20.234] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:22.239] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:24.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:26.256] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:28.254] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:30.260] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:32.266] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:34.272] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:36.262] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:38.248] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:40.238] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:42.233] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:44.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:46.229] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:48.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:50.232] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:52.235] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:54.245] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:56.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:00:58.248] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:00.253] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:02.258] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:04.264] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:06.278] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:08.260] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:10.246] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:12.237] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:14.232] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:16.229] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:18.228] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:20.229] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:22.236] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:24.235] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:26.239] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:28.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:30.248] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:32.253] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:34.259] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:36.264] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:38.270] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:40.260] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:42.246] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:44.237] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:46.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:48.228] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:50.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:52.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:54.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:56.233] [ALIVE] listening... | baud=9600 | msgs=852
+[19:01:58.237] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:00.242] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:02.247] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:04.252] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:06.257] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:08.263] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:10.269] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:12.259] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:14.246] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:16.237] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:18.232] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:20.229] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:22.233] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:24.229] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:26.232] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:28.235] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:30.239] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:32.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:34.248] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:36.253] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:38.259] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:40.264] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:42.270] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:44.276] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:46.282] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:48.288] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:50.294] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:52.300] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:54.308] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:56.319] [ALIVE] listening... | baud=9600 | msgs=852
+[19:02:58.328] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:00.321] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:02.325] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:04.329] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:06.253] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:08.252] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:10.261] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:12.268] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:14.250] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:16.257] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:18.259] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:20.266] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:22.247] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:24.244] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:26.244] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:28.246] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:30.245] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:32.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:34.244] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:36.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:38.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:40.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:42.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:44.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:46.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:48.240] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:50.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:52.211] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:54.201] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:56.193] [ALIVE] listening... | baud=9600 | msgs=852
+[19:03:58.188] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:00.190] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:02.184] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:04.191] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:06.199] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:08.201] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:10.202] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:12.207] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:14.216] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:16.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:18.226] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:20.239] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:22.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:24.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:26.212] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:28.213] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:30.216] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:32.211] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:34.214] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:36.226] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:38.228] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:40.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:42.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:44.242] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:46.242] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:48.242] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:50.242] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:52.246] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:54.237] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:56.223] [ALIVE] listening... | baud=9600 | msgs=852
+[19:04:58.216] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:00.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:02.213] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:04.208] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:06.213] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:08.228] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:10.226] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:12.224] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:14.229] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:16.245] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:18.249] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:20.249] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:22.252] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:24.256] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:26.247] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:28.234] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:30.225] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:32.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:34.216] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:36.214] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:38.214] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:40.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:42.217] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:44.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:46.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:48.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:50.229] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:52.233] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:54.237] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:56.241] [ALIVE] listening... | baud=9600 | msgs=852
+[19:05:58.235] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:00.225] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:02.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:04.214] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:06.212] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:08.211] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:10.212] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:12.215] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:14.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:16.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:18.226] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:20.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:22.234] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:24.238] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:26.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:28.247] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:30.240] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:32.228] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:34.221] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:36.216] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:38.213] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:40.212] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:42.213] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:44.215] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:46.217] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:48.220] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:50.224] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:52.228] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:54.232] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:56.237] [ALIVE] listening... | baud=9600 | msgs=852
+[19:06:58.242] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:00.246] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:02.248] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:04.236] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:06.226] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:08.221] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:10.217] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:12.216] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:14.216] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:16.217] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:18.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:20.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:22.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:24.236] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:26.245] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:28.249] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:30.254] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:32.258] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:34.259] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:36.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:38.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:40.223] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:42.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:44.216] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:46.215] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:48.216] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:50.217] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:52.220] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:54.224] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:56.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:07:58.237] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:00.244] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:02.248] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:04.253] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:06.255] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:08.241] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:10.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:12.224] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:14.221] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:16.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:18.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:20.221] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:22.225] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:24.228] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:26.232] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:28.236] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:30.242] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:32.247] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:34.252] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:36.257] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:38.258] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:40.247] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:42.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:44.224] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:46.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:48.217] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:50.217] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:52.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:54.220] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:56.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:08:58.225] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:00.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:02.235] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:04.241] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:06.245] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:08.250] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:10.255] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:12.247] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:14.235] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:16.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:18.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:20.220] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:22.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:24.220] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:26.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:28.225] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:30.228] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:32.235] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:34.241] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:36.248] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:38.253] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:40.258] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:42.263] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:44.253] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:46.240] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:48.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:50.226] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:52.223] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:54.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:56.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:09:58.224] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:00.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:02.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:04.234] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:06.239] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:08.244] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:10.249] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:12.254] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:14.259] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:16.249] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:18.236] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:20.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:22.221] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:24.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:26.217] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:28.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:30.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:32.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:34.225] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:36.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:38.235] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:40.240] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:42.246] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:44.251] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:46.256] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:48.247] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:50.235] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:52.226] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:54.221] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:56.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:10:58.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:00.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:02.221] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:04.240] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:06.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:08.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:10.236] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:12.242] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:14.246] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:16.251] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:18.256] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:20.258] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:22.253] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:24.233] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:26.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:28.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:30.220] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:32.220] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:34.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:36.224] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:38.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:40.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:42.235] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:44.240] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:46.245] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:48.249] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:50.255] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:52.256] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:54.242] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:56.232] [ALIVE] listening... | baud=9600 | msgs=852
+[19:11:58.225] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:00.229] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:02.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:04.220] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:06.221] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:08.224] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:10.226] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:12.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:14.234] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:16.239] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:18.256] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:20.249] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:22.254] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:24.256] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:26.241] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:28.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:30.224] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:32.221] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:34.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:36.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:38.221] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:40.223] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:42.226] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:44.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:46.234] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:48.239] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:50.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:52.248] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:54.253] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:56.255] [ALIVE] listening... | baud=9600 | msgs=852
+[19:12:58.241] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:00.230] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:02.223] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:04.220] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:06.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:08.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:10.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:12.221] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:14.224] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:16.228] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:18.232] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:20.238] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:22.241] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:24.247] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:26.252] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:28.257] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:30.248] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:32.236] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:34.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:36.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:38.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:40.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:42.219] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:44.233] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:46.224] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:48.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:50.231] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:52.235] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:54.240] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:56.249] [ALIVE] listening... | baud=9600 | msgs=852
+[19:13:58.250] [ALIVE] listening... | baud=9600 | msgs=852
+[19:14:00.255] [ALIVE] listening... | baud=9600 | msgs=852
+[19:14:02.246] [ALIVE] listening... | baud=9600 | msgs=852
+[19:14:04.234] [ALIVE] listening... | baud=9600 | msgs=852
+[19:14:06.028] RX: GP27 | Baud: 9600 | Mode: SST | Msgs: 852
+[19:14:06.227] [LIVE] listening.. | baud=9600| msgs852
+[19:14:06.904] RX: GP27 | Baud: 9600 | Mode: SST | Msgs: 852
+[19:14:08.222] [ALIVE] listening... | baud=9600 | msgs=852
+[19:14:08.547] RX: GP27 | Baud: 9600 | Mode: SST | Msgs: 852
+[19:14:16.221] [ALIVAls...  bud=960 | sg=52
+[19:14:20.228] E] liteigbu900|msgs=852[ALIVE] listening... | baud=9600 | msgs=852
+[19:14:22.231] [ALIVE] list.|bud90  ss82
+[19:14:24.244] [ALIVE] listenin..  ad90  ss82
+[19:14:28.245] AVE listenn..|bu=60|mg=5
+[19:14:28.245] ] listening... | baud=9600 | msgs=852
+[19:14:30.252] [AIVE itnn..|bu=60|mg=2
+[19:14:32.256] Lseig.  ad90  ss82
+[19:14:34.247] tn..|bad9600 | msgs=852
+[19:14:36.236] Aseig.  ad90 | msg=852
+[19:14:38.228] [LVE] litening.. | baud=9600 | mgs852
+[19:14:40.223] [ALIVE] listin.. | baud=9600  msgs=852
+[19:14:42.223] [LV]lseig.  ad90  ss82
+[19:14:46.223] I listen..|baud=900| s=5
+[19:14:50.226] [LIVE] listening..|bu=9600 | msgs=852
+[19:14:54.233] [ALIVE] listening... | baud60| sg=852
+[19:14:56.238] AE] listening... | baud=9600 | msgs=852
+[19:14:58.242] [ALIE] listening.. |bud=96ss82
+[19:15:00.247] [ALIVE] lstening... | bud960|ms=852
+[19:15:02.252] [ALIVE] listnngbu=600 | msg=852
+[19:15:04.257] [ALIVE] listening... | baud=9600 | msgs=852
+[19:15:14.223] enn..|bu=60|mg=5[IE itnn..|b0|mg=5[ALIVE] listening... | baud=9600 | msgs=852ALIVE] listeing. au=9600 | msg=82
+[19:15:14.233] IV] listening... | bud=9600| msgs=82
+[19:15:20.221] I] listening... | baud=9600 | msgs=852
+[19:15:22.224] [ALIVE] listeing.. | bad=90  ss82
+[19:15:24.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:15:28.235] [ALIV] lseigbu=60|mg[LIVE]iing...| ad=60 | msgs=852
+[19:15:30.239] [ALIVE litnn..|bu=60  ss82
+[19:15:36.254] [ALIVE] listening... | baud=  sgs=85[ALIVE] list... |bu=60|mg82
+[19:15:38.257] A itning..u=60|mg=82
+[19:15:42.232] [tnn..|bu=60|mg=5[ALIVE] listenng..  ad9ss=852
+[19:15:46.222] [ALIVE] istenig..|bu=60|mg=5[ALIVE] listning...  bud90  ms=852
+[19:15:48.221] nbau00 | mss=52
+[19:15:50.221] t|bu=60 | msgs=852
+[19:15:52.222] . |bad600 |msgs=85
+[19:15:58.231] AElseig.  ad90  ss=852
+[19:16:00.235] AIVE] litening...  bud90 | ms=5
+[19:16:02.240] [ALIVE] listening...  bad9ss82
+[19:16:04.244] [ALIE] listenig... | au=9600  mgs=8
+[19:16:06.249] [ALIVE] listening... | baud=9600 | msgs=852
+[19:16:08.255] [ALIVE] listening... | baud=9600 | msgs=852
+[19:16:10.256] [LIE itnn.u=600 | ss82
+[19:16:10.765] RX: GP27 | Baud: 9600 |Mode: SST | Msgs: 852
+[19:16:12.240] [ALIVE] listenig..| baud=960 | msg=852
+[19:16:14.230] [AIVE] lisenng... | baud=9600  msgs=82
+[19:16:16.232] [ALIVE] listening... |bau=600 | msgs=852
+[19:16:18.219] [LIVE lsenng. |b90  mgs=852
+[19:16:20.217] [ALIVE] listening... | baud=9600 | msg2
+[19:16:28.223] [ALIVE] listening... | baud=9600 | msgs=852
+[19:16:30.227] [ALIVE] listening... | baud=9600 | msgs=852
+[19:16:32.231] [AIVE] listening... | baud=900  msgs=852
+[19:16:34.235] [ALIVE] listening... | baud=9600 | msgs=852
+[19:16:36.240] =852
+[19:16:38.245] [LIVE] listening... | baud=9600 | msgs=852
+[19:16:42.250] [ALIVE] listening... | baud=600 | mss=852
+[19:16:44.238] [ALIVE] listening.. | bu=60|mg=5ebu=9600 |mgs=852
+[19:16:46.228] L] listenin.. |baud=9600 | msgs=852
+[19:16:48.222] [ALVE]lseig.  ad90  ss=852
+[19:16:50.219] [ALIVE] listening... | baud=9600 | msgs=82
+[19:16:52.218] []lseig.  ad9600 |=5
+[19:16:54.218] [ALlseig.  ad90  ss82
+[19:16:56.219] ] listening..| baud=960g=5
+[19:16:58.222] AVE] istenin... | au900|ss5
+[19:17:00.225] [ALIVE] listening...| baud=9600 | msgs852
+[19:17:04.231] [ALIVE] listening... | baud=9600 | msg=852
+[19:17:04.233] [LIVE] listenng... |bad900|mgs85
+[19:17:06.237] [ALIVE] listening... |baud=9600 | msgs=5
+[19:17:10.246] [ALIVE] lstening.. | baud=9600 | sg=852
+[19:17:12.251] [ALIVE] istnn..|bu=60| ss82
+[19:17:14.254] [ALIVE] lisening.. | bad=6082
+[19:17:16.239] [ALIVE] listening... | baud=9600 | msgs=852
+[19:17:18.230] [Elseig. | baud=90  ss82
+[19:17:20.223] [AIVE] listeing...| aud=9600 | sgs852
+[19:17:22.220] 6| msgs=52
+[19:17:28.220] ALIVE] listening... | baud=9600 | msgs=82
+[19:17:30.223] [ALIVE] listening... | baud=9600 | msgs=852
+[19:17:32.225] [ALIVE] listenng..=0msgs=852
+[19:17:34.229] [ALIE] listein...  bu=900|msg=82
+[19:17:36.233] [ALIVE] listening.. | baud960  mgs852
+[19:17:40.242] [ALIVE] listening... | baud=9600 | msgs=852e.  ad90  ss82
+[19:17:42.247] [ALIVE] listening... | baud=960 | ss82
+[19:17:46.254] [ALIVE] listening...  bau=60|mg=5
+[19:17:52.218] d600 | msgs=82[AL listenn..|bu=60 mg=5senig..| baud9 msgs=852[IE] listeing...| bud=960 | msgs=85
+[19:17:56.212] [ALIVE] listening... |baud=960 |mg=852[LV]lsei| ad90  ss82
+[19:17:58.211] Aitning.. =60|mg=52
+[19:18:00.212] [ALIVE]listenig..  ad90  ss82
+[19:18:02.215] snng... | bad=900 | sgs852
+[19:18:04.218] [LIVE] listenin... | baud=900 | m=852
+[19:18:06.221] A listeig.  ad=9600 | msgs=52
+[19:18:10.229] [ALIVE] listening... | baud=9600 | s=852
+[19:18:10.230] [ALIVE] listening...6  ss82
+[19:18:14.238] [LIV] listening... | baud960|mg=
+[19:18:16.242] [ALIVE] listening.. | baud=960 msgs=85
+[19:18:18.247] [ALIVE] listening.. | baud9600 |msg=5
+[19:18:18.249] [LIE itnn..|bu=60|mgs=85
+[19:18:20.240] [ALIVE] listening... | baud=9600 | msgs=852
+[19:18:24.217] AVE] listenin... | bud960|mg=5[ALIVE] listening... | bud=9600 | msgs=852
+[19:18:32.207] [ALIVE] listening.. | bu=60|mg=5[ALIVE] lstei aud=960  ss82
+[19:18:34.210] n.|bu=600| msgs=52
+[19:18:38.215] [ALIVE] listening... | bau=90s82
+[19:18:38.217] Vtning... | baud=9600 | msgs=852
+[19:18:40.232] [ALIVE] istening...| baud=600 | sgs82
+[19:18:42.227] [LIE] listenig... | baud=960  ss82
+[19:18:46.236] [ALIVE] listnin..d90  ss82
+[19:18:50.243] AIE isenng... | bud=9600 | m
+[19:18:50.245] [ALIVE] listening... | baud=9600 | msgs=852
+[19:18:58.212] [AIVE] lisenng... | bad=60
+[19:19:00.204] [ALIVE] listening... | baud=9600 | msgs=852
+[19:19:02.204]  istenig..| au=60 mss=852
+[19:19:04.204] [ALIVE] listeng... | bad=9600| ss82
+[19:19:06.206] baud=9600 | mss=852
+[19:19:08.209] AE] listening...  bad=60  msgs=852
+[19:19:10.213] [ALIVE] litening...| a=60  ss82
+[19:19:12.218] A] listenig... |bad=60|mg82
+[19:19:16.225] [E itnn..|bu=60|mg=5
+[19:19:16.229] [ALIVE] listening... | baud=9600 | msgs=852
+[19:19:18.232] [LIVE]lisening... | bud=960 | msgs=852
+[19:19:22.242] [ALIVE] listening...| baud9600 | msgs=852
+[19:19:24.234] E liseing..  aud=9600 | msgs85
+[19:19:26.223] [ALIVE] listening... | baud=9600 | msgs=852
+[19:19:28.214] [ALIVE litening..  ad90  ss82
+[19:19:30.209] [LIVE] litening..  baud96| msgs=852
+[19:19:32.206] [ALIVE] listening... | baud=9600 | msgs=852
+[19:19:40.211] [ALIVE] listening... | baud=960 | msgs=852[LIVE] listein..|bu=60|mg=5LIVE] lstnn..|bu=60|mg=5
+[19:19:40.211] [ALIVE] listening... | baud=9600 | msgs=852
+[19:19:42.215] [ALIVE]liseig.  ad90  ss82
+[19:19:44.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:19:48.224] AIE itnng..  ad|mg=5
+[19:19:48.227] Liening... | baud=9600 | msgs=852
+[19:19:50.231] [ALIVE] listening... | baud=9600 | msg=852
+[19:19:52.236] [ALIVE] listening... | baud=9600 | msgs=852
+[19:19:54.240] [ALIVE] listeing... | bad=60ss=852
+[19:20:00.220] [ALIVE] lstening..baud=9600 | msg=85A. bu=60|mg=[LIVE]litnig...  aud=9600 | msgs=52
+[19:20:02.214] [LIVE] listening... | baud=9600 | msgs=852
+[19:20:04.211] [ALIVE] listening... | baud=9600 | msgs=852
+[19:20:06.209] [ALIVE] listening... | baud9600 | msg=82
+[19:20:12.212] [V itnn..|bu=60|mg=5[AIVE] listenin... | baud=960 |mg=5
+[19:20:14.216] [ALIVE] listening... | baud=9600 | msgs=852
+[19:20:16.218] [LIVE] listenng.  ad90  ss82
+[19:20:20.226] Etening... | baud960 | mss=82
+[19:20:24.232] [IE itnn..|bu=60|mg=5
+[19:20:26.236] [ALIVE] listening... | baud=60 s2
+[19:20:26.239] [ALVE]litnig..| au=600 | msgs=852
+[19:20:34.213] [ALIVE] listning... | baud=9Altnn.. | bad90  ss82
+[19:20:40.208] [AIVE itnn u=60|mg=5LE] listening.. | bau=9600 |mss=5AIVE listening... | baud=9 ss82
+[19:20:42.210] |bau=900|msgs=852
+[19:20:46.214] [ALIVE] listening... | bau=9600 |g=82
+[19:20:46.214] Lsnng... | baud=9600  msg=82
+[19:20:48.217] [LV]ing..  ad90  ss82
+[19:20:50.221] [ALIVE] listening...  baud=900 g=5
+[19:20:52.225] []lseig.  ad90  ss852
+[19:20:54.229] [ALIVE] listening... | baud=9600 | msgs=82
+[19:20:56.233] [ALIVE] listening... | baud=9600 | msgs=852
+[19:21:00.240] [ALIVE] listen|ad9600  g=5[ALIVE] listening... | baud=9600 | msgs=852
+[19:21:02.227] [LIVE]listenng... | baud=9600 | msgs852
+[19:21:04.218] [LV]lseig.  ad90  ss82
+[19:21:06.213] [ALIVE] listeg.. | bud960|mg852
+[19:21:08.210] [VE] listening... | baud=900| msgs=852
+[19:21:10.209] [ALVE] ning... | baud=9600 | msgs=852
+[19:21:14.210] [E listenn..|bu=60|mg=5[ALIVE] listening... | baud=9600 | msgs=852
+[19:21:16.212] [ALIVE] listening... | baud=9600 | msgs=852
+[19:21:18.214] [E] liseig.  ad90  ss82
+[19:21:22.220] [ALIVE] listening... | baud=9600 | m
+[19:21:22.221] [AIVE] listening... | baud=60 | msgs=852
+[19:21:24.225] [ALIVE] lsteing.. | aud=9600 | msgs=852
+[19:21:26.229] [ALIVE] listening... | baud=9600 | msgs=852
+[19:21:30.236] [ALIVE] listening.. |bu=60|mg=5
+[19:21:30.238] [ALIVE] listening.. | baud=9600 | sgs852
+[19:21:32.243] [ALIVE] listening... | baud=9600 | msgs=852
+[19:21:36.218] [n.  ad=9600  5[E listening... | baud=9600 | msgs=852
+[19:21:44.209] [LIVE] listenn.. bad=960  mg2
+[19:21:46.210] [ALIVE] listening... | baud=9600 | msgs=852
+[19:21:50.213] [ALIVE] listening.. | au=60|mg=5
+[19:21:50.214] [AIV]lg.  ad90  ss82
+[19:21:52.216] [ALIVE] istenin...|bud=960 |msgs=82
+[19:21:54.220] [ALIVE] listening... | baud=9600 | msgs=852
+[19:21:56.223] [LIVE] isenn.. | baud=9600| msgs52
+[19:21:58.227] [ALIVE] listening.. | baud=60 | msgs=852
+[19:22:00.231] Alseig.. | bd960 | msgs=852
+[19:22:02.236] [ALIVE] listening..  baud=9600 | msgs852
+[19:22:06.233] [ALIVE] listening... | baud=9600 | sgs85[ALIVE] listening... | bud=90 | msgs852
+[19:22:10.218] [ALIVE] listening| bau=60|mg=5VE] listening... | baud=9600 | mss=852
+[19:22:14.214] nud=9600 | mgs82
+[19:22:16.212] [ALIVE] listening... | baud=9600 | msgs=852
+[19:22:22.215] [LV] itnn..|bu=60|mg=5Altnn..|bu=60|mg=5
+[19:22:22.215] [ALIVE] listening... | baud=9600 | msgs=852
+[19:22:24.553] g...  ad90 mg=5RX: GP27 | Baud: 9600 | Mode: SST | Msgs: 852
+[19:22:26.056] RX: GP27 | Baud: 9600 | Mode: SST | Msgs: 852
+[19:22:28.223] [AIVE] listenig... | au=9600 | msgs85
+[19:22:30.228] [ALIV] listenng...  bd9600 |mss=852
+[19:22:30.229] [ALIVE] listening... | baud=9600 | msgs=852
+[19:22:32.235] [LVE] lisening.. | bau=9600 msgs=852
+[19:22:32.351] RX: GP27 | Baud: 9600 | Mode: SST | Msgs: 852
+[19:22:33.560] RX: GP27 | Baud: 9600 | Mode: SST | Msgs: 852
+[19:22:34.237] [AIVE] litening.. | bau=9600 |msgs=85
+[19:22:38.234] [ALIE]lig..|bu=60|mg=5Vig. | baud=9600 | msgs=852
+[19:22:42.228] [AIVE] listening...  baud=960 |msgs=852[ALIVE] listening... | bau9600 | msgs=82
+[19:22:44.212] [LIV]lseing... | baud=9600 | msgs=852
+[19:22:54.212] [ALIVE] listening...| baud=960 |mg=5[ALIVE istning... | aud90|mg=5[ALIVE] listening... | baud=9600  msg=5[ALIVE] listeing. a=8|d9600 | msgs=852
+[19:22:56.215] L] listenig... |d=9600 |msgs=852
+[19:22:58.218] [ALIVE] listening... | baud=9600 | msgs=852
+[19:23:00.222] LE istein... | baud=9600  mg=82
+[19:23:06.234] [ALIVE] listening... | baud=960 g=852
+[19:23:07.617] Baud set to 1000000 (div=18.750)
+[19:23:12.222] [LIVE] listeng..| baud10000 | msgs852[ALIVE]listening.. | baud=100000 | sgs=852[LIVElistening... |bad=000  ss82
+[19:23:14.215] tn..| ad1000 ss
+[19:23:16.212] [L] listening... | aud=10000 | ss=5
+[19:23:18.209] [LIVE] listening... | aud=10000 | msgs=852
+[19:23:20.209] 00 | msgs=852
+[19:23:26.213] [ALIVE] listening... |baud=10|mg=5[ALIE] listenig u=0000|mg=5
+[19:23:26.214] ening... | baud=1000000 | msgs=852
+[19:23:28.217] [LIE] listening... | baud=1000000 | msgs=852
+[19:23:30.220] [ALIVE] listening... | baud=100000 | msgs=852
+[19:23:32.224] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:23:34.229] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:23:38.234] gbaud=1000|mg=5
+[19:23:38.236] ALIE] listeing... | baud=1000000 | sgs=852
+[19:23:40.240] [I]lseig.  000|mg=5
+[19:23:44.222] [ALVE] listnin..  au=10000 | msg=852[LIVE] lisenn..|bu=000  ss82
+[19:23:46.215] [AIVE] listening... | baud=1000000 | msgs=852
+[19:23:48.211] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:23:50.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:23:52.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:23:54.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:23:56.211] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:23:58.213] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:00.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:02.219] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:04.223] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:06.227] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:08.230] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:10.234] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:12.239] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:14.240] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:16.227] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:18.218] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:20.212] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:22.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:24.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:26.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:28.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:30.211] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:32.213] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:34.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:36.219] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:38.223] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:40.227] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:42.231] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:44.235] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:46.237] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:48.226] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:50.218] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:52.213] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:54.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:56.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:24:58.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:00.211] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:02.214] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:04.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:06.218] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:08.222] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:10.226] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:12.229] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:14.233] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:16.238] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:18.240] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:20.228] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:22.219] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:24.213] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:26.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:28.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:30.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:32.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:34.212] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:36.215] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:38.217] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:40.221] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:42.224] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:44.228] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:46.232] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:48.236] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:50.238] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:52.225] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:54.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:56.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:25:58.207] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:00.205] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:02.205] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:04.206] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:06.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:08.211] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:10.213] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:12.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:14.220] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:16.224] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:18.228] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:20.233] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:22.236] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:24.235] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:26.222] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:28.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:30.212] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:32.211] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:34.212] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:36.212] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:38.214] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:40.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:42.219] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:44.223] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:46.226] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:48.229] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:50.233] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:52.238] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:54.241] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:56.236] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:26:58.223] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:00.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:02.211] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:04.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:06.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:08.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:10.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:12.212] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:14.214] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:16.217] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:18.221] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:20.224] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:22.229] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:24.232] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:26.236] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:28.231] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:30.220] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:32.214] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:34.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:36.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:38.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:40.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:42.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:44.213] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:46.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:48.219] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:50.222] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:52.226] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:54.230] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:56.234] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:27:58.238] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:00.231] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:02.221] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:04.215] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:06.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:08.207] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:10.207] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:12.207] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:14.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:16.211] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:18.213] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:20.217] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:22.220] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:24.224] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:26.228] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:28.232] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:30.236] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:32.238] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:34.228] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:36.229] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:38.212] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:40.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:42.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:44.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:46.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:48.227] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:50.213] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:52.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:54.220] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:56.223] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:28:58.227] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:00.232] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:02.235] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:04.237] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:06.226] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:08.218] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:10.213] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:12.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:14.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:16.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:18.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:20.212] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:22.214] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:24.218] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:26.221] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:28.224] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:30.228] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:32.232] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:34.236] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:36.237] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:38.224] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:40.215] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:42.211] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:44.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:46.206] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:48.206] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:50.207] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:52.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:54.212] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:56.215] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:29:58.218] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:00.222] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:02.225] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:04.230] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:06.234] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:08.235] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:10.224] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:12.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:14.211] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:16.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:18.207] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:20.207] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:22.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:24.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:26.212] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:28.215] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:30.218] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:32.222] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:34.226] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:36.230] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:38.232] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:40.234] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:42.227] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:44.218] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:46.212] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:48.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:50.206] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:52.207] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:54.207] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:30:56.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:31:00.214] IE] listening... | baud=100000 | mgs=852
+[19:31:02.217] [ALIVE] listening... | baud=100000 | msgs=852
+[19:31:02.660] known: 'send brooo'
+[19:31:04.221] [LV]lseig.  ad10s82
+[19:31:06.224] [LV]lseigad=1000000 | msgs=82
+[19:31:08.228] [ALIVE] listenng... | baud=1000000 |msgs=852
+[19:31:10.232] [ALIVE] listening... | baud=1000000 | msgs852
+[19:31:12.233] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:31:12.485] Unknown 'send message'
+[19:31:16.216] [ itning..  ad1000|mg=5[ALIVE] listening... | baud=1000000 | msgs=852
+[19:31:18.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:31:20.207] tn..|bu=00mg=852
+[19:31:22.205] [AIVE] listening... | baud=100000 | msgs=852
+[19:31:26.205] [ALIVE] listening... | baud=10000|mg=5ALIVE] listening... | aud=1000000 | sg=82
+[19:31:28.207] [LIVE] istenin.. |baud=0000  ss82
+[19:31:32.213] [ALIVE] listening... | baud=100000 | mgs=852
+[19:31:32.216] n.. | baud=1000000| ss82
+[19:31:36.217] [ALIVE] listening... | baud=100000 | msgs=82
+[19:31:40.226] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:31:42.227] ALIVE] listening... | baud=1000000 | msgs=852
+[19:31:46.222] ].  ad1000|mg=5[LIVE] listening... | baud=1000000 | msgs=852
+[19:31:48.215] [ALIVE] listening... | baud=1000000 | msg=852
+[19:31:50.208] ad=100000 | msgs=852
+[19:31:52.203] .00  ss852
+[19:31:58.200] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:32:00.203] [ALIVE] listening... | baud=1000000 | msg=852
+[19:32:02.204] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:32:04.206] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:32:08.212] n. | baud1000|mg=5
+[19:32:10.216] 1 mg=5
+[19:32:12.220] LIVE] listenig... |d=100  ss
+[19:32:12.222] [ALIVE]liseig. | bu=000  ss82
+[19:32:16.227] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:32:16.227] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:32:18.221] ALIVE] listening... | baud=1000000 | msgs=852
+[19:32:22.206] [LIE]lseig.  ad1000|mg=5[ALIVE] listening... | baud=1000000 | msgs=852
+[19:32:24.203] [LIVE] listening... | baud=1000000 | msgs=852
+[19:32:26.201] [IE itnn..|bu=000 |msgs=852
+[19:32:28.201] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:32:30.201] [ALIVE] listening.. | bud=1000000 | msgs=852
+[19:32:32.203] n|baud=1000  ss82
+[19:32:36.207] [ALIVE] listening... | bau=100000 |mgs=5
+[19:32:36.207] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:32:38.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:32:40.213] [ALIVE] listnibu=000  ss82
+[19:32:44.219] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:32:46.223] [ALIVE] listening...  bau=000  ss82
+[19:32:48.227] [ALIV] litei=000|mg852
+[19:33:00.205] [ALIE] listenin... | bud100000 | msgs=852[ALIVE] listeing... | baud=100000  sgs82[ALlistenn..|bu=000  ss82
+[19:33:02.206] [VE] listning.. | aud=10 |mgs=852
+[19:33:06.208] AIVE]istening.. |baud=100000 | mss=852[ALVE] listenig u=000  mgs82
+[19:33:10.213] [ALIVE] listening... | baud=1000000 |msgs=852
+[19:33:12.216] [ALIVE listening..  baud=100000 | msgs=852
+[19:33:14.219] ALIVE] listening... | baud=1000000 | msgs=852
+[19:33:16.223] [ALIVE] listeing... | baud=1000000 | msgs=852
+[19:33:20.228] []lseig.  ads=852
+[19:33:22.229] [ALIVE] listeing... |baud=10msgs=852
+[19:33:24.218] g | baud=100000  g=852
+[19:33:28.201] [ALVE]lseig.  au=1000000 | mgs=852 g... | baud=1000000 | msgs=852
+[19:33:30.197] [LV]ig.  ad=000 | msgs=852
+[19:33:32.194] [ALIVE] ling..  au=000  ss82
+[19:33:34.194] [ALIVE] listening... |baud=000 852
+[19:33:36.195] [ALIVE] listening... | baud00  ss82
+[19:33:40.198] AElseig.  ad1000|mg=l  baud=1000000 | mss=5
+[19:33:44.204] [AIVE] lstening..|bu=0|mg=5
+[19:33:46.207] [LIE itnn..|bu=0|mg=5
+[19:33:48.210] [ALIVE] listnin..|baud=1000  ss8
+[19:33:48.212] [ALIVE] listening.. | bau=100000 | msg=852
+[19:33:52.217] [ALIVE] listening... | bau=1000|mg=
+[19:33:52.218] [IVE] listening... | baud=1000000 | msgs=852
+[19:33:54.220] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:33:56.212]  listening... | baud=1000000 | msgs=852
+[19:33:58.205] [ALIVE] listenin...  ad100sgs=82
+[19:34:02.200] [ALIE] listeng... | baud=1000000 | sgs=852I  u=000  ss52
+[19:34:04.199] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:34:10.202] [ALIVE] listening... | baud1000000  msgs=82
+[19:34:12.205] e | baud=100000 |msgs=852
+[19:34:14.207]  isting...  baud=000000  msgs=52
+[19:34:20.216] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:34:22.219] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:34:26.224] [ALIVE] listening.. |000|mg=5[Litnn..|bud=1000000 | msgs=852
+[19:34:28.214] [ itnn..|bu=000  ss82
+[19:34:30.207] [E] listening... | baud=1000000 | msgs=852
+[19:34:32.204] [IVE listeing...| aud=100000 | msgs=52
+[19:34:40.200] [ALIVE] listening... | baud=1000000| msgs=852
+[19:34:42.202] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:34:44.203] [Elseig.  ad1000| msgs=852
+[19:34:46.206] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:34:48.208] [ALIVE] litening... | bau00|mg=52
+[19:34:50.211] E listening... | baud=000000  mg
+[19:34:54.218] L] listening... | baud=1000000 | msgs=852
+[19:34:56.221] [LIVE] liste... | baud=1000000 | msgs=852
+[19:34:58.225] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:35:02.211] [ALIVE] listening.. | baud=1000000 | msg[ALIVE] listening... | baud=1000000 | mss=852
+[19:35:04.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:35:08.200] [ALIVE] listenig.. |bu=000000 | msgs=852Len..|bu=000  msgs=82
+[19:35:10.200] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:35:12.201] [tening... | baud=1000000 | msgs=852
+[19:35:14.202] [E] lisning.. | baud=1000000| ss82
+[19:35:16.204] [ALIE] listening... | baud=1000000 | msgs=52
+[19:35:18.206] [ALIVE] listenig...|bu=000  ss82
+[19:35:20.208] [LIE itnn..|bu=000  ss=52
+[19:35:26.216] [ALIVE listening... | bad=000000 | mss=5
+[19:35:28.219] [ALIVE] listening... | baud1000000g=5
+[19:35:30.223] [ALIVE] listenng..  ad1000|mg=5
+[19:35:30.223] [ALIVE] listening... | aud1000  ss82
+[19:35:36.205] [ALIVE] listening... | baud100mg=5AIeig.  ad1000|mg=5[ALIVE] listening... | baud=1000000 | msgs=852
+[19:35:38.201] ALIVE] listening... |bau=000  ss852
+[19:35:40.199] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:35:42.199] tg.  ad1000  sgs=852
+[19:35:44.201] []lseig.  ad1000|mg=5
+[19:35:46.200] ALIVE] litening..| baud=1000000 | msgs=852
+[19:35:48.202] [ALlsening.|bu=000  ss82
+[19:35:50.205] [Lsnn..|bu=000  sgs82
+[19:35:52.207] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:35:54.210] [ALIV listning.. | baud10000|mgs=852
+[19:35:58.215] [ALIVE] listening... | baud=1000000 | msg=52
+[19:36:00.218] [IE itnn..|bu=100000|mg=5
+[19:36:00.219] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:36:02.222] [ALIVE] lisening... | baud=1000000 | msgs=852
+[19:36:04.217] [LV]lseing..| aud=1000000 | msgs=852
+[19:36:08.202] [ALIVE] lig.  ad1000|mg=5L] listening... | baud=1000000 | msgs=852
+[19:36:10.198] [ALIVE] listening... | baud=100000  2
+[19:36:12.196] [ALIVE] listening... | baud=1000000| msgs=82
+[19:36:16.196] [ALIVE] listen.  ad1000|mg=5len..| baud=1000000 | msgs=852
+[19:36:20.199] [LIVE] liseig.  ad1000 | msgs852I listening... | baud=1000000 | msgs=852
+[19:36:22.201] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:36:24.204] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:36:26.206] [LIstening... |baud=1000000 |ms82
+[19:36:28.209] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:36:30.212] [Alseig.  ad1000| msgs=852
+[19:36:32.216] [AIV] istening.. | bau=1000 | msgs=852
+[19:36:34.219] [ALIVE] listening... | bud=100000 | msgs=852
+[19:36:36.214] [LVE itnng. bud1000| msgs=852
+[19:36:46.199] lig.  ad1000|mg=852
+[19:36:48.199] Astening... | baud=1000| msg
+[19:36:52.202] [Leig.  ad1000|mg=5[ALIE] i..|bu=0000 | msgs=852
+[19:36:54.204] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:36:56.207] [ALIVE] listening... | baud=1000000 | msgs=52
+[19:36:58.210] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:37:02.215] [LIVeig.. | aud1000 mg=5
+[19:37:02.216] [LV]lseig..  bu=0000  sg=852
+[19:37:04.219] A itnng...| bud=10000| msgs=852
+[19:37:08.224] [ALIVE] listening... | baud10000|mg=5
+[19:37:08.224] [LIVE] listen.| au=00000 | msg=82
+[19:37:12.209] [ALIVE] listening.. | ad1000|mg=5LIVE] listening... | bad=1000000 | msg=852
+[19:37:14.204] [LIVE] itnn..|bu=000  ss82
+[19:37:16.204] [ALIVE] listenig... | bud100000 | msgs=852
+[19:37:20.202] [ALIVE] listening... | baud=1000000 | msg=85L itnn..  aud=1000000 |mg=82
+[19:37:24.203] [LIVE] listening...  baud=1000000 | mgs852
+[19:37:26.206] A listening... | baud=1000000 | msgs=852
+[19:37:28.208] ning... | baud=1000000 | msgs=852
+[19:37:30.210] [IE itnng.. | baud=1000000 |mss82
+[19:37:32.213] [ALIVE] listening.ad1000000 | msgs=85
+[19:37:34.216] [LIVE] listening... | baud=1000000 | msgs=852
+[19:37:36.219] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:37:40.223] [ALIVE] listening... | bad=1000000 | msgs852
+[19:37:40.224] [ALIVE] listening... | baud=1000000 | mss=852
+[19:37:42.214] [ALIVE] ln..|bu=000  ss82
+[19:37:44.207] AIE] listnn..| ad1000|mg=5
+[19:37:48.200] listenng.| ad1000|mg=5[ALIV] listening... | bud1000000 | msgs=85
+[19:37:50.198] [LIE itnn..|bu=000  ss82
+[19:37:52.199] [LIVE] listening... | baud=1000000 | msgs=852
+[19:37:56.202] [ALIVE]listenin.. | baud=1000000 | msgs=52
+[19:37:58.203] [ALV] listening... | baud=1000000 |mg8ALIVE] litnig... | baud=100000|mss852
+[19:38:02.207] VE] istenig. bu=0000 |mg=5
+[19:38:02.208] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:38:06.213] [ALIVE] listening... |baud=100000  mgs82
+[19:38:08.216] [LIVE] listening... | baud=1000000 | msgs=852
+[19:38:10.219] A]lsening... | baud=1000000 | msgs=852
+[19:38:12.221] [snn..|bu10000 |mg=8
+[19:38:14.211] E] listening... | baud=1000000 | msgs=852
+[19:38:16.204] [ALVE] listning... | baud1000  ss82
+[19:38:18.200] [E listening.. | bad=1000000 | msgs=82
+[19:38:20.197] [ALIVE] listning...  bu=100 | mss=852
+[19:38:22.196] [IV]lstenig..| baud=1000 g8
+[19:38:24.196] [ALIVE] listening... | baud=1000000 | msgs=8
+[19:38:26.197] AE] listenin...| bad=0000 | msgs=85
+[19:38:28.198] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:38:30.200] VE]liseig.  ad1000|mg=5
+[19:38:32.202]  listening... | baud=1000000 | msgs=852
+[19:38:34.205] [ALIVE] listening... |baud=10000  s=82
+[19:38:38.211] b1000|mg=5[ALIVE]istening... | baud=1000000 | msgs=852
+[19:38:40.215] ] listening... | baud=1000000 | msgs=852
+[19:38:44.219] [ALIVE] listening...  baud=100000 |mg=5[ALIVE] listening... | baud=1000000 | msgs=852
+[19:38:46.210] [ALIVE] listenng.u=000  ss82
+[19:38:48.204] [ALVE] itnn..|bu=000  ss82
+[19:38:54.197]  0000 | msgs=852
+[19:39:00.200] AIVE] lstening... | aud1000| msgs=852
+[19:39:04.204] [AIE n..|bu=000  ss82[ALIVE] listening... | baud=1000000 | mss=85
+[19:39:08.210] [ALIVE] listening... | baud=1000000 | mgs=52
+[19:39:08.210] Alstenig... | baud=1000000 | msgs=852
+[19:39:10.213] tenin.. |baud=10000  82
+[19:39:12.216] [ALIVE] listenig... | bau=1000000 | msgs=82
+[19:39:14.219] [itening... | baud=1000000 | msgs=852
+[19:39:16.225] [ALIVE] listening... | baud=1000000 | msg2
+[19:39:18.217] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:39:20.207] [ALIVE] listening... | bud=000  ss82
+[19:39:22.201] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:39:26.195] [AIVE] listnig..  bad=100000 |msgs852[LIE itnn..|bu=000  mgs=852
+[19:39:28.195] [ALIVE] listening... | bud=000000 | msgs=852
+[19:39:32.196] [ALIV]litnig.. | baud=100000 | sg=5[LV]lseig.  ad1000|mg=52
+[19:39:34.198] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:39:36.200] [ALIVE] listnin..d1000|msgs=852
+[19:39:38.202] [ALIVE litnn..|bu000000 | msgs=82
+[19:39:42.207] [LIV] itnn..|bu00|mg=5
+[19:39:44.211] [ALIVE] listnin..|bu=000  ss82
+[19:39:46.214] AE isteni  u=000  ss852
+[19:39:48.217] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:39:52.202] ]iseig.  ad1000|mg=5[ALIVE] listening.. |baud=100000 |msgs=82
+[19:39:56.193] [ALIVE] listening... | baud=100000  ss=5ALIVE] isein..  au=1000000 | msgs=85
+[19:40:02.193] [ALIVE] listening...| bu=  msgs8[IE itnn..|bu=000  ss82[LIVE] listenng...  baud=00000 | msg=852
+[19:40:04.194] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:40:08.199] [ALIVE] isteing... | baud=100000 sgs=852Itening... | baud=1000000 | msgs=852
+[19:40:10.202] [ALVE]litnn.d=10000  ss82
+[19:40:12.205] [ALIVE] listenng..|bu=000  ss82
+[19:40:14.208] E] listeing... | baud=10000|mgs82
+[19:40:16.211] [AIVE itnn..|bu=000  ss82
+[19:40:18.214] [ALIVE] ln..|bu=000 mg=2
+[19:40:20.217] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:40:22.212] Lsteni|bu=000  ss852
+[19:40:24.202] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:40:26.195] ALIVE] listening... | baud=1000000 | msgs=852
+[19:40:28.192] [ALIE] itn|bu=000  ss82
+[19:40:34.192] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:40:35.514] R: GP27 | Baud: 1000000 | Mode: SST  Msgs:852
+[19:40:36.193] [LIVE] ise|bu=000  ss82
+[19:40:38.195] LVE] listein.. | baud=100000 |sgs=85
+[19:40:42.200] [ALIVE] listening... | =000  sg=52
+[19:40:44.485] Itening..|ba00|mg=5Unknown: 'send oh yeee'
+[19:40:46.205] [LVE listening... | baud=1000000 | msgs=852
+[19:40:48.208] ALIVE] listening... | baud=1000000| msgs=52
+[19:40:52.214] [ALIVE] listnng..|aud=000000 | msgs=852[LVE] listnn..|bu10|ms=852
+[19:40:54.213] [AIV] liste.|bu=1000000 | msgs=852
+[19:40:56.209] [ALIE] listei...  baud=100000 | msgs=852
+[19:40:58.205] [V]stnig..|bu=0000|mss852
+[19:41:00.202] [ALIVE] listening... | baud=1000000 | mgs=852
+[19:41:02.201] [ALIVE] lstening... | baud=100000 | msgs=852
+[19:41:04.200] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:41:06.200] [LIE lstnn... | baud=100000| msgs=852
+[19:41:14.202] [ALlseig.  ad1000|mg=5
+[19:41:14.202] E liseig.  aud=1000000 | msgs=852
+[19:41:16.204] [E] listening.. | bad=000| msgs=852
+[19:41:18.205] AVE] listening... | baud=100000 | sgs82
+[19:41:20.206] ALIVE] listening...  bad=000000| ss=852
+[19:41:22.207] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:41:28.210] [AIVE]liseig.  ad=100000|mgs85
+[19:41:30.211] [ALIVE] listening... | bud=0|mgs=852
+[19:41:32.212] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:41:34.214] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:41:36.214] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:41:38.215] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:41:50.207] Alistening... | bau=100000 |mg85I] listening... |bau=000|mg=5[ALIVE] listening...| au=000|mg=5[ALIVE] listening...  baud=1000000  mg=5[ALIVE] listening... | baud=1000000| mg[LIVE] lisnng... |bau=00000| msgs=852
+[19:41:52.201] [LE itnn..|bu=000  ss82
+[19:41:54.202] A.|bu=000  ss82
+[19:41:58.202] Atig.  ad100|mg=5[Lsig... | baud=1000000 | msgs=852
+[19:42:00.197] [ALIVE liseig.  ad=1000000 | msgs=852
+[19:42:06.193] AIV listeing...| baud1000000| msgs852
+[19:42:08.192] [ALIVE] listening... | baud=1000000 | msgs=852
+[19:42:10.191] [LIVE] listening... | bud=100000 | msgs=852
+[19:42:12.191]  lseig... | baud=1000000 | msgs=852
+[19:42:14.190] [ALIVE]liseig.  ad100g=52
+[19:42:14.636] [RX #85] mesasege
+[19:42:16.192] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:42:18.193] [ALIVE] litenn.d1000|mg=5
+[19:42:22.192] AVE] isenng... baud=100000  msgs=83[ALIVE] listening... | baud=1000000 | msgs=853
+[19:42:28.195] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:42:34.199] [Elseig.  ad0|mgs=853
+[19:42:42.201] Ltening... | baud=1000000 | msgs=853
+[19:42:44.201] AE] listning.  au=000 | msgs=853
+[19:42:46.205] [AIVE itnn..| baud1 ss83
+[19:42:48.200] [LIlistening... | baud=1000000 | msgs=853
+[19:42:52.202] [ALIVE] lisening.. |b000|mg=5A itening bud000  ss83
+[19:42:54.203] [LV] iteing... | baud=1000000 | msgs=853
+[19:42:56.201] [ALIVE] listening... | baud=1000000 | msg=853
+[19:43:04.198] [ALIVE] listening... | baud=0  [ALIVE] listenin.. |bud1000| msgs=853
+[19:43:08.199] [ALIVE] listning..| ad1000 |mss83[LIVE] listenin.. | baud=10000| sg=53
+[19:43:10.199] Aing... | baud=1000000 | mgs=853
+[19:43:12.198] IVE] listening... | baud=1000000 | msg=853
+[19:43:14.198] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:43:18.198] []lstening.  u=0 ss=53A] listening... | baud=1000000 | msgs=853
+[19:43:24.198] IVE] listening... | baud=1000000 | msgs=853
+[19:43:36.197] [LIE isenn...  bud1000 | msg=853
+[19:43:38.197] [ALIVE] isenng.. | baud=100000 g=5
+[19:43:40.197] [ALIVE li..|bu=000  ss83
+[19:43:42.197] [A itnn..|bu=000  ss83
+[19:43:44.197] IVE] listening... | baud=1000000 | msg=853
+[19:43:46.197] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:43:48.197] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:43:50.197] IVE] listening... | baud=1000000 | msgs=853
+[19:43:52.196] [LIVE] litnn..|bu=000  ss83
+[19:43:54.197] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:43:56.196] [ALIE]litning.. 1000|mg=53
+[19:43:58.196] [ALIVE] listening... | baud=100000 sgs=853
+[19:44:00.196] []lseig... |bu=000  ss83
+[19:44:02.196] [ALIVE] listening.. | baud=1000  ss83
+[19:44:04.196] [LIVE] listening... | baud=1000000 | msgs=853
+[19:44:06.196] [LIE itnn..|bu=000  ss83
+[19:44:10.194] [ALIVE] listening... | baud=100000 | ss83ALIV] listening.. |baud=1000000 | msgs=853
+[19:44:12.193] [ALIVEtnn..|bu=000  ss83
+[19:44:14.193] [LIVE] lstnn..|bu=000  s
+[19:44:16.192] [LIVE] lstning... | baud=100000| msg=83
+[19:44:18.192] ALIVE] listening... | baud=1000000 | msgs=853
+[19:44:22.191] ALVE] litni..  baud10000|mg=5[ALIVE] listening... | baud=1000000 | msgs=853
+[19:44:24.191] IVE listein...| bau=0000 | msgs=853
+[19:44:26.192] [LIVE] litnn.. | baud=1000000 | msgs=853
+[19:44:28.191] [ seig... | baud=1000000 | msgs=853
+[19:44:34.194] [LVE] litenn..  bud100000 | msgs853
+[19:44:36.193] [LIVE]litnn.. | baud=1000000 | mgs=853
+[19:44:38.193] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:44:38.962] RX: GP27 | Baud: 1000000 | Mode: SST | Msgs: 853
+[19:44:40.196] [LIVE] listening... | baud=1000000 | sgs=853
+[19:44:40.451] RX: GP27 | Baud: 1000000 | Mode: SST | Msgs: 853
+[19:44:42.195] [LVE]listeing...  bad=100000| msgs853
+[19:44:44.195] n0000 | msgs=85
+[19:44:46.195] Aseig.. | baud=000000  mgs83
+[19:44:48.196] [ALIE] listening..  ad1|mgs=85
+[19:44:50.196] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:44:52.196] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:44:54.196] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:44:56.197] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:44:58.197] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:45:00.197] [ALIVE listenng | baud=1000000  msgs=53
+[19:45:06.196] e u=000  ss83
+[19:45:08.196] t bu=000  ss=853
+[19:45:10.197] .ud10000|mss853
+[19:45:12.196] [ALIVE] listening...| bu=0 ss83
+[19:45:14.196] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:45:18.196] [ALIE] listening..ud=10000|mg=5AE listening... | baud=1000000 | msgs=853
+[19:45:22.196] [ALIVE] litening... d1000|mg=5[ALIVE] listening... | baud=000 | mss83
+[19:45:24.196] [IE itnn..|bu=000  ss83
+[19:45:26.196] [ALIE] itnn..|bu=000  ss83
+[19:45:28.196] V] listnig. | baud=1000000 | msgs=853
+[19:45:34.196] [ALIE] itening... |bu=000  ss83
+[19:45:36.195] [ALIVE] listening... | baud=1000000 | msg=53
+[19:45:38.195] [ALIVE] listening... | bad=10000 sg=83
+[19:45:40.195]  ing... | baud=1000000 | msgs=853
+[19:45:42.196] [ALIVE listening... | baud10000 | msgs=853
+[19:45:44.195] [LV]l.|bu=1000000 | msgs=853
+[19:45:46.195] [LVE]listening... | baud10000  ss83
+[19:45:48.195] [LIVE] listenin.. | bud=100000 | msgs=853
+[19:45:52.195] AIE itnn..|bu=000 =5AE] listening... | baud=1000000 | msgs=853
+[19:45:54.195] [LIVE] lstn ad000  msgs=5
+[19:45:56.195] [ALIE] istening.. |ba=000  sgs=853
+[19:45:58.195] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:46:00.195] AIVE] lsteig.u=000  ss83
+[19:46:02.195] [ALIVE] istning.. | baud=1000000 | msgs=853
+[19:46:06.196] Leing... |bu=000 msg=83[ALIVE] listening... | baud=1000000 | msgs=853
+[19:46:12.195] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:46:14.195] [LIVE] leig..| au=1000  mgs=853
+[19:46:16.195] [ALIVE] listnng.  ad1000| msgs853
+[19:46:18.196] AVE] listenig... |bau=1000000 | msg=853
+[19:46:28.195] [ALIVE] lisening... | baud=100000 | mgs=853lnn..|bu=000  ss83
+[19:46:30.194] L] listenng.. | bad=000000| sgs=853
+[19:46:32.194] ii..|bu=000  ss83
+[19:46:34.194] [ALIitnn..|bu=000  ss83
+[19:46:36.198] IVE] listening... | bau=1000  msgs83
+[19:46:40.194] Ltnn... | b0000 | msgs=853[ALIVE] listening... | baud=1000000 | msgs=853
+[19:46:44.194] Ebu=100000|mg=5[ALIVE] listening... | baud=1000000 | msgs=853
+[19:46:46.195] [ALIVE] listening... | baud=100000 | msgs=53
+[19:46:48.195] [LIE itnn..|bu=000  ss83
+[19:46:50.194] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:47:00.194] [ALIVE] listening...| baud=100000 | mgs=853[ALIVE]lise.| bau=1000|mg=5[ALIVE] lisn..|bu=0000|mgs83[VE] lisening..  ad1000000 | mgs=853[ALIVE] listeing... | au=00000  ss83
+[19:47:04.194] [ALIVE] listenin... | bud=100000|mg=5[IV]leig.  ad1000|mg=5
+[19:47:06.194] [ALIVE] listening.. | ba100000 |msgs=853
+[19:47:18.194] [ALIVE] listening... | baud=000000 |msgs=85[]lstening..|bad1000|mg=5[ALIVE] listng... | baud1000000 | msg=853[ALIVE] listening... | baud=1000000 | msgs=853
+[19:47:20.193] [lsng.. | ad1000  ss83
+[19:47:28.193] [ALIVE]lisening...  ad1000|mg=5ALIVE] listening... | baud=1000000 | msgs=853
+[19:47:40.194] [LIVE] listening... | baud=1000000 | msgs=853
+[19:47:44.193] [Elseig.  ad1000|mg=5[ALIVE] listening... | baud=1000000 | msgs=853
+[19:47:48.193] [ALIVE] listening... | baud=100|mg=5..| 00000  msgs=853
+[19:47:50.196] ]listning... | baud=100000 |msgs=853
+[19:47:54.193] [lseig. | baud1000|mg=5i.|b00|mg=5
+[19:47:56.193] [ALIVE] lsteig.  ad1000|mg
+[19:47:58.193] ng  aud=100000 | sg=853
+[19:48:02.193] ALIVE] listening... | baud=100000 | mgs[ALIV] listening...  bau=100000 | mss83
+[19:48:06.193] [ALIVE listening.  ad1|mg=5 au=1000000 | msgs=853
+[19:48:14.193] [ALIVE] listening... | baud=1000000 | msgs=853
+[19:48:18.192] [ieig.  ad1000|mg=5[ALIE] itnn..|bu=000  ss83
+[19:48:22.193] [LIVE] listeing...  baud=100000  msgs=8300  ss=853
+[19:48:24.192]   mss=5
+[19:48:26.192] AIE]ise=0 =3
+[19:48:28.191] sng. | baud=1000000 | msgs=853
+[19:48:32.191] Iig.  ad1000|mg=5[ALIVE] listening... | baud=1000000 | msgs=853
+[19:48:38.189] tg  bau=1000  gs=83[]seig.  ad1000|mg=5[]lsen..=000  ss83
+[19:48:40.189] ALIVE] listening... | baud=1000000 | msgs=853
+[19:48:42.189] ALVE itnn..|bu=000  ss83
+[19:48:46.188] [LVE] listenng...  bud10000  mg=5A] istening. | aud=10000 | msgs=853
+[19:48:48.189] [ALIVE] listenin d1000|ss=853
+[19:48:50.190] Eg... | au=1000  mg=53
+[19:48:52.190] [Aleig.  ad100000  sgs=853
+[19:48:54.189] [LIVE] listening... | baud=1000000 | msgs=853
+[19:49:00.190]  listenig... |bad=00000 |mgs8[V]lseig.  ad1000|mg=5[Litnn..|bad100000 |mgs=853

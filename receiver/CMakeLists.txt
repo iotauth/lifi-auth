@@ -48,6 +48,7 @@ target_link_libraries(flash_receiver PRIVATE
   mbedcrypto           # <-- mbedTLS crypto objs
   OpenSSL::Crypto
   ${CURSES_LIBRARIES}
+  pthread
 )
 
 # C standard & warnings
