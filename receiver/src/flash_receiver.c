@@ -382,7 +382,7 @@ typedef struct {
 #ifndef DASHBOARD_HOST
 #define DASHBOARD_HOST "172.20.10.2"
 #endif
-#define DASHBOARD_PORT 5000
+#define DASHBOARD_PORT 8420
 
 typedef struct {
     char     key_id_hex[SESSION_KEY_ID_SIZE * 2 + 1];

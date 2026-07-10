@@ -144,10 +144,13 @@ socket.on('rx_frame_event', function (data) {
 socket.on('wifi_log_message', function(msg) {
     var d = msg.data;
     var cls = '';
-    if (d.includes('Error') || d.includes('Failed')) cls = 'log-error';
+    if (d.includes('Error') || d.includes('Failed') || d.includes('not reachable') || d.includes('Lost connection')) cls = 'log-error';
     else if (d.startsWith('[Pi4]')) cls = 'log-success';
     _wifiLog(d, cls);
-    _wifiAliveTouch();
+    // Only genuine traffic FROM the Pi4 (frame-decrypted lines, prefixed [Pi4])
+    // counts as "alive" — connection-status lines (connected/not reachable/lost)
+    // are local dashboard bookkeeping and must not flip the status to RECEIVING.
+    if (d.startsWith('[Pi4]')) _wifiAliveTouch();
 });
 
 // Log Handler

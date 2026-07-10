@@ -21,6 +21,6 @@ pip install -r "$REQ_PATH" > /dev/null
 
 # Run App
 echo "Starting Sender Dashboard..."
-echo "Open your browser to: http://localhost:5000"
+echo "Open your browser to: http://localhost:8420"
 echo "------------------------------------------------"
 python "$APP_PATH"

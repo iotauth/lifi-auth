@@ -41,23 +41,64 @@ def _load_mac_key() -> bytes | None:
 
 _mac_key = _load_mac_key()
 
-# ── Pi4 host (for challenge requests) ─────────────────────────────────────────
-# Parsed from receiver.config auth.ip.address at startup
-def _load_pi4_host() -> str:
+# ── Pi4 host (for challenge requests + WiFi peer discovery) ───────────────────
+# The Pi4 only appears over WiFi and its DHCP-assigned IP changes between
+# hotspot sessions, so we never hardcode it. PI4_HOST/PI4_USER are seeded once
+# from the 'pi4' alias in ~/.ssh/config at startup, then kept live by
+# _detect_ssh_peer() below, which re-checks on every port scan.
+def _load_pi4_host() -> tuple[str, str]:
     try:
-        with open(os.path.join(os.path.dirname(os.path.dirname(base_dir)), 'receiver.config')) as f:
-            for line in f:
-                if line.startswith('auth.ip.address='):
-                    return line.strip().split('=', 1)[1]
-    except Exception:
-        pass
-    return '172.20.10.3'
+        out = subprocess.run(['ssh', '-G', 'pi4'], capture_output=True, text=True, timeout=3)
+        cfg = dict(line.split(' ', 1) for line in out.stdout.splitlines() if ' ' in line)
+        host = cfg.get('hostname')
+        user = cfg.get('user', 'josem')
+        if host and host != 'pi4':
+            print(f'[PI4] Seeded from ~/.ssh/config alias "pi4": {user}@{host}')
+            return host, user
+    except Exception as e:
+        print(f'[PI4] Warning: could not resolve ssh alias "pi4": {e}')
+    # No receiver.config fallback: its auth.ip.address is the Auth server address
+    # (should point at the laptop), not necessarily the Pi4 — using it here would
+    # silently pick up the wrong host if that field is ever corrected.
+    print('[PI4] Warning: could not resolve Pi4 host — add a "pi4" entry to ~/.ssh/config')
+    return '', 'josem'
 
-PI4_HOST           = _load_pi4_host()
+PI4_HOST, PI4_USER = _load_pi4_host()
 PI4_CHALLENGE_PORT = 5001
 
-# ── Hostname (shown as virtual WiFi port in dropdowns) ────────────────────────
-_HOSTNAME = socket.gethostname()
+def _detect_ssh_peer() -> str | None:
+    """Live-checks for a currently-open outbound SSH session (port 22) using `ss`.
+    This is what "scan" actually queries now — not a cached ~/.ssh/config value —
+    so the Pi4 only shows up as a WiFi peer while you actually have a terminal
+    ssh'd into it, using that session's real current IP."""
+    try:
+        out = subprocess.run(['ss', '-tn', 'state', 'established'],
+                              capture_output=True, text=True, timeout=2)
+        for line in out.stdout.splitlines()[1:]:
+            parts = line.split()
+            if len(parts) < 4:
+                continue
+            ip, _, port = parts[3].rpartition(':')
+            if port == '22' and ip:
+                return ip
+    except Exception:
+        pass
+    return None
+
+def _pi4_reachable(timeout: float = 1.5) -> bool:
+    """TCP probe to the Pi4's challenge port — the receiver process must actually
+    be up and listening, not just the host powered on (rules out ICMP-only checks)."""
+    if not PI4_HOST:
+        return False
+    try:
+        with socket.create_connection((PI4_HOST, PI4_CHALLENGE_PORT), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+def _is_wifi_peer(port: str) -> bool:
+    """Any RX2 port string that isn't a real serial device path is the Pi4 WiFi peer."""
+    return bool(port) and not port.startswith('/dev/')
 
 # ── Provisioner path ──────────────────────────────────────────────────────────
 _PROVISIONER = os.path.join(os.path.dirname(os.path.dirname(base_dir)),
@@ -192,6 +233,24 @@ def init_rx_serial():
     print('[RX] No receiver Pico found on startup')
     return False
 
+def pi4_health_monitor():
+    """Keeps rx2_status honest for the WiFi peer entry: the dashboard can't detect
+    the Pi4 losing power on its own (it only pushes frames in), so poll the
+    challenge port periodically and flip status the moment it stops answering."""
+    global RX2_PORT
+    last_reachable = None
+    while running:
+        if _is_wifi_peer(RX2_PORT):
+            reachable = _pi4_reachable()
+            if reachable != last_reachable:
+                socketio.emit('rx2_status', {'connected': reachable, 'port': RX2_PORT})
+                if not reachable:
+                    socketio.emit('wifi_log_message', {'data': f'[RX2] Lost connection to Pi4 at {PI4_HOST}'})
+                last_reachable = reachable
+        else:
+            last_reachable = None
+        time.sleep(5)
+
 # ── Test state ────────────────────────────────────────────────────────────────
 current_rf_label   = ''
 current_dist_label = ''
@@ -271,7 +330,7 @@ def on_connect():
         emit('rx_status', {'connected': False, 'port': ''})
     if rx2_serial_conn and rx2_serial_conn.is_open:
         emit('rx2_status', {'connected': True, 'port': RX2_PORT})
-    elif RX2_PORT and RX2_PORT == _HOSTNAME:
+    elif _is_wifi_peer(RX2_PORT) and _pi4_reachable():
         emit('rx2_status', {'connected': True, 'port': RX2_PORT})
     else:
         emit('rx2_status', {'connected': False, 'port': ''})
@@ -446,10 +505,17 @@ def _serial_ports():
     return sorted(p.device for p in serial.tools.list_ports.comports())
 
 def _all_ports():
-    """Serial ports plus the local hostname as a virtual WiFi peer — RX2 only."""
+    """Serial ports plus the Pi4 as a virtual WiFi peer — RX2 only. The Pi4 entry
+    only appears while an SSH session to it is actually open right now (see
+    _detect_ssh_peer) — no cached IP, no entry when nothing is ssh'd in."""
+    global PI4_HOST
     ports = _serial_ports()
-    if _HOSTNAME and _HOSTNAME not in ports:
-        ports.append(_HOSTNAME)
+    ip = _detect_ssh_peer()
+    if ip:
+        PI4_HOST = ip
+        label = f'{PI4_USER}@{ip}'
+        if label not in ports:
+            ports.append(label)
     return ports
 
 @socketio.on('list_ports')
@@ -466,7 +532,7 @@ def handle_connect_to_port(message):
     port = message.get('port', '').strip()
     if not port:
         return
-    if port == _HOSTNAME:
+    if _is_wifi_peer(port):
         emit('log_message', {'data': 'Error: WiFi peer can only be assigned to RX PORT 2'})
         return
     # If RX is already on this port, disconnect it first
@@ -551,7 +617,7 @@ def handle_rx_connect(message):
     port = message.get('port', '').strip()
     if not port:
         return
-    if port == _HOSTNAME:
+    if _is_wifi_peer(port):
         emit('rx_log_message', {'data': 'Error: WiFi peer can only be assigned to RX PORT 2'})
         return
     # If TX is already on this port, disconnect it first
@@ -615,7 +681,7 @@ def handle_rx2_list_ports():
 
 @socketio.on('rx2_connect_to_port')
 def handle_rx2_connect(message):
-    global rx2_serial_conn, RX2_PORT, serial_conn, TX_PORT, rx_serial_conn, RX_PORT
+    global rx2_serial_conn, RX2_PORT, serial_conn, TX_PORT, rx_serial_conn, RX_PORT, PI4_HOST
     port = message.get('port', '').strip()
     if not port:
         return
@@ -629,8 +695,16 @@ def handle_rx2_connect(message):
                     if old.is_open: old.close()
                 except: pass
         RX2_PORT = port
-        emit('wifi_log_message', {'data': f'[RX2] WiFi peer: {port}'})
-        emit('rx2_status', {'connected': True, 'port': port})
+        # Use the IP baked into the selected label, not a possibly-stale global —
+        # it came straight from the scan that populated this dropdown entry.
+        if '@' in port:
+            PI4_HOST = port.rsplit('@', 1)[-1]
+        if _pi4_reachable():
+            emit('wifi_log_message', {'data': f'[RX2] WiFi peer connected: {port}'})
+            emit('rx2_status', {'connected': True, 'port': port})
+        else:
+            emit('wifi_log_message', {'data': f'[RX2] Pi4 not reachable at {PI4_HOST}:{PI4_CHALLENGE_PORT} — check it is powered on and the receiver is running'})
+            emit('rx2_status', {'connected': False, 'port': port})
         return
     with serial_lock:
         if serial_conn and TX_PORT == port:
@@ -747,6 +821,7 @@ if __name__ == '__main__':
     threading.Thread(target=read_from_serial,     daemon=True).start()
     threading.Thread(target=read_from_rx_serial,  daemon=True).start()
     threading.Thread(target=read_from_rx2_serial, daemon=True).start()
+    threading.Thread(target=pi4_health_monitor,   daemon=True).start()
 
-    print('Starting server on http://0.0.0.0:5000')
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
+    print('Starting server on http://0.0.0.0:8420')
+    socketio.run(app, host='0.0.0.0', port=8420, debug=False, allow_unsafe_werkzeug=True)

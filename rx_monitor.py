@@ -9,7 +9,7 @@ except ImportError:
     print('[rx_monitor] WARNING: "requests" not installed — results won\'t reach dashboard. Run: pip install requests')
 
 PORT        = '/dev/ttyACM0'  # Adjust as needed for your system
-FLASK_URL   = 'http://localhost:5000/test_result'
+FLASK_URL   = 'http://localhost:8420/test_result'
 
 # ── Log file setup ────────────────────────────────────────────────────────────
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_results')
