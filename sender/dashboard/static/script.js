@@ -9,114 +9,145 @@ socket.on('disconnect', function () {
     updateStatus('DISCONNECTED', false);
 });
 
-// ── RX Source ─────────────────────────────────────────────────────────────────
-var _rxSources = ['uart', 'wifi', 'both', 'none'];
-
-function setRxSource(src) {
-    socket.emit('set_rx_source', { source: src });
-}
-
+// ── RX Source (auto-managed by backend, drives ACTIVE labels only) ────────────
 socket.on('rx_source_changed', function (data) {
     var src = data.source || 'uart';
-    var label = document.getElementById('rx-source-label');
-    if (label) label.textContent = src;
-
-    _rxSources.forEach(function (s) {
-        var btn = document.getElementById('btn-src-' + s);
-        if (!btn) return;
-        if (s === src) {
-            btn.classList.add('active');
-            btn.style.opacity = '1';
-        } else {
-            btn.classList.remove('active');
-            btn.style.opacity = '0.45';
-        }
-    });
+    var uartActive = (src === 'uart' || src === 'both');
+    var wifiActive = (src === 'wifi' || src === 'both');
+    var rxSrcEl  = document.getElementById('rx-active-src');
+    var rx2SrcEl = document.getElementById('rx2-active-src');
+    if (rxSrcEl)  rxSrcEl.style.color  = uartActive ? 'var(--accent-green)' : '#555';
+    if (rx2SrcEl) rx2SrcEl.style.color = wifiActive ? 'var(--accent-green)' : '#555';
 
     if (data.auto) {
-        var box = document.getElementById('rx-log-console');
-        if (box) {
-            var el = document.createElement('div');
-            el.className = 'log-success';
-            el.textContent = '✓ Pi4 authenticated — RX source auto-switched to: ' + src;
-            box.appendChild(el);
-            box.scrollTop = box.scrollHeight;
-        }
+        _wifiLog('✓ Pi4 authenticated — source: ' + src, 'log-success');
     }
 });
 
 // ── SST Security ──────────────────────────────────────────────────────────────
+function setUartAuthStatus(text, color) {
+    var el = document.getElementById('sst-uart-auth-status');
+    if (el) { el.textContent = text; el.style.color = color || '#fff'; }
+}
+
+function setWifiAuthStatus(text, color) {
+    var el = document.getElementById('sst-wifi-auth-status');
+    if (el) { el.textContent = text; el.style.color = color || '#fff'; }
+}
+
+function _setNewKeyBtns(label, disabled) {
+    ['btn-new-key', 'btn-new-key-wifi'].forEach(function(id) {
+        var b = document.getElementById(id);
+        if (b) { b.textContent = label; b.disabled = disabled; }
+    });
+}
+
 function provisionNewKey() {
-    var btn = document.getElementById('btn-new-key');
-    if (btn) { btn.textContent = '⟳ WORKING...'; btn.disabled = true; }
-    setAuthStatus('provisioning...', '#ffaa00');
+    _setNewKeyBtns('⟳ WORKING...', true);
+    setUartAuthStatus('provisioning...', '#ffaa00');
     socket.emit('provision_new_key');
 }
 
 socket.on('key_provisioned', function (data) {
-    var btn = document.getElementById('btn-new-key');
-    if (btn) { btn.textContent = '⟳ NEW KEY'; btn.disabled = false; }
+    _setNewKeyBtns('⟳ NEW KEY', false);
     if (data.status === 'ok') {
-        setAuthStatus('new key active', 'var(--accent-green)');
+        setUartAuthStatus('new key active', 'var(--accent-green)');
     } else {
-        setAuthStatus('provisioning failed', 'var(--accent-red)');
+        setUartAuthStatus('provisioning failed', 'var(--accent-red)');
     }
 });
 
 function challengePi4() {
     var btn = document.getElementById('btn-challenge');
     if (btn) { btn.textContent = '⚡ VERIFYING...'; btn.disabled = true; }
-    setAuthStatus('challenging Pi4...', '#ffaa00');
+    setWifiAuthStatus('challenging Pi4...', '#ffaa00');
     socket.emit('challenge_pi4');
 }
 
 socket.on('challenge_result', function (data) {
     var btn = document.getElementById('btn-challenge');
     if (btn) { btn.textContent = '⚡ VERIFY Pi4'; btn.disabled = false; }
-
-    var box = document.getElementById('rx-log-console');
-    if (box) {
-        var el = document.createElement('div');
-        if (data.status === 'verified') {
-            el.className = 'log-success';
-            setAuthStatus('VERIFIED ✓', 'var(--accent-green)');
-        } else {
-            el.className = 'log-error';
-            setAuthStatus('FAILED ✗', 'var(--accent-red)');
-        }
-        el.textContent = '[CHALLENGE] ' + data.msg;
-        box.appendChild(el);
-        box.scrollTop = box.scrollHeight;
+    if (data.status === 'verified') {
+        setWifiAuthStatus('VERIFIED ✓', 'var(--accent-green)');
+    } else {
+        setWifiAuthStatus('FAILED ✗', 'var(--accent-red)');
     }
+    _wifiLog('[CHALLENGE] ' + data.msg, data.status === 'verified' ? 'log-success' : 'log-error');
 });
 
-function setAuthStatus(text, color) {
-    var el = document.getElementById('sst-auth-status');
-    if (el) { el.textContent = text; el.style.color = color || '#fff'; }
+// ── WiFi log helpers & alive tracking ────────────────────────────────────────
+var wifiLastAlive  = 0;
+var wifiAliveTimer = null;
+var wifiMsgCount   = 0;
+
+function _wifiLog(text, cssClass) {
+    var box = document.getElementById('wifi-log-console');
+    if (!box) return;
+    var el = document.createElement('div');
+    el.className = cssClass || '';
+    el.textContent = text;
+    box.appendChild(el);
+    box.scrollTop = box.scrollHeight;
+}
+
+function _wifiAliveTouch() {
+    wifiLastAlive = Date.now();
+    var dot = document.getElementById('wifi-live-dot');
+    if (dot) {
+        dot.className = 'live-dot-off';
+        void dot.offsetWidth;
+        dot.className = 'live-dot-on';
+    }
+    var ageEl = document.getElementById('wifi-live-age');
+    if (ageEl) ageEl.textContent = '0s ago';
+    var statusEl = document.getElementById('wifi-conn-status');
+    if (statusEl) {
+        statusEl.textContent = 'RECEIVING';
+        statusEl.classList.remove('offline');
+        statusEl.style.color = 'var(--accent-green)';
+    }
+    if (!wifiAliveTimer) {
+        wifiAliveTimer = setInterval(function() {
+            var ageEl = document.getElementById('wifi-live-age');
+            if (!ageEl || wifiLastAlive === 0) return;
+            var secs = Math.round((Date.now() - wifiLastAlive) / 1000);
+            ageEl.textContent = secs + 's ago';
+            if (secs > 10) {
+                var dot = document.getElementById('wifi-live-dot');
+                if (dot) dot.className = 'live-dot-off';
+                var statusEl = document.getElementById('wifi-conn-status');
+                if (statusEl) {
+                    statusEl.textContent = 'NO FRAMES';
+                    statusEl.classList.add('offline');
+                    statusEl.style.color = 'var(--accent-red)';
+                }
+            }
+        }, 1000);
+    }
 }
 
 // ── Pi4 WiFi frame events ─────────────────────────────────────────────────────
 socket.on('rx_frame_event', function (data) {
-    var box = document.getElementById('rx-log-console');
-    if (!box) return;
-
-    var el = document.createElement('div');
-    var ok = (data.event === 'frame_decrypted');
-    el.className = ok ? 'log-success' : 'log-error';
-
-    var src     = data.source === 'pi4' ? '[WiFi]' : '[UART]';
+    var ok      = (data.event === 'frame_decrypted');
     var keyStr  = (data.key_id || '?').slice(0, 8);
     var preview = data.payload_preview || '';
     var stats   = data.stats || {};
     var statStr = stats.total ? ('  ' + stats.ok + '/' + stats.total + ' ok') : '';
+    _wifiLog('[WiFi] key=' + keyStr + '  ' + preview + statStr, ok ? 'log-success' : 'log-error');
 
-    el.textContent = src + ' key=' + keyStr + '  ' + preview + statStr;
-    box.appendChild(el);
-    box.scrollTop = box.scrollHeight;
+    wifiMsgCount++;
+    var msgEl = document.getElementById('wifi-live-msgs');
+    if (msgEl) msgEl.textContent = stats.total || wifiMsgCount;
+    _wifiAliveTouch();
+});
 
-    // live MSGS counter
-    var msgEl = document.getElementById('rx-live-msgs');
-    if (msgEl && stats.total) msgEl.textContent = stats.total;
+socket.on('wifi_log_message', function(msg) {
+    var d = msg.data;
+    var cls = '';
+    if (d.includes('Error') || d.includes('Failed')) cls = 'log-error';
+    else if (d.startsWith('[Pi4]')) cls = 'log-success';
+    _wifiLog(d, cls);
+    _wifiAliveTouch();
 });
 
 // Log Handler
@@ -271,47 +302,76 @@ function reconnectSerial() {
 }
 
 // --- Port Selection ---
+var txCurrentPort  = '';
+var rxCurrentPort  = '';
+var rx2CurrentPort = '';
+
+function _fillDropdown(selId, ports, connectedPort) {
+    var sel = document.getElementById(selId);
+    if (!sel) return;
+    sel.innerHTML = '';
+    var ph = document.createElement('option');
+    ph.value = '';
+    ph.textContent = connectedPort ? '-- select --' : '-- disconnected --';
+    if (!connectedPort) ph.selected = true;
+    sel.appendChild(ph);
+    ports.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = p;
+        if (p === connectedPort) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+function _syncDropdown(selId, connectedPort) {
+    var sel = document.getElementById(selId);
+    if (!sel) return;
+    if (sel.options[0] && sel.options[0].value === '') {
+        sel.options[0].textContent = connectedPort ? '-- select --' : '-- disconnected --';
+    }
+    if (connectedPort) {
+        for (var i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === connectedPort) { sel.selectedIndex = i; return; }
+        }
+    } else {
+        sel.selectedIndex = 0;
+    }
+}
+
 function refreshPorts() {
     socket.emit('list_ports');
 }
 
 function scanAllPorts() {
     socket.emit('list_ports');
-    socket.emit('rx_list_ports');
 }
 
 function setGlobalBaud() {
     var val = parseInt(document.getElementById('global-baud-input').value);
     if (!val || val < 1200) { alert('Invalid baud rate.'); return; }
-    document.getElementById('baud-input').value    = val;
-    document.getElementById('rx-baud-input').value = val;
+    document.getElementById('baud-input').value     = val;
+    document.getElementById('rx-baud-input').value  = val;
+    document.getElementById('rx2-baud-input').value = val;
     setBaud();
     rxSetBaud();
+    rx2SetBaud();
 }
 
+// TX only — never includes the WiFi peer (that's RX PORT 2's job, see rx2_port_list below)
 socket.on('port_list', function (msg) {
-    const sel = document.getElementById('port-select');
-    const current = msg.current || '';
-    sel.innerHTML = '';
-    if (msg.ports.length === 0) {
-        const opt = document.createElement('option');
-        opt.value = '';
-        opt.textContent = '-- none found --';
-        sel.appendChild(opt);
-        return;
-    }
-    msg.ports.forEach(function (p) {
-        const opt = document.createElement('option');
-        opt.value = p;
-        opt.textContent = p;
-        if (p === current) opt.selected = true;
-        sel.appendChild(opt);
-    });
+    _fillDropdown('port-select', msg.ports || [], txCurrentPort);
 });
 
 socket.on('port_connected', function (msg) {
+    txCurrentPort = msg.port || '';
     const portEl = document.getElementById('active-port');
-    if (portEl) portEl.textContent = msg.port;
+    if (msg.port) {
+        if (portEl) portEl.textContent = msg.port;
+    } else {
+        if (portEl) portEl.textContent = '—';
+    }
+    _syncDropdown('port-select', txCurrentPort);
 });
 
 function connectToPort() {
@@ -657,7 +717,10 @@ function downloadRangeCsv() {
 
 function clearLogs() {
     document.getElementById('log-console').innerHTML = '';
-    document.getElementById('chat-history').innerHTML = '';
+}
+
+function clearWifiLog() {
+    document.getElementById('wifi-log-console').innerHTML = '';
 }
 
 // ─── RX Panel ─────────────────────────────────────────────────────────────────
@@ -712,53 +775,87 @@ socket.on('rx_log_message', function(msg) {
 });
 
 socket.on('rx_status', function(msg) {
+    rxCurrentPort = msg.connected ? (msg.port || '') : '';
     var statusEl = document.getElementById('rx-conn-status');
     var portEl   = document.getElementById('rx-active-port');
     if (msg.connected) {
         statusEl.textContent = 'CONNECTED';
         statusEl.classList.remove('offline');
         statusEl.style.color = 'var(--accent-green)';
+        if (msg.port) portEl.textContent = msg.port;
     } else {
         statusEl.textContent = 'DISCONNECTED';
         statusEl.classList.add('offline');
         statusEl.style.color = 'var(--accent-red)';
+        portEl.textContent = '—';
     }
-    if (msg.port) portEl.textContent = msg.port;
+    _syncDropdown('rx-port-select', rxCurrentPort);
 });
 
-socket.on('rx_port_list', function(msg) {
-    var sel     = document.getElementById('rx-port-select');
-    var current = msg.current || '';
-    sel.innerHTML = '';
-    if (!msg.ports || msg.ports.length === 0) {
-        var opt = document.createElement('option');
-        opt.value = ''; opt.textContent = '-- none found --';
-        sel.appendChild(opt);
-        return;
-    }
-    msg.ports.forEach(function(p) {
-        var opt = document.createElement('option');
-        opt.value = p; opt.textContent = p;
-        if (p === current) opt.selected = true;
-        sel.appendChild(opt);
+// A WiFi peer is any RX2 port that isn't a real serial device (e.g. a hostname).
+function _isWifiPeerPort(port) {
+    return !!port && !port.startsWith('/dev/');
+}
+
+// The ask_receiver-equivalent buttons (LiFi key verify / SST auth) only make sense
+// once RX PORT 2 is actually connected to the WiFi peer — gate them so they can't
+// be fired against a stale or disconnected link.
+function _setWifiButtonsEnabled(enabled) {
+    ['btn-challenge'].forEach(function(id) {
+        var b = document.getElementById(id);
+        if (b) b.disabled = !enabled;
     });
+}
+
+socket.on('rx2_status', function(msg) {
+    rx2CurrentPort = msg.connected ? (msg.port || '') : '';
+    var isWifi = msg.connected && _isWifiPeerPort(rx2CurrentPort);
+
+    var portEl = document.getElementById('wifi-active-port');
+    if (portEl) portEl.textContent = isWifi ? rx2CurrentPort : '—';
+
+    _setWifiButtonsEnabled(isWifi);
+    _syncDropdown('rx2-port-select', rx2CurrentPort);
+});
+
+// RX PORT 1 (UART) only — never includes the WiFi peer
+socket.on('rx_port_list', function(msg) {
+    _fillDropdown('rx-port-select', msg.ports || [], rxCurrentPort);
+});
+
+// RX PORT 2 only — the sole dropdown that includes the WiFi peer entry
+socket.on('rx2_port_list', function(msg) {
+    _fillDropdown('rx2-port-select', msg.ports || [], rx2CurrentPort);
 });
 
 function rxScan() {
-    socket.emit('rx_list_ports');
+    socket.emit('list_ports');
 }
 
 function rxConnect() {
     var port = document.getElementById('rx-port-select').value;
-    if (!port) { alert('Click SCAN first, then select a port.'); return; }
+    if (!port) { alert('Scan for ports first, then select a port.'); return; }
     socket.emit('rx_connect_to_port', { port: port });
+}
+
+function rx2Connect() {
+    var port = document.getElementById('rx2-port-select').value;
+    if (!port) { alert('Scan for ports first, then select a port.'); return; }
+    socket.emit('rx2_connect_to_port', { port: port });
+}
+
+function rx2SetBaud() {
+    var val = parseInt(document.getElementById('rx2-baud-input').value);
+    if (!val || val < 1200) { alert('Invalid baud rate.'); return; }
+    socket.emit('rx2_set_baud', { baud: val });
 }
 
 function rxReconnect() {
     socket.emit('rx_reconnect');
 }
 
-var rxRawModeEnabled = false;
+var rxRawModeEnabled   = false;
+var wifiRawModeEnabled = false;
 
 function rxToggleRawMode() {
     rxRawModeEnabled = !rxRawModeEnabled;
@@ -771,6 +868,18 @@ function rxToggleRawMode() {
         btn.classList.remove('active');
     }
     socket.emit('rx_send_command', { data: rxRawModeEnabled ? 'raw on' : 'raw off' });
+}
+
+function wifiToggleRawMode() {
+    wifiRawModeEnabled = !wifiRawModeEnabled;
+    var btn = document.getElementById('btn-wifi-raw-mode');
+    if (wifiRawModeEnabled) {
+        btn.textContent = 'RAW: ON';
+        btn.classList.add('active');
+    } else {
+        btn.textContent = 'RAW: OFF';
+        btn.classList.remove('active');
+    }
 }
 
 function rxSetBaud() {

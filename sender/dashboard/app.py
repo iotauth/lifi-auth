@@ -56,6 +56,9 @@ def _load_pi4_host() -> str:
 PI4_HOST           = _load_pi4_host()
 PI4_CHALLENGE_PORT = 5001
 
+# ── Hostname (shown as virtual WiFi port in dropdowns) ────────────────────────
+_HOSTNAME = socket.gethostname()
+
 # ── Provisioner path ──────────────────────────────────────────────────────────
 _PROVISIONER = os.path.join(os.path.dirname(os.path.dirname(base_dir)),
                              'artifacts', 'host', 'pico_provisioner')
@@ -109,6 +112,12 @@ RX_BAUD    = 115200
 rx_serial_conn = None
 rx_serial_lock = threading.Lock()
 
+# ── Receiver 2 serial ─────────────────────────────────────────────────────────
+RX2_PORT    = ''
+RX2_BAUD    = 115200
+rx2_serial_conn = None
+rx2_serial_lock = threading.Lock()
+
 RESULT_RE = re.compile(r'\[TEST_RESULT\] baud=(\d+) sent=(\d+) recv=(\d+)')
 
 def _emit_test_result(baud, sent, recv):
@@ -124,6 +133,27 @@ def _emit_test_result(baud, sent, recv):
         'dist':     current_dist_label,
         'mode':     current_test_mode,
     })
+
+def read_from_rx2_serial():
+    global rx2_serial_conn
+    while running:
+        conn = rx2_serial_conn
+        if conn and conn.is_open:
+            try:
+                if conn.in_waiting > 0:
+                    line = conn.readline().decode('utf-8', errors='replace').rstrip()
+                    if line:
+                        socketio.emit('rx_log_message', {'data': f'[RX2] {line}'})
+                        m = RESULT_RE.match(line)
+                        if m:
+                            _emit_test_result(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            except (OSError, serial.SerialException):
+                pass
+            except Exception as e:
+                print(f'[RX2 serial error] {e}')
+                time.sleep(1)
+        else:
+            time.sleep(0.1)
 
 def read_from_rx_serial():
     global rx_serial_conn
@@ -217,7 +247,7 @@ def handle_pi4_frame():
         preview   = data.get('payload_preview', '')
         st        = data.get('stats', {})
         line = f"[Pi4] key={key_short} {preview}  ok={st.get('ok','?')}/{st.get('total','?')}"
-        socketio.emit('rx_log_message', {'data': line})
+        socketio.emit('wifi_log_message', {'data': line})
 
     return '', 204
 
@@ -239,6 +269,12 @@ def on_connect():
         emit('rx_status', {'connected': True, 'port': RX_PORT})
     else:
         emit('rx_status', {'connected': False, 'port': ''})
+    if rx2_serial_conn and rx2_serial_conn.is_open:
+        emit('rx2_status', {'connected': True, 'port': RX2_PORT})
+    elif RX2_PORT and RX2_PORT == _HOSTNAME:
+        emit('rx2_status', {'connected': True, 'port': RX2_PORT})
+    else:
+        emit('rx2_status', {'connected': False, 'port': ''})
     with rx_source_lock:
         emit('rx_source_changed', {'source': rx_source})
 
@@ -405,17 +441,54 @@ def handle_reconnect():
         else:
             emit('log_message', {'data': 'Failed to reconnect TX'})
 
+def _serial_ports():
+    """Real serial devices only — used for TX and RX (UART) which can't handle a WiFi peer."""
+    return sorted(p.device for p in serial.tools.list_ports.comports())
+
+def _all_ports():
+    """Serial ports plus the local hostname as a virtual WiFi peer — RX2 only."""
+    ports = _serial_ports()
+    if _HOSTNAME and _HOSTNAME not in ports:
+        ports.append(_HOSTNAME)
+    return ports
+
 @socketio.on('list_ports')
 def handle_list_ports():
-    ports = sorted(p.device for p in serial.tools.list_ports.comports())
-    emit('port_list', {'ports': ports, 'current': TX_PORT})
+    """Scan-all: TX/RX1 get serial ports only, RX2 also gets the WiFi peer entry."""
+    serial_ports = _serial_ports()
+    emit('port_list',    {'ports': serial_ports, 'current': TX_PORT})
+    emit('rx_port_list', {'ports': serial_ports, 'current': RX_PORT})
+    emit('rx2_port_list', {'ports': _all_ports(), 'current': RX2_PORT})
 
 @socketio.on('connect_to_port')
 def handle_connect_to_port(message):
-    global serial_conn, TX_PORT
+    global serial_conn, TX_PORT, rx_serial_conn, RX_PORT, rx2_serial_conn, RX2_PORT
     port = message.get('port', '').strip()
     if not port:
         return
+    if port == _HOSTNAME:
+        emit('log_message', {'data': 'Error: WiFi peer can only be assigned to RX PORT 2'})
+        return
+    # If RX is already on this port, disconnect it first
+    with rx_serial_lock:
+        if rx_serial_conn and RX_PORT == port:
+            try:
+                if rx_serial_conn.is_open: rx_serial_conn.close()
+            except: pass
+            rx_serial_conn = None
+            RX_PORT = ''
+            emit('rx_log_message', {'data': f'[RX] Disconnected — port {port} reassigned to TX'})
+            emit('rx_status', {'connected': False, 'port': ''})
+    # If RX2 is already on this port, disconnect it first
+    with rx2_serial_lock:
+        if rx2_serial_conn and RX2_PORT == port:
+            try:
+                if rx2_serial_conn.is_open: rx2_serial_conn.close()
+            except: pass
+            rx2_serial_conn = None
+            RX2_PORT = ''
+            emit('rx_log_message', {'data': f'[RX2] Disconnected — port {port} reassigned to TX'})
+            emit('rx2_status', {'connected': False, 'port': ''})
     with serial_lock:
         old = serial_conn
         serial_conn = None
@@ -470,15 +543,37 @@ def handle_run_range_test(message):
 # ── Receiver socket events ────────────────────────────────────────────────────
 @socketio.on('rx_list_ports')
 def handle_rx_list_ports():
-    ports = sorted(p.device for p in serial.tools.list_ports.comports())
-    emit('rx_port_list', {'ports': ports, 'current': RX_PORT})
+    emit('rx_port_list', {'ports': _serial_ports(), 'current': RX_PORT})
 
 @socketio.on('rx_connect_to_port')
 def handle_rx_connect(message):
-    global rx_serial_conn, RX_PORT
+    global rx_serial_conn, RX_PORT, serial_conn, TX_PORT, rx2_serial_conn, RX2_PORT
     port = message.get('port', '').strip()
     if not port:
         return
+    if port == _HOSTNAME:
+        emit('rx_log_message', {'data': 'Error: WiFi peer can only be assigned to RX PORT 2'})
+        return
+    # If TX is already on this port, disconnect it first
+    with serial_lock:
+        if serial_conn and TX_PORT == port:
+            try:
+                if serial_conn.is_open: serial_conn.close()
+            except: pass
+            serial_conn = None
+            TX_PORT = ''
+            emit('log_message', {'data': f'[TX] Disconnected — port {port} reassigned to RX'})
+            emit('port_connected', {'port': ''})
+    # If RX2 is already on this port, disconnect it first
+    with rx2_serial_lock:
+        if rx2_serial_conn and RX2_PORT == port:
+            try:
+                if rx2_serial_conn.is_open: rx2_serial_conn.close()
+            except: pass
+            rx2_serial_conn = None
+            RX2_PORT = ''
+            emit('rx_log_message', {'data': f'[RX2] Disconnected — port {port} reassigned to RX'})
+            emit('rx2_status', {'connected': False, 'port': ''})
     with rx_serial_lock:
         old = rx_serial_conn
         rx_serial_conn = None
@@ -514,6 +609,114 @@ def handle_rx_reconnect():
             emit('rx_log_message', {'data': 'No receiver found'})
             emit('rx_status', {'connected': False, 'port': ''})
 
+@socketio.on('rx2_list_ports')
+def handle_rx2_list_ports():
+    emit('rx2_port_list', {'ports': _all_ports(), 'current': RX2_PORT})
+
+@socketio.on('rx2_connect_to_port')
+def handle_rx2_connect(message):
+    global rx2_serial_conn, RX2_PORT, serial_conn, TX_PORT, rx_serial_conn, RX_PORT
+    port = message.get('port', '').strip()
+    if not port:
+        return
+    # Hostname (non-device) → WiFi peer, no serial needed
+    if not port.startswith('/dev/'):
+        with rx2_serial_lock:
+            old = rx2_serial_conn
+            rx2_serial_conn = None
+            if old:
+                try:
+                    if old.is_open: old.close()
+                except: pass
+        RX2_PORT = port
+        emit('wifi_log_message', {'data': f'[RX2] WiFi peer: {port}'})
+        emit('rx2_status', {'connected': True, 'port': port})
+        return
+    with serial_lock:
+        if serial_conn and TX_PORT == port:
+            try:
+                if serial_conn.is_open: serial_conn.close()
+            except: pass
+            serial_conn = None
+            TX_PORT = ''
+            emit('log_message', {'data': f'[TX] Disconnected — port {port} reassigned to RX2'})
+            emit('port_connected', {'port': ''})
+    with rx_serial_lock:
+        if rx_serial_conn and RX_PORT == port:
+            try:
+                if rx_serial_conn.is_open: rx_serial_conn.close()
+            except: pass
+            rx_serial_conn = None
+            RX_PORT = ''
+            emit('rx_log_message', {'data': f'[RX] Disconnected — port {port} reassigned to RX2'})
+            emit('rx_status', {'connected': False, 'port': ''})
+    with rx2_serial_lock:
+        old = rx2_serial_conn
+        rx2_serial_conn = None
+        if old:
+            try:
+                if old.is_open: old.close()
+            except: pass
+        time.sleep(0.3)
+        try:
+            rx2_serial_conn = serial.Serial(port, RX2_BAUD, timeout=1)
+            RX2_PORT = port
+            emit('rx_log_message', {'data': f'[RX2] Connected to {RX2_PORT}'})
+            emit('rx2_status', {'connected': True, 'port': RX2_PORT})
+        except serial.SerialException as e:
+            emit('rx_log_message', {'data': f'[RX2] Failed: {e}'})
+            emit('rx2_status', {'connected': False, 'port': port})
+
+@socketio.on('rx2_reconnect')
+def handle_rx2_reconnect():
+    global rx2_serial_conn, RX2_PORT
+    with rx2_serial_lock:
+        old = rx2_serial_conn
+        rx2_serial_conn = None
+        if old:
+            try:
+                if old.is_open: old.close()
+            except: pass
+        time.sleep(0.5)
+        for port in ['/dev/ttyACM2', '/dev/ttyACM1', '/dev/ttyACM0']:
+            if port in (TX_PORT, RX_PORT):
+                continue
+            try:
+                rx2_serial_conn = serial.Serial(port, RX2_BAUD, timeout=1)
+                RX2_PORT = port
+                emit('rx_log_message', {'data': f'[RX2] Reconnected to {RX2_PORT}'})
+                emit('rx2_status', {'connected': True, 'port': RX2_PORT})
+                return
+            except serial.SerialException:
+                pass
+        emit('rx_log_message', {'data': '[RX2] No receiver found'})
+        emit('rx2_status', {'connected': False, 'port': ''})
+
+@socketio.on('rx2_set_baud')
+def handle_rx2_set_baud(message):
+    baud = int(message.get('baud', 9600))
+    cmd  = f'baud {baud}'
+    with rx2_serial_lock:
+        conn = rx2_serial_conn
+        if conn and conn.is_open:
+            conn.write((cmd + '\n').encode('utf-8'))
+            emit('rx_log_message', {'data': f'[RX2] > {cmd}'})
+        else:
+            emit('rx_log_message', {'data': '[RX2] Error: not connected'})
+
+@socketio.on('rx2_send_command')
+def handle_rx2_command(message):
+    cmd = message.get('data', '').strip()
+    if not cmd:
+        return
+    with rx2_serial_lock:
+        conn = rx2_serial_conn
+        if conn and conn.is_open:
+            conn.write((cmd + '\n').encode('utf-8'))
+            emit('rx_log_message', {'data': f'[RX2] > {cmd}'})
+        else:
+            emit('rx_log_message', {'data': '[RX2] Error: not connected'})
+
 @socketio.on('rx_set_baud')
 def handle_rx_set_baud(message):
     baud = int(message.get('baud', 9600))
@@ -541,8 +744,9 @@ def handle_rx_command(message):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
-    threading.Thread(target=read_from_serial,    daemon=True).start()
-    threading.Thread(target=read_from_rx_serial, daemon=True).start()
+    threading.Thread(target=read_from_serial,     daemon=True).start()
+    threading.Thread(target=read_from_rx_serial,  daemon=True).start()
+    threading.Thread(target=read_from_rx2_serial, daemon=True).start()
 
     print('Starting server on http://0.0.0.0:5000')
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)

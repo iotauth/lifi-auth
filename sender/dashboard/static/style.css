@@ -54,7 +54,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 14px;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .logo {
@@ -169,8 +170,8 @@ body {
     width: 100%;
     padding: 10px;
     margin-bottom: 8px;
-    background: #222;
-    border: 1px solid var(--accent-cyan);
+    background: #1a1a1a;
+    border: 1px solid #444;
     color: var(--accent-cyan);
     font-family: var(--font-mono);
     cursor: pointer;
@@ -260,25 +261,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-color: var(--accent-red);
-    color: var(--accent-red);
-}
-
-.btn-stop-file:hover {
-    background: var(--accent-red);
-    color: #000;
-    box-shadow: 0 0 10px var(--accent-red);
-}
-
-.btn-cmd.warning {
-    border-color: var(--accent-red);
-    color: var(--accent-red);
-}
-
-.btn-cmd.warning:hover {
-    background: var(--accent-red);
-    color: #000;
-    box-shadow: 0 0 10px var(--accent-red);
 }
 
 .console-box {
@@ -368,14 +350,6 @@ body {
 .pb-scan-all {
     font-size: 0.85rem !important;
     padding: 9px 16px !important;
-    border-color: var(--accent-green) !important;
-    color: var(--accent-green) !important;
-}
-
-.pb-scan-all:hover {
-    background: var(--accent-green) !important;
-    color: #000 !important;
-    box-shadow: 0 0 8px var(--accent-green) !important;
 }
 
 .pb-sides {
@@ -693,14 +667,6 @@ body {
 .bench-table tr.brow-warn td   { color: #ffaa00; }
 .bench-table tr.brow-fail td   { color: var(--accent-red); }
 
-#btn-bench-run:hover {
-    background: var(--accent-green);
-    color: #000;
-    box-shadow: 0 0 10px var(--accent-green);
-}
-
 #btn-bench-run.bench-running {
-    border-color: var(--accent-cyan);
-    color: var(--accent-cyan);
     animation: blinker 0.8s linear infinite;
 }

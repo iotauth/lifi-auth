@@ -55,7 +55,7 @@
                 </div>
                 <div class="btn-row">
                     <button class="btn-cmd half" id="btn-raw-mode" onclick="toggleRawMode()">RAW: OFF</button>
-                    <button class="btn-cmd half" onclick="sendCommand('send_id')" style="border-color:var(--accent-cyan); color:var(--accent-cyan);">⟳ KEY ID</button>
+                    <button class="btn-cmd half" onclick="sendCommand('send_id')">⟳ KEY ID</button>
                 </div>
             </div>
 
@@ -95,7 +95,7 @@
                 </div>
                 <div class="status-item" style="gap:5px; flex-wrap:nowrap; margin-bottom:5px;">
                     <button class="btn-cmd" id="btn-range-fire" onclick="fireRangeTest()"
-                        style="flex:1; margin-bottom:0; text-align:center; border-color:var(--accent-cyan); color:var(--accent-cyan);">⚡ FIRE</button>
+                        style="flex:1; margin-bottom:0; text-align:center;">⚡ FIRE</button>
                     <button class="btn-cmd warning" onclick="clearRangeResults()"
                         style="width:auto; white-space:nowrap; margin-bottom:0;">CLR</button>
                 </div>
@@ -149,7 +149,7 @@
                     <input type="number" id="bench-n" value="50" min="1" max="10000"
                         style="width:52px; flex-shrink:0; background:#222; border:1px solid #444; color:#0f0; padding:4px; font-family:monospace;">
                     <button class="btn-cmd" id="btn-bench-run" onclick="runBenchmark()"
-                        style="flex:1; margin-bottom:0; text-align:center; border-color:var(--accent-green); color:var(--accent-green);">▶ RUN</button>
+                        style="flex:1; margin-bottom:0; text-align:center;">▶ RUN</button>
                     <button class="btn-cmd warning" onclick="abortBenchmark()"
                         style="flex:1; margin-bottom:0; text-align:center;">■ STOP</button>
                 </div>
@@ -198,9 +198,9 @@
                 <div class="pb-global">
                     <button class="pb-btn pb-scan-all" onclick="scanAllPorts()">⟳ SCAN FOR PORTS</button>
                     <div class="pb-global-baud">
-                        <span class="pb-label" style="white-space:nowrap; margin-bottom:0;">BOTH BAUD:</span>
+                        <span class="pb-label" style="white-space:nowrap; margin-bottom:0;">ALL BAUD:</span>
                         <input type="number" id="global-baud-input" value="115200" class="pb-input" style="max-width:90px;">
-                        <button class="pb-btn" onclick="setGlobalBaud()">SET BOTH</button>
+                        <button class="pb-btn" onclick="setGlobalBaud()">SET ALL</button>
                     </div>
                 </div>
 
@@ -220,16 +220,39 @@
                         </div>
                     </div>
                     <div class="pb-half" style="border-left:1px solid #2a2a2a; padding-left:12px;">
-                        <div class="pb-label">RX PORT</div>
-                        <div class="pb-row">
-                            <select id="rx-port-select" class="pb-select">
-                                <option value="">-- scan --</option>
-                            </select>
-                            <button class="pb-btn" onclick="rxConnect()">CONNECT</button>
+                        <!-- RX PORT (UART) -->
+                        <div>
+                            <div class="pb-label" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>RX PORT</span>
+                                <span id="rx-active-src" style="color:#555; font-size:0.58rem; letter-spacing:0.5px;">ACTIVE: uart</span>
+                            </div>
+                            <div class="pb-row">
+                                <select id="rx-port-select" class="pb-select">
+                                    <option value="">-- scan --</option>
+                                </select>
+                                <button class="pb-btn" onclick="rxConnect()">CONNECT</button>
+                            </div>
+                            <div class="pb-row">
+                                <input type="number" id="rx-baud-input" value="115200" class="pb-input">
+                                <button class="pb-btn" onclick="rxSetBaud()">SET BAUD</button>
+                            </div>
                         </div>
-                        <div class="pb-row">
-                            <input type="number" id="rx-baud-input" value="115200" class="pb-input">
-                            <button class="pb-btn" onclick="rxSetBaud()">SET BAUD</button>
+                        <!-- RX PORT 2 (WiFi / second receiver) -->
+                        <div style="border-top:1px solid #1e1e1e; padding-top:6px; margin-top:6px;">
+                            <div class="pb-label" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>RX PORT 2</span>
+                                <span id="rx2-active-src" style="color:var(--accent-cyan); font-size:0.58rem; letter-spacing:0.5px;">ACTIVE: wifi</span>
+                            </div>
+                            <div class="pb-row">
+                                <select id="rx2-port-select" class="pb-select">
+                                    <option value="">-- disconnected --</option>
+                                </select>
+                                <button class="pb-btn" onclick="rx2Connect()">CONNECT</button>
+                            </div>
+                            <div class="pb-row">
+                                <input type="number" id="rx2-baud-input" value="115200" class="pb-input">
+                                <button class="pb-btn" onclick="rx2SetBaud()">SET BAUD</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -237,9 +260,6 @@
 
             <!-- Transmission stream -->
             <div class="stream-section">
-                <div class="chat-header">
-                    <h2>LIFI TRANSMISSION STREAM</h2>
-                </div>
                 <div class="chat-input-area">
                     <input type="text" id="message-input" placeholder="Message to transmit over LiFi..." autocomplete="off">
                     <button id="send-btn" onclick="sendMessage()">TRANSMIT</button>
@@ -257,7 +277,10 @@
         <aside class="rx-panel">
             <h1 class="logo">LIFI RX <span class="blink">_</span></h1>
 
-            <div class="status-panel" style="margin-bottom:12px;">
+            <!-- ══ UART ══════════════════════════════════════════ -->
+            <div style="font-family:var(--font-mono); font-size:0.68rem; color:var(--accent-cyan); letter-spacing:2px; border-bottom:1px solid #1e3a3a; padding-bottom:4px; opacity:0.85;">── UART ──</div>
+
+            <div class="status-panel">
                 <div class="status-item">
                     <span class="label">STATUS:</span>
                     <span id="rx-conn-status" class="value offline">DISCONNECTED</span>
@@ -281,50 +304,74 @@
                 </div>
             </div>
 
-            <!-- RX Source -->
-            <div class="control-group">
-                <h3>RX SOURCE</h3>
-                <div class="btn-row">
-                    <button class="btn-cmd" id="btn-src-uart" onclick="setRxSource('uart')" style="flex:1;">UART</button>
-                    <button class="btn-cmd" id="btn-src-wifi" onclick="setRxSource('wifi')" style="flex:1; border-color:var(--accent-cyan); color:var(--accent-cyan);">WiFi Pi4</button>
-                </div>
-                <div class="btn-row" style="margin-top:4px;">
-                    <button class="btn-cmd" id="btn-src-both" onclick="setRxSource('both')" style="flex:1; border-color:var(--accent-green); color:var(--accent-green);">BOTH</button>
-                    <button class="btn-cmd" id="btn-src-none" onclick="setRxSource('none')" style="flex:1; border-color:#555; color:#555;">NONE</button>
-                </div>
-                <div class="status-item" style="margin-top:4px;">
-                    <span class="label">ACTIVE:</span>
-                    <span id="rx-source-label" class="value" style="color:var(--accent-cyan);">uart</span>
-                </div>
-            </div>
-
-            <!-- SST Security -->
             <div class="control-group">
                 <h3>SST SECURITY</h3>
-                <div class="btn-row">
-                    <button class="btn-cmd" id="btn-new-key" onclick="provisionNewKey()"
-                        style="flex:1; border-color:var(--accent-cyan); color:var(--accent-cyan);">⟳ NEW KEY</button>
-                    <button class="btn-cmd" id="btn-challenge" onclick="challengePi4()"
-                        style="flex:1; border-color:var(--accent-green); color:var(--accent-green);">⚡ VERIFY Pi4</button>
-                </div>
-                <div class="status-item" style="margin-top:6px;">
+                <button class="btn-cmd" id="btn-new-key" onclick="provisionNewKey()">⟳ NEW KEY</button>
+                <div class="status-item">
                     <span class="label">AUTH:</span>
-                    <span id="sst-auth-status" class="value" style="color:#555;">—</span>
+                    <span id="sst-uart-auth-status" class="value" style="color:#555;">—</span>
                 </div>
             </div>
 
-            <!-- RX Raw Mode -->
             <div class="control-group">
                 <div class="btn-row">
                     <button class="btn-cmd half" id="btn-rx-raw-mode" onclick="rxToggleRawMode()">RAW: OFF</button>
                 </div>
             </div>
 
-            <!-- RX Log -->
-            <div class="control-group" style="flex:1; display:flex; flex-direction:column; min-height:0; overflow:hidden;">
-                <h3>RX LOG</h3>
-                <div id="rx-log-console" class="console-box" style="flex:1; min-height:0;"></div>
-                <button class="btn-cmd" onclick="clearRxLog()" style="margin-top:6px; width:100%; font-size:0.7rem; padding:4px; flex-shrink:0;">CLEAR LOG</button>
+            <div class="control-group">
+                <h3>UART LOG</h3>
+                <div id="rx-log-console" class="console-box" style="height:180px;"></div>
+                <button class="btn-cmd" onclick="clearRxLog()" style="margin-top:6px; width:100%; font-size:0.7rem; padding:4px;">CLEAR LOG</button>
+            </div>
+
+            <!-- ══ WiFi / Pi4 ══════════════════════════════════════ -->
+            <div style="font-family:var(--font-mono); font-size:0.68rem; color:var(--accent-cyan); letter-spacing:2px; border-bottom:1px solid #1e3a3a; padding-bottom:4px; margin-top:4px; opacity:0.85;">── WiFi / Pi4 ──</div>
+
+            <div class="status-panel">
+                <div class="status-item">
+                    <span class="label">STATUS:</span>
+                    <span id="wifi-conn-status" class="value offline">NO FRAMES</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">PORT:</span>
+                    <span id="wifi-active-port" class="value">—</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">BAUD:</span>
+                    <span id="wifi-live-baud" class="value">—</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">MSGS:</span>
+                    <span id="wifi-live-msgs" class="value">—</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">ALIVE:</span>
+                    <span id="wifi-live-dot" class="live-dot-off">●</span>
+                    <span id="wifi-live-age" style="font-family:monospace; font-size:0.75rem; color:#555;">—</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>SST SECURITY</h3>
+                <button class="btn-cmd" id="btn-challenge" onclick="challengePi4()" disabled title="Connect RX PORT 2 to the WiFi peer first">⚡ VERIFY Pi4</button>
+                <button class="btn-cmd" id="btn-new-key-wifi" onclick="provisionNewKey()">⟳ NEW KEY</button>
+                <div class="status-item">
+                    <span class="label">AUTH:</span>
+                    <span id="sst-wifi-auth-status" class="value" style="color:#555;">—</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="btn-row">
+                    <button class="btn-cmd half" id="btn-wifi-raw-mode" onclick="wifiToggleRawMode()">RAW: OFF</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>WIFI LOG</h3>
+                <div id="wifi-log-console" class="console-box" style="height:180px;"></div>
+                <button class="btn-cmd" onclick="clearWifiLog()" style="margin-top:6px; width:100%; font-size:0.7rem; padding:4px;">CLEAR LOG</button>
             </div>
         </aside>
     </div>
