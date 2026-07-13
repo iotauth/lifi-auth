@@ -817,6 +817,35 @@ socket.on('rx2_status', function(msg) {
     var portEl = document.getElementById('wifi-active-port');
     if (portEl) portEl.textContent = isWifi ? rx2CurrentPort : '—';
 
+    // LINK reflects TCP reachability to the Pi4 (the challenge port probe) —
+    // separate from FRAMES below, which reflects whether LiFi payloads are
+    // actually arriving. A reachable-but-frameless Pi4 should read as
+    // "connected, no frames", not "disconnected".
+    var linkEl = document.getElementById('wifi-link-status');
+    if (linkEl) {
+        if (isWifi) {
+            linkEl.textContent = 'CONNECTED';
+            linkEl.classList.remove('offline');
+            linkEl.style.color = 'var(--accent-green)';
+        } else {
+            linkEl.textContent = 'DISCONNECTED';
+            linkEl.classList.add('offline');
+            linkEl.style.color = 'var(--accent-red)';
+            // No link means no frames can be arriving either — reset FRAMES
+            // immediately instead of waiting on the 10s staleness timer.
+            if (wifiAliveTimer) { clearInterval(wifiAliveTimer); wifiAliveTimer = null; }
+            wifiLastAlive = 0;
+            var dot = document.getElementById('wifi-live-dot');
+            if (dot) dot.className = 'live-dot-off';
+            var framesEl = document.getElementById('wifi-conn-status');
+            if (framesEl) {
+                framesEl.textContent = 'NO FRAMES';
+                framesEl.classList.add('offline');
+                framesEl.style.color = 'var(--accent-red)';
+            }
+        }
+    }
+
     _setWifiButtonsEnabled(isWifi);
     _syncDropdown('rx2-port-select', rx2CurrentPort);
 });

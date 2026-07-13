@@ -103,8 +103,18 @@ def _is_wifi_peer(port: str) -> bool:
 # ── Provisioner path ──────────────────────────────────────────────────────────
 _PROVISIONER = os.path.join(os.path.dirname(os.path.dirname(base_dir)),
                              'artifacts', 'host', 'pico_provisioner')
-_RX_CONFIG   = os.path.join(os.path.dirname(os.path.dirname(base_dir)),
-                             'receiver.config')
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(base_dir))
+_RX_CONFIG_HOTSPOT = os.path.join(_PROJECT_ROOT, 'receiver.config')
+_RX_CONFIG_HOME    = os.path.join(_PROJECT_ROOT, 'home_receiver.config')
+
+def _select_rx_config() -> str:
+    """Picks the net1.client SST config matching the network we're actually on,
+    keyed off the Pi4's current live IP (see _detect_ssh_peer): 192.168.0.x is
+    the home WiFi subnet (home_receiver.config), everything else (e.g. the
+    172.20.10.x hotspot subnet) falls back to receiver.config."""
+    if PI4_HOST.startswith('192.168.0.') and os.path.isfile(_RX_CONFIG_HOME):
+        return _RX_CONFIG_HOME
+    return _RX_CONFIG_HOTSPOT
 
 # ── RX source: 'uart' | 'wifi' | 'both' | 'none' ─────────────────────────────
 rx_source      = 'uart'
@@ -342,12 +352,13 @@ def handle_provision_new_key():
     """Re-run pico_provisioner: fetch fresh key from Auth, push to Pico, reload dashboard."""
     global _mac_key
     port = TX_PORT or '/dev/ttyACM0'
-    emit('log_message', {'data': f'[KEY] Requesting new SST key → Pico on {port}...'})
+    rx_config = _select_rx_config()
+    emit('log_message', {'data': f'[KEY] Requesting new SST key ({os.path.basename(rx_config)}) → Pico on {port}...'})
     try:
         result = subprocess.run(
-            [_PROVISIONER, _RX_CONFIG, port],
+            [_PROVISIONER, rx_config, port],
             capture_output=True, text=True, timeout=15,
-            cwd=os.path.dirname(os.path.dirname(base_dir))
+            cwd=_PROJECT_ROOT
         )
         if result.returncode == 0:
             _mac_key = _load_mac_key()
