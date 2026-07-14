@@ -79,6 +79,8 @@ socket.on('challenge_result', function (data) {
 var wifiLastAlive  = 0;
 var wifiAliveTimer = null;
 var wifiMsgCount   = 0;
+var wifiLinkUp      = false;  // TCP reachability to the Pi4 challenge port
+var macKeyVerified  = false;  // proven over LiFi (see mac_key_status below), not just loaded
 
 function _wifiLog(text, cssClass) {
     var box = document.getElementById('wifi-log-console');
@@ -800,14 +802,20 @@ function _isWifiPeerPort(port) {
     return !!port && !port.startsWith('/dev/');
 }
 
-// The ask_receiver-equivalent buttons (LiFi key verify / SST auth) only make sense
-// once RX PORT 2 is actually connected to the WiFi peer — gate them so they can't
-// be fired against a stale or disconnected link.
-function _setWifiButtonsEnabled(enabled) {
-    ['btn-challenge'].forEach(function(id) {
-        var b = document.getElementById(id);
-        if (b) b.disabled = !enabled;
-    });
+// The ask_receiver-equivalent buttons (LiFi key verify / SST auth) need both the
+// WiFi link up AND the key proven over LiFi — a loaded-but-unverified key isn't
+// enough to challenge the Pi4 with yet.
+function _updateChallengeButton() {
+    var b = document.getElementById('btn-challenge');
+    if (!b) return;
+    b.disabled = !(wifiLinkUp && macKeyVerified);
+    if (!wifiLinkUp) {
+        b.title = 'Connect RX PORT 2 to the WiFi peer first';
+    } else if (!macKeyVerified) {
+        b.title = 'Waiting for the Pico to transmit with this key over LiFi...';
+    } else {
+        b.title = '';
+    }
 }
 
 socket.on('rx2_status', function(msg) {
@@ -846,8 +854,53 @@ socket.on('rx2_status', function(msg) {
         }
     }
 
-    _setWifiButtonsEnabled(isWifi);
+    wifiLinkUp = isWifi;
+    _updateChallengeButton();
     _syncDropdown('rx2-port-select', rx2CurrentPort);
+});
+
+// Backend-confirmed proof (a real authenticated /pi4_frame) that the Pico is
+// transmitting with the currently-loaded key — not just that a key exists.
+socket.on('mac_key_status', function(msg) {
+    macKeyVerified = !!msg.verified;
+    var keyEl = document.getElementById('wifi-key-status');
+    if (keyEl) {
+        var idShort = (msg.key_id || '').slice(0, 8);
+        if (macKeyVerified && idShort) {
+            keyEl.textContent = idShort;
+            keyEl.classList.remove('offline');
+            keyEl.style.color = 'var(--accent-green)';
+        } else {
+            keyEl.textContent = idShort || '—';
+            keyEl.classList.add('offline');
+            keyEl.style.color = 'var(--accent-red)';
+        }
+    }
+    _updateChallengeButton();
+});
+
+// The key currently loaded from session_key.json — independent of whether
+// the Pi4 has proven (over WiFi) that the Pico is transmitting with it yet.
+socket.on('key_loaded_status', function(msg) {
+    var idShort = (msg.key_id || '').slice(0, 8) || '—';
+    var txEl = document.getElementById('tx-key-id');
+    var rxEl = document.getElementById('rx-key-id');
+    if (txEl) txEl.textContent = idShort;
+    if (rxEl) rxEl.textContent = idShort;
+});
+
+// The key the Pi4 (dash_receiver) reports having loaded — HMAC-authenticated
+// over WiFi, but NOT yet LiFi-optical proof. Only shown while nothing
+// stronger (mac_key_status, real LiFi-verified) is already displayed.
+socket.on('pi4_key_loaded_status', function(msg) {
+    if (macKeyVerified) return;  // real LiFi proof already showing — don't downgrade it
+    var keyEl = document.getElementById('wifi-key-status');
+    if (keyEl) {
+        var idShort = (msg.key_id || '').slice(0, 8);
+        keyEl.textContent = idShort || '—';
+        keyEl.classList.add('offline');
+        keyEl.style.color = idShort ? '#ffaa00' : '';
+    }
 });
 
 // RX PORT 1 (UART) only — never includes the WiFi peer

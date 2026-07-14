@@ -251,6 +251,20 @@ elif [[ "$BUILD_TARGET" == "pi4" || "$BUILD_TARGET" == "receiver" ]]; then
     echo "⚠️ ask_receiver executable not found"
   fi
 
+  # 4. Dash Receiver (Dashboard-driven variant of flash_receiver)
+  exe="$(find "$build_dir/receiver" -maxdepth 1 -type f -name 'dash_receiver' -executable -print -quit)"
+  if [[ -n "$exe" ]]; then
+    fname="${ts}_dash_receiver"
+    install -m 0755 -- "$exe" "$art_dir/$fname"
+    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256" && ln -sf "$fname" "dash_receiver")
+    manifest="$art_dir/${ts}_dash_receiver.json"
+    write_manifest "$manifest" "pi4_dash" "$ver_tag" "$ts" "$fname"
+    echo "📦 EXE: $art_dir/$fname"
+    echo "🔗 Link: $art_dir/dash_receiver"
+  else
+    echo "⚠️ dash_receiver executable not found"
+  fi
+
 elif [[ "$BUILD_TARGET" == "host" ]]; then
   exe="$(find "$build_dir" -type f -name 'pico_provisioner' -executable -print -quit)"
   if [[ -z "$exe" ]]; then

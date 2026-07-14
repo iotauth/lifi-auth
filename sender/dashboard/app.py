@@ -27,17 +27,40 @@ running = True
 
 # ── SST session key (for Pi4 frame HMAC verification) ─────────────────────────
 _mac_key: bytes | None = None
+# _mac_key is the shared secret we already hold (from provisioning) — it has to
+# be loaded up front to verify anything. _mac_key_verified is a separate, purely
+# LiFi-concentric signal: it only flips True once the Pico has actually proven,
+# optically, that it's transmitting with this key (a real authenticated
+# /pi4_frame comes through). Loading a key is not the same as trusting it yet.
+_mac_key_verified = False
+_mac_key_id: str | None = None  # hex key_id from the last verified /pi4_frame
+_loaded_key_id: str | None = None  # hex key_id from session_key.json, regardless of WiFi proof
+_pi4_loaded_key_id: str | None = None  # hex key_id the Pi4 (dash_receiver) reports having loaded — HMAC-authenticated, but NOT LiFi-optical proof
 
 def _load_mac_key() -> bytes | None:
+    global _loaded_key_id
     try:
         with open(_KEY_FILE) as f:
             d = json.load(f)
         key = bytes.fromhex(d['mac_key'])
+        _loaded_key_id = d.get('key_id')
         print(f'[KEY] Loaded mac_key from {_KEY_FILE}')
         return key
     except Exception as e:
+        _loaded_key_id = None
         print(f'[KEY] Warning: could not load {_KEY_FILE}: {e}')
         return None
+
+def _set_mac_key_verified(v: bool, key_id: str | None = None) -> None:
+    """Flips the LiFi-proof flag and tells the frontend, but only on change —
+    also re-notifies if the verified key_id itself changes (e.g. Pi4 rotates
+    to a different key while already verified)."""
+    global _mac_key_verified, _mac_key_id
+    changed = (v != _mac_key_verified) or (v and key_id != _mac_key_id)
+    _mac_key_verified = v
+    _mac_key_id = key_id if v else None
+    if changed:
+        socketio.emit('mac_key_status', {'verified': v, 'key_id': _mac_key_id})
 
 _mac_key = _load_mac_key()
 
@@ -300,6 +323,11 @@ def handle_pi4_frame():
     except Exception:
         return 'Bad Request', 400
 
+    if _mac_key:
+        # A frame that passed HMAC is the LiFi-side proof the Pico is actually
+        # transmitting with this key — surface which key_id that is.
+        _set_mac_key_verified(True, data.get('key_id'))
+
     with rx_source_lock:
         src = rx_source
         # First valid authenticated frame from Pi4 — auto-enable WiFi feed
@@ -320,13 +348,40 @@ def handle_pi4_frame():
 
     return '', 204
 
+@app.route('/pi4_status', methods=['POST'])
+def handle_pi4_status():
+    """dash_receiver on the Pi4 proactively reports the key it currently has
+    loaded — sent at startup/on key change, not gated on any LiFi frame
+    actually arriving. Lets the dashboard show KEY ID as soon as the Pi4
+    process is up, instead of waiting for real optical traffic."""
+    global _pi4_loaded_key_id
+    body = request.get_data()
+    sig  = request.headers.get('X-SST-HMAC', '').lower()
+
+    if not _mac_key:
+        return 'Unauthorized', 401
+    expected = hmac.new(_mac_key, body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, sig):
+        return 'Unauthorized', 401
+
+    try:
+        data = json.loads(body)
+    except Exception:
+        return 'Bad Request', 400
+
+    _pi4_loaded_key_id = data.get('key_id')
+    socketio.emit('pi4_key_loaded_status', {'key_id': _pi4_loaded_key_id})
+    return '', 204
+
 @app.route('/reload_key', methods=['POST'])
 def reload_key():
     """Hot-reload session_key.json without restarting the dashboard."""
     global _mac_key
     _mac_key = _load_mac_key()
+    _set_mac_key_verified(False)  # unproven until the Pico transmits with it
+    socketio.emit('key_loaded_status', {'key_id': _loaded_key_id})
     if _mac_key:
-        return jsonify({'status': 'ok', 'key_id': 'loaded'})
+        return jsonify({'status': 'ok', 'key_id': _loaded_key_id})
     return jsonify({'status': 'error', 'msg': 'key file not found'}), 404
 
 # ── Sender socket events ──────────────────────────────────────────────────────
@@ -344,6 +399,9 @@ def on_connect():
         emit('rx2_status', {'connected': True, 'port': RX2_PORT})
     else:
         emit('rx2_status', {'connected': False, 'port': ''})
+    emit('mac_key_status', {'verified': _mac_key_verified, 'key_id': _mac_key_id})
+    emit('key_loaded_status', {'key_id': _loaded_key_id})
+    emit('pi4_key_loaded_status', {'key_id': _pi4_loaded_key_id})
     with rx_source_lock:
         emit('rx_source_changed', {'source': rx_source})
 
@@ -362,6 +420,8 @@ def handle_provision_new_key():
         )
         if result.returncode == 0:
             _mac_key = _load_mac_key()
+            _set_mac_key_verified(False)  # unproven until the Pico transmits with it
+            emit('key_loaded_status', {'key_id': _loaded_key_id})
             emit('log_message', {'data': '✓ New key provisioned and loaded.'})
             emit('key_provisioned', {'status': 'ok'})
         else:
@@ -378,7 +438,10 @@ def handle_provision_new_key():
 def handle_challenge_pi4():
     """Send a random nonce to Pi4, verify its HMAC response with our mac_key."""
     if not _mac_key:
-        emit('challenge_result', {'status': 'error', 'msg': 'No mac_key loaded'})
+        emit('challenge_result', {'status': 'error', 'msg': 'No mac_key loaded — provision a key first (NEW KEY)'})
+        return
+    if not _mac_key_verified:
+        emit('challenge_result', {'status': 'error', 'msg': 'Key not yet confirmed over LiFi — waiting for the Pico to transmit'})
         return
 
     nonce = os.urandom(32)
