@@ -14,3 +14,5 @@ session_stats.txt
 receiver_debug.log
 passKeyToPico
 receiver_ask_debug.log
+__pycache__/
+*.pyc

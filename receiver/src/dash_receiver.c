@@ -512,16 +512,39 @@ static void reporter_signal(const uint8_t *key_id, const uint8_t *payload,
 }
 
 // --- Dashboard Challenge Server ---
-// Listens on CHALLENGE_PORT for HMAC challenge requests from the dashboard.
-// POST /challenge  body: {"nonce":"<64 hex chars>"}
-// Response:        {"hmac":"<64 hex chars>","key_id":"<16 hex chars>"}
+// Listens on CHALLENGE_PORT for requests from the dashboard.
+// POST /challenge   body: {"nonce":"<64 hex chars>"}
+//   Response:        {"hmac":"<64 hex chars>","key_id":"<16 hex chars>"}
+// POST /force_key    no body — asks the main loop to force-refetch a key
+//   from Auth, same as pressing 'f' locally (see g_force_key_requested).
 #define CHALLENGE_PORT 5001
+
+static pthread_mutex_t g_force_key_mutex      = PTHREAD_MUTEX_INITIALIZER;
+static bool            g_force_key_requested  = false;
+
+static void handle_force_key_request(int client) {
+    pthread_mutex_lock(&g_force_key_mutex);
+    g_force_key_requested = true;
+    pthread_mutex_unlock(&g_force_key_mutex);
+
+    const char *resp =
+        "HTTP/1.1 202 Accepted\r\nContent-Length: 15\r\n\r\n"
+        "{\"status\":\"ok\"}";
+    send(client, resp, strlen(resp), 0);
+    close(client);
+}
 
 static void challenge_handle(int client) {
     char buf[2048];
     ssize_t n = recv(client, buf, sizeof(buf) - 1, 0);
     if (n <= 0) { close(client); return; }
     buf[n] = '\0';
+
+    // Dispatch on the request line (e.g. "POST /force_key HTTP/1.1")
+    if (strncmp(buf, "POST /force_key", 15) == 0) {
+        handle_force_key_request(client);
+        return;
+    }
 
     // Find body after \r\n\r\n
     char *body = strstr(buf, "\r\n\r\n");
@@ -804,6 +827,18 @@ int main(int argc, char* argv[]) {
         // --- Handle Keyboard Shortcuts ---
         int key = getch();
         if (key == ERR) key = -1;
+
+        // A remote /force_key request from the dashboard behaves exactly
+        // like pressing 'f' locally — only synthesize it when no real key
+        // was pressed this iteration, so it can't clobber real input.
+        if (key == -1) {
+            pthread_mutex_lock(&g_force_key_mutex);
+            if (g_force_key_requested) {
+                g_force_key_requested = false;
+                key = 'f';
+            }
+            pthread_mutex_unlock(&g_force_key_mutex);
+        }
 
         if (key != -1) {
             switch (key) {

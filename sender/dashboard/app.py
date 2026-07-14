@@ -405,6 +405,24 @@ def on_connect():
     with rx_source_lock:
         emit('rx_source_changed', {'source': rx_source})
 
+def _force_pi4_key_refresh() -> bool:
+    """Ask dash_receiver on the Pi4 to force-refetch its session key from
+    Auth (same as pressing 'f' locally), so both sides rotate together
+    instead of drifting independently. Best-effort — the Pi4 may not be up."""
+    try:
+        with socket.create_connection((PI4_HOST, PI4_CHALLENGE_PORT), timeout=3) as s:
+            req = (
+                f'POST /force_key HTTP/1.1\r\n'
+                f'Host: {PI4_HOST}:{PI4_CHALLENGE_PORT}\r\n'
+                f'Content-Length: 0\r\n'
+                f'Connection: close\r\n\r\n'
+            ).encode()
+            s.sendall(req)
+        return True
+    except Exception as e:
+        print(f'[KEY] Could not reach Pi4 to force key refresh: {e}')
+        return False
+
 @socketio.on('provision_new_key')
 def handle_provision_new_key():
     """Re-run pico_provisioner: fetch fresh key from Auth, push to Pico, reload dashboard."""
@@ -423,6 +441,10 @@ def handle_provision_new_key():
             _set_mac_key_verified(False)  # unproven until the Pico transmits with it
             emit('key_loaded_status', {'key_id': _loaded_key_id})
             emit('log_message', {'data': '✓ New key provisioned and loaded.'})
+            if _force_pi4_key_refresh():
+                emit('log_message', {'data': '[KEY] Told Pi4 to force-refresh its key too.'})
+            else:
+                emit('log_message', {'data': '[KEY] Pi4 not reachable — it will pick up the new key on its own next fetch.'})
             emit('key_provisioned', {'status': 'ok'})
         else:
             emit('log_message', {'data': f'[KEY] Provisioner failed: {result.stderr.strip()}'})
