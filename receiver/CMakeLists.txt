@@ -60,6 +60,42 @@ target_compile_definitions(flash_receiver PRIVATE
   DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/../receiver.config\"
 )
 
+# --- Receiver Dash (Dashboard-driven variant of flash_receiver) ---
+add_executable(dash_receiver
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dash_receiver.c
+  ${SST_C_API_DIR}/c_api.c
+  ${SST_C_API_DIR}/c_common.c
+  ${SST_C_API_DIR}/c_crypto.c
+  ${SST_C_API_DIR}/c_secure_comm.c
+  ${SST_C_API_DIR}/load_config.c
+  ${SST_C_API_DIR}/ipfs.c
+)
+
+target_include_directories(dash_receiver PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include
+  ${SST_C_API_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/../lib/mbedtls/include
+  ${CURSES_INCLUDE_DIRS}
+)
+
+target_link_libraries(dash_receiver PRIVATE
+  receiver_common
+  sst_embedded
+  heatshrink
+  mbedcrypto
+  OpenSSL::Crypto
+  ${CURSES_LIBRARIES}
+  pthread
+)
+
+set_property(TARGET dash_receiver PROPERTY C_STANDARD 11)
+target_compile_options(dash_receiver PRIVATE -Wall -Wextra -Wno-unused-parameter)
+
+target_compile_definitions(dash_receiver PRIVATE
+  DEFAULT_SST_CONFIG_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/../receiver.config\"
+)
+
 # --- Receiver Keys (Sender Logic) ---
 add_executable(keys_receiver
   ${CMAKE_CURRENT_SOURCE_DIR}/src/keys_receiver.c
