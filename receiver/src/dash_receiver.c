@@ -378,11 +378,15 @@ typedef struct {
 } SessionStats;
 
 // --- Dashboard Reporter ---
-// Change DASHBOARD_HOST to your laptop's IP on the hotspot.
+// Resolved at startup from the config's auth.ip.address (the laptop running
+// both Auth and the dashboard) — see g_dashboard_host below. This fallback
+// only applies if that field is somehow empty.
 #ifndef DASHBOARD_HOST
 #define DASHBOARD_HOST "172.20.10.2"
 #endif
 #define DASHBOARD_PORT 8420
+
+static char g_dashboard_host[INET_ADDRSTRLEN] = DASHBOARD_HOST;
 
 typedef struct {
     char     key_id_hex[SESSION_KEY_ID_SIZE * 2 + 1];
@@ -418,7 +422,7 @@ static void dashboard_http_post(const char *path, const char *json, int jlen) {
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port   = htons(DASHBOARD_PORT);
-    inet_pton(AF_INET, DASHBOARD_HOST, &addr.sin_addr);
+    inet_pton(AF_INET, g_dashboard_host, &addr.sin_addr);
 
     if (connect(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         close(sock);
@@ -435,7 +439,7 @@ static void dashboard_http_post(const char *path, const char *json, int jlen) {
         "Connection: close\r\n"
         "\r\n"
         "%s",
-        path, DASHBOARD_HOST, DASHBOARD_PORT, jlen, hmac_hex, json);
+        path, g_dashboard_host, DASHBOARD_PORT, jlen, hmac_hex, json);
     write(sock, req, (size_t)rlen);
     close(sock);
 }
@@ -657,6 +661,16 @@ int main(int argc, char* argv[]) {
     }
     // Explicitly initialize purpose_index to avoid garbage values
     sst->config.purpose_index = 0;
+
+    // The dashboard runs on the same laptop as Auth — reuse auth.ip.address
+    // from the config instead of a network-specific hardcoded constant, so
+    // switching between receiver.config/home_receiver.config also repoints
+    // where status/frame reports get sent.
+    if (sst->config.auth_ip_addr[0]) {
+        strncpy(g_dashboard_host, sst->config.auth_ip_addr, sizeof(g_dashboard_host) - 1);
+        g_dashboard_host[sizeof(g_dashboard_host) - 1] = '\0';
+    }
+    printf("Dashboard host: %s:%d\n", g_dashboard_host, DASHBOARD_PORT);
 
     printf("Fetching initial session key to establish Auth connection...\n");
     session_key_list_t* key_list = get_session_key(sst, NULL);
