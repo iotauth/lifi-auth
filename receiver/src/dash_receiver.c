@@ -897,18 +897,36 @@ int main(int argc, char* argv[]) {
                 case 'f':
                 case 'F': {
                     cmd_printf("[Shortcut] Force Fetch New Key from SST...");
-                    // Try fetch new list first without freeing old one
-                    session_key_list_t* new_key_list = get_session_key(sst, NULL);
-                    
+                    // Try fetch new list first without freeing old one.
+                    // Auth's TCP handshake occasionally hits a transient
+                    // EAGAIN/EWOULDBLOCK (e.g. right after another entity —
+                    // the sender's pico_provisioner — just finished its own
+                    // request); retry a couple times before giving up.
+                    session_key_list_t* new_key_list = NULL;
+                    int fetch_attempts = 0;
+                    do {
+                        new_key_list = get_session_key(sst, NULL);
+                        if (new_key_list && new_key_list->num_key > 0) break;
+                        if (new_key_list) { free_session_key_list_t(new_key_list); new_key_list = NULL; }
+                        bool retryable = (errno == EAGAIN || errno == EWOULDBLOCK);
+                        fetch_attempts++;
+                        if (retryable && fetch_attempts < 3) {
+                            cmd_printf("[Retry %d/3] EAGAIN from Auth, retrying...", fetch_attempts);
+                            usleep(300000);
+                        } else {
+                            break;
+                        }
+                    } while (fetch_attempts < 3);
+
                     if (!new_key_list || new_key_list->num_key == 0) {
                          // Failed.
                          cmd_printf("Error: Failed to fetch new key from SST.");
-                         
+
                          if (errno == EAGAIN || errno == EWOULDBLOCK) {
                              cmd_printf("Error detail: Resource temporary unavailable (EAGAIN).");
                              cmd_printf("Try again in a moment.");
                          }
-                         
+
                          cmd_printf("Keeping current session key.");
                          if (new_key_list) free_session_key_list_t(new_key_list);
                     } else {
