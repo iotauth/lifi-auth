@@ -517,6 +517,7 @@ static void reporter_signal(const uint8_t *key_id, const uint8_t *payload,
 //   Response:        {"hmac":"<64 hex chars>","key_id":"<16 hex chars>"}
 // POST /force_key    no body — asks the main loop to force-refetch a key
 //   from Auth, same as pressing 'f' locally (see g_force_key_requested).
+// GET  /status       no body — Response: {"key_id":"<16 hex chars>"|null}
 #define CHALLENGE_PORT 5001
 
 static pthread_mutex_t g_force_key_mutex      = PTHREAD_MUTEX_INITIALIZER;
@@ -534,6 +535,30 @@ static void handle_force_key_request(int client) {
     close(client);
 }
 
+// GET /status — lets the dashboard pull the currently-loaded key_id on
+// demand (e.g. whenever it notices the Pi4 is reachable), instead of only
+// finding out via the one-shot startup push, which is missed if the
+// dashboard wasn't already running when dash_receiver started.
+static void handle_status_request(int client) {
+    pthread_mutex_lock(&g_rep_mutex);
+    bool key_ready = g_rep_key_valid;
+    char key_id_str[SESSION_KEY_ID_SIZE * 2 + 1] = {0};
+    if (key_ready) strncpy(key_id_str, g_rep_event.key_id_hex, sizeof(key_id_str) - 1);
+    pthread_mutex_unlock(&g_rep_mutex);
+
+    char json[128];
+    int jlen = key_ready
+        ? snprintf(json, sizeof(json), "{\"key_id\":\"%s\"}", key_id_str)
+        : snprintf(json, sizeof(json), "{\"key_id\":null}");
+
+    char resp[256];
+    int rlen = snprintf(resp, sizeof(resp),
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s",
+        jlen, json);
+    send(client, resp, (size_t)rlen, 0);
+    close(client);
+}
+
 static void challenge_handle(int client) {
     char buf[2048];
     ssize_t n = recv(client, buf, sizeof(buf) - 1, 0);
@@ -543,6 +568,10 @@ static void challenge_handle(int client) {
     // Dispatch on the request line (e.g. "POST /force_key HTTP/1.1")
     if (strncmp(buf, "POST /force_key", 15) == 0) {
         handle_force_key_request(client);
+        return;
+    }
+    if (strncmp(buf, "GET /status", 11) == 0) {
+        handle_status_request(client);
         return;
     }
 

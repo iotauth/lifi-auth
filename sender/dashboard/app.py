@@ -119,6 +119,33 @@ def _pi4_reachable(timeout: float = 1.5) -> bool:
     except OSError:
         return False
 
+def _query_pi4_key_status(timeout: float = 1.5) -> str | None:
+    """GET /status from dash_receiver on the Pi4 — pulls its currently-loaded
+    key_id on demand. Complements the one-shot startup push: that push is
+    missed if the dashboard wasn't already running when dash_receiver
+    started, but this pull (run periodically from pi4_health_monitor)
+    self-corrects regardless of start order."""
+    if not PI4_HOST:
+        return None
+    try:
+        with socket.create_connection((PI4_HOST, PI4_CHALLENGE_PORT), timeout=timeout) as s:
+            req = (
+                f'GET /status HTTP/1.1\r\n'
+                f'Host: {PI4_HOST}:{PI4_CHALLENGE_PORT}\r\n'
+                f'Connection: close\r\n\r\n'
+            ).encode()
+            s.sendall(req)
+            resp = b''
+            while True:
+                chunk = s.recv(4096)
+                if not chunk:
+                    break
+                resp += chunk
+        body = resp.split(b'\r\n\r\n', 1)[-1]
+        return json.loads(body).get('key_id')
+    except Exception:
+        return None
+
 def _is_wifi_peer(port: str) -> bool:
     """Any RX2 port string that isn't a real serial device path is the Pi4 WiFi peer."""
     return bool(port) and not port.startswith('/dev/')
@@ -270,7 +297,7 @@ def pi4_health_monitor():
     """Keeps rx2_status honest for the WiFi peer entry: the dashboard can't detect
     the Pi4 losing power on its own (it only pushes frames in), so poll the
     challenge port periodically and flip status the moment it stops answering."""
-    global RX2_PORT
+    global RX2_PORT, _pi4_loaded_key_id
     last_reachable = None
     while running:
         if _is_wifi_peer(RX2_PORT):
@@ -280,6 +307,11 @@ def pi4_health_monitor():
                 if not reachable:
                     socketio.emit('wifi_log_message', {'data': f'[RX2] Lost connection to Pi4 at {PI4_HOST}'})
                 last_reachable = reachable
+            if reachable:
+                key_id = _query_pi4_key_status()
+                if key_id != _pi4_loaded_key_id:
+                    _pi4_loaded_key_id = key_id
+                    socketio.emit('pi4_key_loaded_status', {'key_id': key_id})
         else:
             last_reachable = None
         time.sleep(5)
