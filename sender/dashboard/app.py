@@ -491,6 +491,7 @@ def handle_provision_new_key():
 @socketio.on('challenge_pi4')
 def handle_challenge_pi4():
     """Send a random nonce to Pi4, verify its HMAC response with our mac_key."""
+    global _pi4_loaded_key_id
     if not _mac_key:
         emit('challenge_result', {'status': 'error', 'msg': 'No mac_key loaded — provision a key first (NEW KEY)'})
         return
@@ -529,6 +530,8 @@ def handle_challenge_pi4():
         verified = hmac.compare_digest(expected, pi4_hmac.lower())
 
         if verified:
+            _pi4_loaded_key_id = key_id
+            socketio.emit('pi4_key_loaded_status', {'key_id': key_id})
             emit('challenge_result', {
                 'status':   'verified',
                 'key_id':   key_id,

@@ -763,6 +763,14 @@ int main(int argc, char* argv[]) {
         if (flags >= 0) fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     }
 
+    // From here on ncurses owns the terminal — raw printf/fprintf (ours or
+    // the SST library's SST_print_error) would otherwise corrupt the screen
+    // instead of just vanishing. Redirect both to the debug log so real
+    // errors (e.g. Auth's AUTH_ALERT reason) are still visible somewhere.
+    freopen("receiver_debug.log", "a", stdout);
+    freopen("receiver_debug.log", "a", stderr);
+    setvbuf(stderr, NULL, _IONBF, 0);
+
     ui_init();
     atexit(ui_shutdown);
 
@@ -927,35 +935,15 @@ int main(int argc, char* argv[]) {
                 case 'F': {
                     cmd_printf("[Shortcut] Force Fetch New Key from SST...");
                     // Try fetch new list first without freeing old one.
-                    // Auth's TCP handshake occasionally hits a transient
-                    // EAGAIN/EWOULDBLOCK (e.g. right after another entity —
-                    // the sender's pico_provisioner — just finished its own
-                    // request); retry a couple times before giving up.
-                    session_key_list_t* new_key_list = NULL;
-                    int fetch_attempts = 0;
-                    do {
-                        new_key_list = get_session_key(sst, NULL);
-                        if (new_key_list && new_key_list->num_key > 0) break;
-                        if (new_key_list) { free_session_key_list_t(new_key_list); new_key_list = NULL; }
-                        bool retryable = (errno == EAGAIN || errno == EWOULDBLOCK);
-                        fetch_attempts++;
-                        if (retryable && fetch_attempts < 3) {
-                            cmd_printf("[Retry %d/3] EAGAIN from Auth, retrying...", fetch_attempts);
-                            usleep(300000);
-                        } else {
-                            break;
-                        }
-                    } while (fetch_attempts < 3);
+                    session_key_list_t* new_key_list = get_session_key(sst, NULL);
 
                     if (!new_key_list || new_key_list->num_key == 0) {
-                         // Failed.
+                         // Failed. errno here is unreliable (the UART poll's
+                         // non-blocking read() sets it constantly regardless
+                         // of this call) — the real reason is whatever
+                         // Auth/SST logged to receiver_debug.log just now.
                          cmd_printf("Error: Failed to fetch new key from SST.");
-
-                         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                             cmd_printf("Error detail: Resource temporary unavailable (EAGAIN).");
-                             cmd_printf("Try again in a moment.");
-                         }
-
+                         cmd_printf("See receiver_debug.log for the real reason.");
                          cmd_printf("Keeping current session key.");
                          if (new_key_list) free_session_key_list_t(new_key_list);
                     } else {
