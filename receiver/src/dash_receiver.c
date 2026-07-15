@@ -574,6 +574,15 @@ static void handle_force_key_request(int client, const char *body) {
         }
     }
 
+    if (has_target) {
+        char hex[SESSION_KEY_ID_SIZE * 2 + 1];
+        for (int j = 0; j < SESSION_KEY_ID_SIZE; j++) sprintf(hex + j * 2, "%02x", target_id[j]);
+        hex[SESSION_KEY_ID_SIZE * 2] = '\0';
+        fprintf(stderr, "[FORCE_KEY] Queued targeted fetch for key_id=%s\n", hex);
+    } else {
+        fprintf(stderr, "[FORCE_KEY] Queued blind fetch (no/unparseable key_id in body: \"%s\")\n", body);
+    }
+
     pthread_mutex_lock(&g_force_key_mutex);
     g_force_key_requested = true;
     g_force_key_has_target = has_target;
@@ -602,6 +611,8 @@ static void handle_status_request(int client) {
     int jlen = key_ready
         ? snprintf(json, sizeof(json), "{\"key_id\":\"%s\"}", key_id_str)
         : snprintf(json, sizeof(json), "{\"key_id\":null}");
+
+    fprintf(stderr, "[STATUS] Reporting key_id=%s\n", key_ready ? key_id_str : "(none)");
 
     char resp[256];
     int rlen = snprintf(resp, sizeof(resp),
@@ -716,6 +727,8 @@ static void challenge_handle(int client) {
     char *body_ptr = strstr(buf, "\r\n\r\n");
     char *body = body_ptr ? body_ptr + 4 : (char*)"";
 
+    fprintf(stderr, "[CTRL] %s request received, body=\"%s\"\n", path, body);
+
     // TEMPORARILY DISABLED: request signing was masking whether the actual
     // key-convergence fix (get_session_key_by_ID via /force_key) works at
     // all, on top of a bootstrap gap in the signing scheme itself. Re-enable
@@ -767,6 +780,7 @@ static void challenge_handle(int client) {
     pthread_mutex_unlock(&g_rep_mutex);
 
     if (!key_ready) {
+        fprintf(stderr, "[CHALLENGE] Rejected: no key loaded on the Pi4 side.\n");
         const char *resp =
             "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 25\r\n\r\n"
             "{\"error\":\"no key loaded\"}";
@@ -787,6 +801,9 @@ static void challenge_handle(int client) {
     char key_id_str[SESSION_KEY_ID_SIZE * 2 + 1];
     strncpy(key_id_str, g_rep_event.key_id_hex, sizeof(key_id_str));
     pthread_mutex_unlock(&g_rep_mutex);
+
+    fprintf(stderr, "[CHALLENGE] Using key_id=%s to answer nonce=%.16s... -> hmac=%.16s...\n",
+            key_id_str, nonce_hex, hmac_hex);
 
     char json[256];
     int jlen = snprintf(json, sizeof(json),
@@ -1102,9 +1119,17 @@ int main(int argc, char* argv[]) {
                         // with what the sender side already has. Fetching
                         // by the exact ID the dashboard requested is what
                         // actually syncs both sides on the same key.
+                        {
+                            char req_hex[SESSION_KEY_ID_SIZE * 2 + 1];
+                            for (int j = 0; j < SESSION_KEY_ID_SIZE; j++)
+                                sprintf(req_hex + j * 2, "%02x", remote_force_target_id[j]);
+                            req_hex[SESSION_KEY_ID_SIZE * 2] = '\0';
+                            fprintf(stderr, "[FORCE_KEY] Calling get_session_key_by_ID(%s)...\n", req_hex);
+                        }
                         cmd_printf("[Remote] Fetching requested key ID from SST...");
                         session_key_t* found = get_session_key_by_ID(remote_force_target_id, sst, key_list);
                         if (!found) {
+                            fprintf(stderr, "[FORCE_KEY] get_session_key_by_ID() returned NULL.\n");
                             cmd_printf("Error: Failed to fetch requested key ID from SST.");
                             cmd_printf("See receiver_debug.log for the real reason.");
                             cmd_printf("Keeping current session key.");
@@ -1120,6 +1145,16 @@ int main(int argc, char* argv[]) {
                             g_rep_key_valid = true;
                             pthread_mutex_unlock(&g_rep_mutex);
                             reporter_post_key_loaded(s_key.key_id);
+                            {
+                                char got_hex[SESSION_KEY_ID_SIZE * 2 + 1];
+                                for (int j = 0; j < SESSION_KEY_ID_SIZE; j++)
+                                    sprintf(got_hex + j * 2, "%02x", s_key.key_id[j]);
+                                got_hex[SESSION_KEY_ID_SIZE * 2] = '\0';
+                                fprintf(stderr, "[FORCE_KEY] get_session_key_by_ID() returned key_id=%s "
+                                                "(matches request: %s)\n",
+                                        got_hex,
+                                        memcmp(s_key.key_id, remote_force_target_id, SESSION_KEY_ID_SIZE) == 0 ? "YES" : "NO");
+                            }
                             cmd_printf("✓ Fetched requested key — now matches sender.");
 
                             if (fd >= 0) {

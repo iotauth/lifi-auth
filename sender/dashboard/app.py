@@ -630,6 +630,15 @@ def handle_challenge_pi4():
         expected = hmac.new(_mac_key, nonce, hashlib.sha256).hexdigest()
         verified = hmac.compare_digest(expected, pi4_hmac.lower())
 
+        # Compare directly against the Pi4's own "[CHALLENGE] Using key_id=..."
+        # line in receiver_debug.log — if key_id differs here, the two sides
+        # are on different keys; if key_id matches but hmac doesn't, mac_key
+        # itself differs despite matching IDs (shouldn't happen, but tells us
+        # something odd is going on).
+        print(f'[CHALLENGE] nonce={nonce_hex[:16]}... pi4_key_id={key_id} '
+              f'our_loaded_key_id={_loaded_key_id} expected_hmac={expected[:16]}... '
+              f'pi4_hmac={pi4_hmac[:16]}... verified={verified}')
+
         if verified:
             _pi4_loaded_key_id = key_id
             socketio.emit('pi4_key_loaded_status', {'key_id': key_id})
