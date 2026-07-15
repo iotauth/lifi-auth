@@ -421,6 +421,45 @@ ls receiver/config/credentials/
 ```
 This will now connect to auth you will get "Retrieving session key from SST..." The pi4 should print the session key (for debug).
 
+### Registering a separate Auth identity for the Pi4 (net2.client)
+
+The sender (`host.config`, used by `pico_provisioner`) and the Pi4 (`home_receiver.config`/`receiver.config`) both default to the same Auth identity, `net1.client`. That works for each side's own blind key fetch, but breaks key **convergence**: when the dashboard tells the Pi4 to fetch the sender's specific `key_id` by ID (`/force_key` → `get_session_key_by_ID`), Auth rejects it with `INVALID_SESSION_KEY_REQ` because `net1.client` is already registered as an owner of that key (`CommunicationPolicyChecker.java:55-59` — an entity can't "own" the same session key twice under the same name). The fix is giving the Pi4 its own distinct identity, `net2.client`, in Auth-group `Servers` (not `Clients`, unlike `net1.client`) — that lets it become a *second, independent* owner of the same session key.
+
+**One-time setup (credentials + config are already in this repo — `net2_receiver.config` and `deps/iotauth/entity/credentials/{keys,certs}/net1/Net2.Client*`). You only need to register the identity with Auth:**
+
+At the Auth server's `Enter command` prompt, run `add re` and answer each prompt **one line at a time** — don't paste the whole block, long paths get mangled by terminal line-wrapping mid-paste and abort the whole sequence:
+```
+entity name: net2.client
+entity group: Servers
+distribution protocol: [Enter for default TCP]
+permanent distribution key? y/n: n
+max session keys per request: 5
+public key path: ../../entity/credentials/certs/net1/Net2.ClientCert.pem
+public key crypto spec: [Enter for default RSA-SHA256]
+distribution key crypto spec: [Enter for default AES-128-CBC:SHA256]
+distribution key validity period: 1*hour
+```
+(The public key path above is relative to the Auth server process's own working directory, typically `deps/iotauth/auth/auth-server/` — confirm with `readlink -f /proc/<auth-server-pid>/cwd` if unsure, or just use the absolute path to the repo's `deps/iotauth/entity/credentials/certs/net1/Net2.ClientCert.pem` instead.)
+
+This persists in `auth.db` — no need to repeat it on normal Auth server restarts. It only needs to be redone if the whole Auth DB is ever wiped/regenerated from scratch (`deps/iotauth/examples/cleanAll.sh` + `generateAll.sh`), since `net2.client` isn't in the seed file (`deps/iotauth/examples/configs/default.graph`).
+
+Then push the new credentials to the Pi4's own clone and run dash_receiver with the new config:
+```bash
+scp deps/iotauth/entity/credentials/keys/net1/Net2.ClientKey.pem pi4-home:~/projects/lifi-auth/deps/iotauth/entity/credentials/keys/net1/
+scp net2_receiver.config pi4-home:~/projects/lifi-auth/
+# on the Pi4:
+./artifacts/receiver/dash_receiver net2_receiver.config
+```
+
+On startup you'll see `ERROR: Invalid Session Key Request.` / `Attempting to continue with empty list (Reactive Mode)...` — **this is expected, not a failure.** `net2.client`'s own blind startup fetch requests a key for group `Servers`, but Auth only has a communication policy letting group `Clients` request `Servers`-purpose keys, not `Servers` requesting `Servers`. `net2.client` doesn't need the blind fetch to succeed — its job is the fetch-*by-ID* that the dashboard triggers via `/force_key`, which is a different code path with its own (passing) policy check. As long as you see `[CHALLENGE] Server listening on port 5001`, it's up and ready.
+
+From the dashboard: **Connect**, then **Verify Pi4**. Success looks like:
+```
+[CHALLENGE] Pi4 key_id (None) != ours (...) — syncing via Auth fetch-by-ID...
+[CHALLENGE] Pi4 synced to key_id ...xxxxxxxx — proceeding to HMAC verify
+[CHALLENGE] Pi4 VERIFIED — holds SST key bound to LiFi key_id ...xxxxxxxx
+```
+
 ## Build Details
 
 ### Where to find results
