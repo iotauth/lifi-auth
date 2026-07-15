@@ -435,17 +435,18 @@ def handle_pi4_status():
         socketio.emit('wifi_log_message', {'data': f"[PI4] {data.get('message', '(empty)')}"})
         return '', 204
 
-    if not _mac_key:
-        socketio.emit('wifi_log_message', {'data': '[PI4] /pi4_status rejected: no mac_key loaded on the dashboard side'})
-        return 'Unauthorized', 401
-    expected = hmac.new(_mac_key, body, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, sig):
-        # This is the single most useful diagnostic line for "key id never
-        # populates": it means the Pi4's key genuinely doesn't match the
-        # dashboard's right now — the report was received but is being
-        # dropped, not silently lost in the network.
-        socketio.emit('wifi_log_message', {'data': "[PI4] /pi4_status rejected: HMAC mismatch — Pi4's key doesn't match the dashboard's current key"})
-        return 'Unauthorized', 401
+    # TEMPORARILY DISABLED (matches dash_receiver.c's control-route signing
+    # being off for now, see ba7f951): during initial Pi4 setup the two
+    # sides' keys haven't converged yet, and rejecting this report with 401
+    # is exactly what was hiding "key ID never populates". This is just the
+    # Pi4's self-reported key_id — not proof it holds it. That proof still
+    # comes from the /challenge round-trip in handle_challenge_pi4 (Verify
+    # Pi4), which is unaffected by this. Re-enable this gate once convergence
+    # is confirmed solid.
+    if _mac_key:
+        expected = hmac.new(_mac_key, body, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected, sig):
+            socketio.emit('wifi_log_message', {'data': "[PI4] /pi4_status: HMAC mismatch (displaying anyway, unverified) — Pi4's key doesn't match the dashboard's current key"})
 
     _pi4_loaded_key_id = data.get('key_id')
     socketio.emit('pi4_key_loaded_status', {'key_id': _pi4_loaded_key_id})
@@ -594,11 +595,43 @@ def handle_provision_new_key():
 
 @socketio.on('challenge_pi4')
 def handle_challenge_pi4():
-    """Send a random nonce to Pi4, verify its HMAC response with our mac_key."""
+    """Sync the Pi4 onto our current key_id via Auth (if it isn't already),
+    then send a random nonce to Pi4 and verify its HMAC response with our
+    mac_key. There's no lightweight "is this key_id still active" query in
+    the SST protocol/Auth server — the only way to ask Auth is a real
+    get_session_key_by_ID() fetch, which is exactly what /force_key already
+    triggers on the Pi4. So "verify" now means: converge via that fetch
+    first (which is itself the Auth-side validity check), then prove
+    possession over WiFi."""
     global _pi4_loaded_key_id
     if not _mac_key:
         emit('challenge_result', {'status': 'error', 'msg': 'No mac_key loaded — provision a key first (NEW KEY)'})
         return
+    if not _loaded_key_id:
+        emit('challenge_result', {'status': 'error', 'msg': 'No local key_id loaded — provision a key first (NEW KEY)'})
+        return
+
+    current_key_id, _ = _query_pi4_key_status()
+    if current_key_id != _loaded_key_id:
+        emit('wifi_log_message', {'data': f'[CHALLENGE] Pi4 key_id ({current_key_id}) != ours ({_loaded_key_id}) — syncing via Auth fetch-by-ID...'})
+        ok, reason = _force_pi4_key_refresh(_mac_key, _loaded_key_id)
+        if not ok:
+            emit('challenge_result', {'status': 'error', 'msg': f'Sync request failed: {reason}'})
+            return
+        for _ in range(5):
+            time.sleep(1)
+            current_key_id, _ = _query_pi4_key_status()
+            if current_key_id == _loaded_key_id:
+                break
+        if current_key_id != _loaded_key_id:
+            emit('challenge_result', {
+                'status': 'failed',
+                'msg': f'Pi4 did not converge to key_id {_loaded_key_id[:8]} after sync — Auth may have rejected it. Check receiver_debug.log on the Pi4.'
+            })
+            return
+        _pi4_loaded_key_id = current_key_id
+        socketio.emit('pi4_key_loaded_status', {'key_id': current_key_id})
+        emit('wifi_log_message', {'data': f'[CHALLENGE] Pi4 synced to key_id {current_key_id[:8]} — proceeding to HMAC verify'})
 
     nonce = os.urandom(32)
     nonce_hex = nonce.hex()
@@ -925,7 +958,7 @@ def handle_rx2_list_ports():
 
 @socketio.on('rx2_connect_to_port')
 def handle_rx2_connect(message):
-    global rx2_serial_conn, RX2_PORT, serial_conn, TX_PORT, rx_serial_conn, RX_PORT, PI4_HOST
+    global rx2_serial_conn, RX2_PORT, serial_conn, TX_PORT, rx_serial_conn, RX_PORT, PI4_HOST, _pi4_loaded_key_id
     port = message.get('port', '').strip()
     if not port:
         return
@@ -946,6 +979,13 @@ def handle_rx2_connect(message):
         if _pi4_reachable():
             emit('wifi_log_message', {'data': f'[RX2] WiFi peer connected: {port}'})
             emit('rx2_status', {'connected': True, 'port': port})
+            # Show KEY ID right away instead of waiting for the next 5s poll —
+            # this is just the Pi4's self-reported key_id (unauthenticated),
+            # not proof it holds it. Verify Pi4 is what establishes trust.
+            key_id, reason = _query_pi4_key_status()
+            _pi4_loaded_key_id = key_id
+            emit('pi4_key_loaded_status', {'key_id': key_id})
+            emit('wifi_log_message', {'data': f'[RX2] /status: {reason}'})
         else:
             emit('wifi_log_message', {'data': f'[RX2] Pi4 not reachable at {PI4_HOST}:{PI4_CHALLENGE_PORT} — check it is powered on and the receiver is running'})
             emit('rx2_status', {'connected': False, 'port': port})
