@@ -477,30 +477,41 @@ def _sign_pi4_request(path: str, body: bytes = b'', key: bytes | None = None) ->
         'X-SST-HMAC': sig,
     }
 
-def _force_pi4_key_refresh(mac_key: bytes | None) -> tuple[bool, str]:
-    """Ask dash_receiver on the Pi4 to force-refetch its session key from
-    Auth (same as pressing 'f' locally), so both sides rotate together
-    instead of drifting independently. Returns (ok, reason) — the request
-    itself is fire-and-forget on the Pi4 (it just sets a flag the main loop
-    picks up), so a 202 here only means the *request* was accepted, not that
-    the Auth fetch succeeded; watch KEY ID / receiver_debug.log for that.
+def _force_pi4_key_refresh(mac_key: bytes | None, key_id: str | None) -> tuple[bool, str]:
+    """Ask dash_receiver on the Pi4 to fetch the SPECIFIC session key (by ID)
+    that the sender side just got from Auth. A blind get_session_key() mints
+    a brand-new, unrelated key from Auth on every call (confirmed
+    empirically — two calls seconds apart returned different key IDs), so it
+    never converges with what the sender already has. Passing the target
+    key_id lets the Pi4 use get_session_key_by_ID() instead — the same
+    lookup-by-ID mechanism the LiFi key-ID broadcast flow already uses — so
+    both sides actually end up on the same key.
+
+    Returns (ok, reason) — the request itself is fire-and-forget on the Pi4
+    (it just queues the target ID for the main loop), so a 202 here only
+    means the *request* was accepted, not that the fetch-by-ID succeeded;
+    watch KEY ID / receiver_debug.log for that.
 
     `mac_key` must be the key BOTH sides currently share (i.e. the OLD key,
     captured before any local reload) — signing with a brand-new local key
     the Pi4 hasn't rotated to yet will be rejected as an invalid signature."""
     if not mac_key:
         return False, 'no mac_key loaded — cannot sign the request'
+    if not key_id:
+        return False, 'no key_id to request — provisioning may have failed'
     try:
-        headers = _sign_pi4_request('/force_key', key=mac_key)
+        body = json.dumps({'key_id': key_id}).encode()
+        headers = _sign_pi4_request('/force_key', body, key=mac_key)
         with socket.create_connection((PI4_HOST, PI4_CHALLENGE_PORT), timeout=3) as s:
             header_lines = ''.join(f'{k}: {v}\r\n' for k, v in headers.items())
             req = (
                 f'POST /force_key HTTP/1.1\r\n'
                 f'Host: {PI4_HOST}:{PI4_CHALLENGE_PORT}\r\n'
                 f'{header_lines}'
-                f'Content-Length: 0\r\n'
+                f'Content-Type: application/json\r\n'
+                f'Content-Length: {len(body)}\r\n'
                 f'Connection: close\r\n\r\n'
-            ).encode()
+            ).encode() + body
             s.sendall(req)
             resp = b''
             while True:
@@ -537,7 +548,7 @@ def handle_provision_new_key():
                 emit('log_message', {'data': f'⚠ New key fetched and saved, but not pushed to the Pico: {result.stderr.strip()}'})
             else:
                 emit('log_message', {'data': '✓ New key provisioned and loaded (Pico updated).'})
-            ok, reason = _force_pi4_key_refresh(old_mac_key)
+            ok, reason = _force_pi4_key_refresh(old_mac_key, _loaded_key_id)
             msg = ('[KEY] Told Pi4 to force-refresh its key too.' if ok
                    else f'[KEY] Could not tell Pi4 to refresh: {reason}')
             emit('log_message', {'data': msg})

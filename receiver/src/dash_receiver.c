@@ -524,10 +524,42 @@ static void reporter_signal(const uint8_t *key_id, const uint8_t *payload,
 
 static pthread_mutex_t g_force_key_mutex      = PTHREAD_MUTEX_INITIALIZER;
 static bool            g_force_key_requested  = false;
+// Target key ID from the /force_key body, if any. A blind get_session_key()
+// mints a brand-new, unrelated key from Auth on every call (confirmed
+// empirically), so telling the Pi4 "go get exactly this key ID" via
+// get_session_key_by_ID() is what actually makes the two sides converge —
+// see the main loop's case 'f' handling.
+static uint8_t         g_force_key_target_id[SESSION_KEY_ID_SIZE];
+static bool            g_force_key_has_target = false;
 
-static void handle_force_key_request(int client) {
+static void handle_force_key_request(int client, const char *body) {
+    uint8_t target_id[SESSION_KEY_ID_SIZE];
+    bool has_target = false;
+
+    const char *p = strstr(body, "\"key_id\"");
+    if (p) {
+        p = strchr(p, ':');
+        if (p) {
+            p++;
+            while (*p == ' ' || *p == '"') p++;
+            char hex[SESSION_KEY_ID_SIZE * 2 + 1] = {0};
+            size_t i = 0;
+            while (i < SESSION_KEY_ID_SIZE * 2 && *p && *p != '"') hex[i++] = *p++;
+            if (i == SESSION_KEY_ID_SIZE * 2) {
+                has_target = true;
+                for (int j = 0; j < SESSION_KEY_ID_SIZE; j++) {
+                    unsigned int b;
+                    if (sscanf(hex + j * 2, "%02x", &b) != 1) { has_target = false; break; }
+                    target_id[j] = (uint8_t)b;
+                }
+            }
+        }
+    }
+
     pthread_mutex_lock(&g_force_key_mutex);
     g_force_key_requested = true;
+    g_force_key_has_target = has_target;
+    if (has_target) memcpy(g_force_key_target_id, target_id, SESSION_KEY_ID_SIZE);
     pthread_mutex_unlock(&g_force_key_mutex);
 
     const char *resp =
@@ -672,7 +704,7 @@ static void challenge_handle(int client) {
     }
 
     if (strcmp(path, "/force_key") == 0) {
-        handle_force_key_request(client);
+        handle_force_key_request(client, body);
         return;
     }
     if (strcmp(path, "/status") == 0) {
@@ -970,10 +1002,18 @@ int main(int argc, char* argv[]) {
         // A remote /force_key request from the dashboard behaves exactly
         // like pressing 'f' locally — only synthesize it when no real key
         // was pressed this iteration, so it can't clobber real input.
+        // If the request named a specific key ID (the one the sender side
+        // already has), case 'f' below fetches that exact key by ID
+        // instead of a blind refetch, so both sides actually converge.
+        bool remote_force_has_target = false;
+        uint8_t remote_force_target_id[SESSION_KEY_ID_SIZE];
         if (key == -1) {
             pthread_mutex_lock(&g_force_key_mutex);
             if (g_force_key_requested) {
                 g_force_key_requested = false;
+                remote_force_has_target = g_force_key_has_target;
+                if (remote_force_has_target)
+                    memcpy(remote_force_target_id, g_force_key_target_id, SESSION_KEY_ID_SIZE);
                 key = 'f';
             }
             pthread_mutex_unlock(&g_force_key_mutex);
@@ -1035,6 +1075,55 @@ int main(int argc, char* argv[]) {
 
                 case 'f':
                 case 'F': {
+                    if (remote_force_has_target) {
+                        // A blind get_session_key() mints a brand-new,
+                        // unrelated key every call — it never converges
+                        // with what the sender side already has. Fetching
+                        // by the exact ID the dashboard requested is what
+                        // actually syncs both sides on the same key.
+                        cmd_printf("[Remote] Fetching requested key ID from SST...");
+                        session_key_t* found = get_session_key_by_ID(remote_force_target_id, sst, key_list);
+                        if (!found) {
+                            cmd_printf("Error: Failed to fetch requested key ID from SST.");
+                            cmd_printf("See receiver_debug.log for the real reason.");
+                            cmd_printf("Keeping current session key.");
+                        } else {
+                            s_key = *found;
+                            key_valid = true;
+                            stats.keys_consumed++;
+                            pthread_mutex_lock(&g_rep_mutex);
+                            memcpy(g_rep_mac_key, s_key.mac_key, 32);
+                            g_rep_key_valid = true;
+                            pthread_mutex_unlock(&g_rep_mutex);
+                            reporter_post_key_loaded(s_key.key_id);
+                            cmd_printf("✓ Fetched requested key — now matches sender.");
+
+                            if (fd >= 0) {
+                                uint16_t klen = SESSION_KEY_ID_SIZE + SST_KEY_SIZE + 32;
+                                uint8_t hdr[] = {
+                                    PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                                    MSG_TYPE_KEY,
+                                    (klen >> 8) & 0xFF,
+                                    klen & 0xFF
+                                };
+                                if (write_all(fd, hdr, sizeof(hdr)) < 0 ||
+                                    write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
+                                    write_all(fd, s_key.cipher_key, SST_KEY_SIZE) < 0) {
+                                    cmd_printf("Error: Failed to send new key to Pico.");
+                                } else {
+                                    usleep(5000);
+                                    write_all(fd, s_key.mac_key, 32);
+                                    tcdrain(fd);
+                                    cmd_printf("✓ Session key sent to Pico.");
+                                }
+                            } else {
+                                cmd_printf("Warning: Serial closed. Key updated locally but not sent.");
+                            }
+                        }
+                        mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
+                        break;
+                    }
+
                     cmd_printf("[Shortcut] Force Fetch New Key from SST...");
                     // Try fetch new list first without freeing old one.
                     session_key_list_t* new_key_list = get_session_key(sst, NULL);
