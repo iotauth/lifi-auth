@@ -37,6 +37,13 @@ _mac_key_id: str | None = None  # hex key_id from the last verified /pi4_frame
 _loaded_key_id: str | None = None  # hex key_id from session_key.json, regardless of WiFi proof
 _pi4_loaded_key_id: str | None = None  # hex key_id the Pi4 (dash_receiver) reports having loaded — HMAC-authenticated, but NOT LiFi-optical proof
 
+# _mac_key_verified used to be sticky (proven once, trusted forever). Real
+# "continuous authentication" requires LiFi reception to keep happening —
+# track when the last valid frame arrived and let pi4_health_monitor() decay
+# the verified flag back to False if that window lapses.
+_last_valid_frame_time: float = 0.0
+LIVENESS_WINDOW_S = 15
+
 def _load_mac_key() -> bytes | None:
     global _loaded_key_id
     try:
@@ -125,13 +132,16 @@ def _query_pi4_key_status(timeout: float = 1.5) -> str | None:
     missed if the dashboard wasn't already running when dash_receiver
     started, but this pull (run periodically from pi4_health_monitor)
     self-corrects regardless of start order."""
-    if not PI4_HOST:
+    if not PI4_HOST or not _mac_key:
         return None
     try:
+        headers = _sign_pi4_request('/status')
         with socket.create_connection((PI4_HOST, PI4_CHALLENGE_PORT), timeout=timeout) as s:
+            header_lines = ''.join(f'{k}: {v}\r\n' for k, v in headers.items())
             req = (
                 f'GET /status HTTP/1.1\r\n'
                 f'Host: {PI4_HOST}:{PI4_CHALLENGE_PORT}\r\n'
+                f'{header_lines}'
                 f'Connection: close\r\n\r\n'
             ).encode()
             s.sendall(req)
@@ -312,6 +322,12 @@ def pi4_health_monitor():
                 if key_id != _pi4_loaded_key_id:
                     _pi4_loaded_key_id = key_id
                     socketio.emit('pi4_key_loaded_status', {'key_id': key_id})
+            # Continuous-authentication decay: "proven" only counts while LiFi
+            # frames keep actually arriving. A one-time proof shouldn't stay
+            # trusted forever if the optical link goes dark.
+            if _mac_key_verified and (time.time() - _last_valid_frame_time) > LIVENESS_WINDOW_S:
+                _set_mac_key_verified(False)
+                socketio.emit('wifi_log_message', {'data': f'[RX2] LiFi proof stale (>{LIVENESS_WINDOW_S}s since last valid frame) — re-verify required.'})
         else:
             last_reachable = None
         time.sleep(5)
@@ -339,6 +355,7 @@ def handle_test_result_post():
 @app.route('/pi4_frame', methods=['POST'])
 def handle_pi4_frame():
     """Pi4 flash_receiver pushes decoded LiFi frames here (HMAC-signed)."""
+    global _last_valid_frame_time
     body = request.get_data()
     sig  = request.headers.get('X-SST-HMAC', '').lower()
 
@@ -358,6 +375,7 @@ def handle_pi4_frame():
     if _mac_key:
         # A frame that passed HMAC is the LiFi-side proof the Pico is actually
         # transmitting with this key — surface which key_id that is.
+        _last_valid_frame_time = time.time()
         _set_mac_key_verified(True, data.get('key_id'))
 
     with rx_source_lock:
@@ -437,15 +455,37 @@ def on_connect():
     with rx_source_lock:
         emit('rx_source_changed', {'source': rx_source})
 
+def _sign_pi4_request(path: str, body: bytes = b'') -> dict:
+    """Signs a request to dash_receiver's control port with the shared SST
+    mac_key, matching verify_signed_request() in dash_receiver.c: HMAC-SHA256
+    over "timestamp|nonce|path|body". The timestamp+nonce make each request
+    unique and time-bounded, so a captured request can't be replayed to force
+    a key rotation or read back key material later."""
+    ts = str(int(time.time())).encode()
+    nonce = os.urandom(12).hex().encode()
+    signed = ts + b'|' + nonce + b'|' + path.encode() + b'|' + body
+    sig = hmac.new(_mac_key, signed, hashlib.sha256).hexdigest()
+    return {
+        'X-SST-Timestamp': ts.decode(),
+        'X-SST-Nonce': nonce.decode(),
+        'X-SST-HMAC': sig,
+    }
+
 def _force_pi4_key_refresh() -> bool:
     """Ask dash_receiver on the Pi4 to force-refetch its session key from
     Auth (same as pressing 'f' locally), so both sides rotate together
     instead of drifting independently. Best-effort — the Pi4 may not be up."""
+    if not _mac_key:
+        print('[KEY] No mac_key loaded — cannot sign force-key request.')
+        return False
     try:
+        headers = _sign_pi4_request('/force_key')
         with socket.create_connection((PI4_HOST, PI4_CHALLENGE_PORT), timeout=3) as s:
+            header_lines = ''.join(f'{k}: {v}\r\n' for k, v in headers.items())
             req = (
                 f'POST /force_key HTTP/1.1\r\n'
                 f'Host: {PI4_HOST}:{PI4_CHALLENGE_PORT}\r\n'
+                f'{header_lines}'
                 f'Content-Length: 0\r\n'
                 f'Connection: close\r\n\r\n'
             ).encode()
@@ -474,9 +514,11 @@ def handle_provision_new_key():
             emit('key_loaded_status', {'key_id': _loaded_key_id})
             emit('log_message', {'data': '✓ New key provisioned and loaded.'})
             if _force_pi4_key_refresh():
-                emit('log_message', {'data': '[KEY] Told Pi4 to force-refresh its key too.'})
+                msg = '[KEY] Told Pi4 to force-refresh its key too.'
             else:
-                emit('log_message', {'data': '[KEY] Pi4 not reachable — it will pick up the new key on its own next fetch.'})
+                msg = '[KEY] Pi4 not reachable — it will pick up the new key on its own next fetch.'
+            emit('log_message', {'data': msg})
+            emit('wifi_log_message', {'data': msg})  # also surface in the WiFi/Pi4 panel, not just TX
             emit('key_provisioned', {'status': 'ok'})
         else:
             emit('log_message', {'data': f'[KEY] Provisioner failed: {result.stderr.strip()}'})
@@ -504,11 +546,14 @@ def handle_challenge_pi4():
     body = json.dumps({'nonce': nonce_hex}).encode()
 
     try:
+        headers = _sign_pi4_request('/challenge', body)
         with socket.create_connection((PI4_HOST, PI4_CHALLENGE_PORT), timeout=3) as s:
+            header_lines = ''.join(f'{k}: {v}\r\n' for k, v in headers.items())
             req = (
                 f'POST /challenge HTTP/1.1\r\n'
                 f'Host: {PI4_HOST}:{PI4_CHALLENGE_PORT}\r\n'
                 f'Content-Type: application/json\r\n'
+                f'{header_lines}'
                 f'Content-Length: {len(body)}\r\n'
                 f'Connection: close\r\n\r\n'
             ).encode() + body

@@ -18,6 +18,8 @@
 #include <ncurses.h>
 #include <stdarg.h>
 
+#include <openssl/crypto.h>  // CRYPTO_memcmp — constant-time compare
+
 
 // Project headers (use -I include dirs instead of ../../../)
 #include "c_api.h"
@@ -559,26 +561,124 @@ static void handle_status_request(int client) {
     close(client);
 }
 
+// --- Request signing (dashboard -> Pi4 control channel) ---
+// Every /force_key, /status, and /challenge request must carry:
+//   X-SST-Timestamp: <unix seconds>
+//   X-SST-Nonce:     <24 hex chars, 12 random bytes>
+//   X-SST-HMAC:      <64 hex chars, HMAC-SHA256(mac_key, "ts|nonce|path|body")>
+// Rejects stale (>30s skew), replayed, or unauthenticated requests before
+// any control action (key rotation, status disclosure, challenge) runs.
+// Reuses the same shared mac_key both sides already have via SST — no new
+// secret — and the existing replay_window_t (receiver/include/replay_window.h)
+// rather than a new dedup structure.
+#define REQ_SIG_MAX_SKEW_S 30
+#define REQ_NONCE_BYTES    12   // must match replay_window_t's fixed 12-byte slots
+#define REQ_NONCE_HEX_LEN  (REQ_NONCE_BYTES * 2)
+
+static replay_window_t g_req_replay_window;
+
+static bool extract_header(const char *buf, const char *header_name,
+                            char *out, size_t out_size) {
+    const char *p = strstr(buf, header_name);
+    if (!p) return false;
+    p += strlen(header_name);
+    while (*p == ' ') p++;
+    size_t i = 0;
+    while (i < out_size - 1 && *p && *p != '\r' && *p != '\n') out[i++] = *p++;
+    out[i] = '\0';
+    return i > 0;
+}
+
+static bool verify_signed_request(const char *buf, const char *path,
+                                   const char *body, size_t body_len) {
+    char ts_str[32], nonce_hex[REQ_NONCE_HEX_LEN + 1], hmac_hex[65];
+    if (!extract_header(buf, "X-SST-Timestamp:", ts_str, sizeof(ts_str)) ||
+        !extract_header(buf, "X-SST-Nonce:",     nonce_hex, sizeof(nonce_hex)) ||
+        !extract_header(buf, "X-SST-HMAC:",      hmac_hex, sizeof(hmac_hex))) {
+        return false;
+    }
+    if (strlen(nonce_hex) != REQ_NONCE_HEX_LEN || strlen(hmac_hex) != 64) return false;
+
+    time_t ts = (time_t)strtoll(ts_str, NULL, 10);
+    time_t now = time(NULL);
+    time_t skew = now > ts ? now - ts : ts - now;
+    if (skew > REQ_SIG_MAX_SKEW_S) return false;
+
+    uint8_t nonce_bytes[REQ_NONCE_BYTES];
+    for (int i = 0; i < REQ_NONCE_BYTES; i++) {
+        unsigned int b;
+        if (sscanf(nonce_hex + i * 2, "%02x", &b) != 1) return false;
+        nonce_bytes[i] = (uint8_t)b;
+    }
+    if (replay_window_seen(&g_req_replay_window, nonce_bytes)) return false;
+
+    pthread_mutex_lock(&g_rep_mutex);
+    bool key_ready = g_rep_key_valid;
+    uint8_t mac_key_copy[32];
+    if (key_ready) memcpy(mac_key_copy, g_rep_mac_key, 32);
+    pthread_mutex_unlock(&g_rep_mutex);
+    if (!key_ready) return false;
+
+    char signed_str[1024];
+    int slen = snprintf(signed_str, sizeof(signed_str), "%s|%s|%s|%.*s",
+                         ts_str, nonce_hex, path, (int)body_len, body);
+    if (slen < 0 || (size_t)slen >= sizeof(signed_str)) return false;
+
+    uint8_t expected_hmac[32];
+    sst_hmac_sha256_ex(mac_key_copy, 32, (const uint8_t*)signed_str, (size_t)slen, expected_hmac);
+
+    uint8_t received_hmac[32];
+    for (int i = 0; i < 32; i++) {
+        unsigned int b;
+        if (sscanf(hmac_hex + i * 2, "%02x", &b) != 1) return false;
+        received_hmac[i] = (uint8_t)b;
+    }
+
+    if (CRYPTO_memcmp(expected_hmac, received_hmac, 32) != 0) return false;
+
+    // Only mark the nonce spent once fully verified, so a bad guess can't
+    // burn a slot that a legitimate retry would need.
+    replay_window_add(&g_req_replay_window, nonce_bytes);
+    return true;
+}
+
+static void send_401(int client) {
+    const char *body = "{\"error\":\"unauthorized\"}";
+    char resp[256];
+    int rlen = snprintf(resp, sizeof(resp),
+        "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: %zu\r\n\r\n%s",
+        strlen(body), body);
+    send(client, resp, (size_t)rlen, 0);
+    close(client);
+}
+
 static void challenge_handle(int client) {
     char buf[2048];
     ssize_t n = recv(client, buf, sizeof(buf) - 1, 0);
     if (n <= 0) { close(client); return; }
     buf[n] = '\0';
 
-    // Dispatch on the request line (e.g. "POST /force_key HTTP/1.1")
-    if (strncmp(buf, "POST /force_key", 15) == 0) {
-        handle_force_key_request(client);
-        return;
-    }
-    if (strncmp(buf, "GET /status", 11) == 0) {
-        handle_status_request(client);
+    // Path from the request line (e.g. "POST /force_key HTTP/1.1" -> "/force_key")
+    char path[64] = {0};
+    sscanf(buf, "%*s %63s", path);
+
+    // Body starts after the blank line, if any (absent for GET requests).
+    char *body_ptr = strstr(buf, "\r\n\r\n");
+    char *body = body_ptr ? body_ptr + 4 : (char*)"";
+
+    if (!verify_signed_request(buf, path, body, strlen(body))) {
+        send_401(client);
         return;
     }
 
-    // Find body after \r\n\r\n
-    char *body = strstr(buf, "\r\n\r\n");
-    if (!body) { close(client); return; }
-    body += 4;
+    if (strcmp(path, "/force_key") == 0) {
+        handle_force_key_request(client);
+        return;
+    }
+    if (strcmp(path, "/status") == 0) {
+        handle_status_request(client);
+        return;
+    }
 
     // Parse {"nonce":"<hex>"} — find the hex string after "nonce":"
     char *p = strstr(body, "\"nonce\"");
@@ -651,6 +751,8 @@ static void challenge_handle(int client) {
 
 static void *challenge_server_thread(void *arg) {
     (void)arg;
+    replay_window_init(&g_req_replay_window, REQ_NONCE_BYTES, 16);
+
     int srv = socket(AF_INET, SOCK_STREAM, 0);
     if (srv < 0) return NULL;
 
