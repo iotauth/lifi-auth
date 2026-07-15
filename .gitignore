@@ -16,3 +16,4 @@ passKeyToPico
 receiver_ask_debug.log
 __pycache__/
 *.pyc
+session_key.json

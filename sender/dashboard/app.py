@@ -533,7 +533,10 @@ def handle_provision_new_key():
             _mac_key = _load_mac_key()
             _set_mac_key_verified(False)  # unproven until the Pico transmits with it
             emit('key_loaded_status', {'key_id': _loaded_key_id})
-            emit('log_message', {'data': '✓ New key provisioned and loaded.'})
+            if 'SKIPPED' in result.stderr:
+                emit('log_message', {'data': f'⚠ New key fetched and saved, but not pushed to the Pico: {result.stderr.strip()}'})
+            else:
+                emit('log_message', {'data': '✓ New key provisioned and loaded (Pico updated).'})
             ok, reason = _force_pi4_key_refresh(old_mac_key)
             msg = ('[KEY] Told Pi4 to force-refresh its key too.' if ok
                    else f'[KEY] Could not tell Pi4 to refresh: {reason}')

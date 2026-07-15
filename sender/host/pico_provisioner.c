@@ -127,49 +127,11 @@ int main(int argc, char *argv[]) {
     print_hex("  Cipher Key: ", k->cipher_key, PROV_KEY_SIZE);
     print_hex("  MAC Key:    ", k->mac_key,    PROV_MAC_KEY_SIZE);
 
-    /* ── 2. Open serial to Pico ── */
-    printf("[UART] Opening %s at 1 Mbps...\n", serial_dev);
-    int fd = open_serial(serial_dev);
-    if (fd < 0) {
-        free_session_key_list_t(key_list);
-        free_SST_ctx_t(ctx);
-        return 1;
-    }
-    printf("[UART] Serial open.\n");
-
-    /* ── 3. Build and send MSG_TYPE_KEY frame ──
-     *
-     * Frame layout (matches Pico firmware MSG_TYPE_KEY handler):
-     *   [PREAMBLE:4][0x10:1][LEN_HI:1][LEN_LO:1][KEY_ID:8][CIPHER_KEY:16][MAC_KEY:32]
-     */
-    uint8_t header[7] = {
-        PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
-        MSG_TYPE_KEY,
-        (PROV_PAYLOAD_LEN >> 8) & 0xFF,
-        PROV_PAYLOAD_LEN & 0xFF
-    };
-
-    printf("[UART] Sending key to Pico...\n");
-
-    if (write_all(fd, header,      sizeof(header))   != 0 ||
-        write_all(fd, k->key_id,   PROV_KEY_ID_SIZE)  != 0 ||
-        write_all(fd, k->cipher_key, PROV_KEY_SIZE)   != 0 ||
-        write_all(fd, k->mac_key,  PROV_MAC_KEY_SIZE) != 0) {
-        fprintf(stderr, "[UART] Write failed: %s\n", strerror(errno));
-        close(fd);
-        free_session_key_list_t(key_list);
-        free_SST_ctx_t(ctx);
-        return 1;
-    }
-
-    tcdrain(fd);
-    printf("[UART] Key sent successfully.\n");
-    printf("\nPico is now provisioned as an SST node.\n");
-    printf("Key ID (broadcast over LiFi): ");
-    for (int i = 0; i < PROV_KEY_ID_SIZE; i++) printf("%02X", k->key_id[i]);
-    printf("\n");
-
-    /* ── 5. Save key material for dashboard HMAC verification ── */
+    /* ── 2. Save key material immediately ──
+     * This is what the dashboard/Pi4 actually need (HMAC verification, the
+     * signed control channel). Saving it here — before even trying the
+     * Pico's serial port — means a successful Auth fetch is never thrown
+     * away just because the Pico happens to not be plugged in right now. */
     FILE *kf = fopen("session_key.json", "w");
     if (kf) {
         fprintf(kf, "{\n");
@@ -186,7 +148,53 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "[KEY] Warning: could not write session_key.json\n");
     }
 
-    /* ── 4. Cleanup ── */
+    /* ── 3. Best-effort: push to the Pico over UART if it's connected ──
+     * Not fatal if this fails — the key already exists for the
+     * dashboard/Pi4 side. The Pico just won't be transmitting with it yet. */
+    printf("[UART] Opening %s at 1 Mbps...\n", serial_dev);
+    int fd = open_serial(serial_dev);
+    if (fd < 0) {
+        fprintf(stderr, "[UART] SKIPPED: Pico not connected at %s — key saved for "
+                        "dashboard/Pi4, but NOT pushed to the transmitting hardware.\n",
+                        serial_dev);
+        free_session_key_list_t(key_list);
+        free_SST_ctx_t(ctx);
+        return 0;
+    }
+    printf("[UART] Serial open.\n");
+
+    /* Frame layout (matches Pico firmware MSG_TYPE_KEY handler):
+     *   [PREAMBLE:4][0x10:1][LEN_HI:1][LEN_LO:1][KEY_ID:8][CIPHER_KEY:16][MAC_KEY:32]
+     */
+    uint8_t header[7] = {
+        PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+        MSG_TYPE_KEY,
+        (PROV_PAYLOAD_LEN >> 8) & 0xFF,
+        PROV_PAYLOAD_LEN & 0xFF
+    };
+
+    printf("[UART] Sending key to Pico...\n");
+
+    if (write_all(fd, header,      sizeof(header))   != 0 ||
+        write_all(fd, k->key_id,   PROV_KEY_ID_SIZE)  != 0 ||
+        write_all(fd, k->cipher_key, PROV_KEY_SIZE)   != 0 ||
+        write_all(fd, k->mac_key,  PROV_MAC_KEY_SIZE) != 0) {
+        fprintf(stderr, "[UART] SKIPPED: write to Pico failed (%s) — key saved for "
+                        "dashboard/Pi4, but NOT confirmed on the transmitting hardware.\n",
+                        strerror(errno));
+        close(fd);
+        free_session_key_list_t(key_list);
+        free_SST_ctx_t(ctx);
+        return 0;
+    }
+
+    tcdrain(fd);
+    printf("[UART] Key sent successfully.\n");
+    printf("\nPico is now provisioned as an SST node.\n");
+    printf("Key ID (broadcast over LiFi): ");
+    for (int i = 0; i < PROV_KEY_ID_SIZE; i++) printf("%02X", k->key_id[i]);
+    printf("\n");
+
     close(fd);
     free_session_key_list_t(key_list);
     free_SST_ctx_t(ctx);
