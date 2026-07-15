@@ -803,19 +803,15 @@ function _isWifiPeerPort(port) {
 }
 
 // The ask_receiver-equivalent buttons (LiFi key verify / SST auth) need both the
-// WiFi link up AND the key proven over LiFi — a loaded-but-unverified key isn't
-// enough to challenge the Pi4 with yet.
+// Just needs the WiFi link up — this challenge independently checks whether
+// Pi4 holds the same key the dashboard does, which is exactly the tool for
+// confirming a rotation landed on the Pi4 side. It shouldn't require LiFi
+// proof first; LiFi proof is a separate, stronger signal this corroborates.
 function _updateChallengeButton() {
     var b = document.getElementById('btn-challenge');
     if (!b) return;
-    b.disabled = !(wifiLinkUp && macKeyVerified);
-    if (!wifiLinkUp) {
-        b.title = 'Connect RX PORT 2 to the WiFi peer first';
-    } else if (!macKeyVerified) {
-        b.title = 'Waiting for the Pico to transmit with this key over LiFi...';
-    } else {
-        b.title = '';
-    }
+    b.disabled = !wifiLinkUp;
+    b.title = wifiLinkUp ? '' : 'Connect RX PORT 2 to the WiFi peer first';
 }
 
 socket.on('rx2_status', function(msg) {

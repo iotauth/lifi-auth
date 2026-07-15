@@ -455,31 +455,43 @@ def on_connect():
     with rx_source_lock:
         emit('rx_source_changed', {'source': rx_source})
 
-def _sign_pi4_request(path: str, body: bytes = b'') -> dict:
-    """Signs a request to dash_receiver's control port with the shared SST
-    mac_key, matching verify_signed_request() in dash_receiver.c: HMAC-SHA256
-    over "timestamp|nonce|path|body". The timestamp+nonce make each request
+def _sign_pi4_request(path: str, body: bytes = b'', key: bytes | None = None) -> dict:
+    """Signs a request to dash_receiver's control port with the SST mac_key,
+    matching verify_signed_request() in dash_receiver.c: HMAC-SHA256 over
+    "timestamp|nonce|path|body". The timestamp+nonce make each request
     unique and time-bounded, so a captured request can't be replayed to force
-    a key rotation or read back key material later."""
+    a key rotation or read back key material later.
+
+    `key` lets a caller sign with something other than the current global
+    _mac_key — needed by _force_pi4_key_refresh(), which must sign with the
+    key the Pi4 *currently* holds (the old one), not one just reloaded
+    locally that the Pi4 hasn't fetched yet."""
+    key = _mac_key if key is None else key
     ts = str(int(time.time())).encode()
     nonce = os.urandom(12).hex().encode()
     signed = ts + b'|' + nonce + b'|' + path.encode() + b'|' + body
-    sig = hmac.new(_mac_key, signed, hashlib.sha256).hexdigest()
+    sig = hmac.new(key, signed, hashlib.sha256).hexdigest()
     return {
         'X-SST-Timestamp': ts.decode(),
         'X-SST-Nonce': nonce.decode(),
         'X-SST-HMAC': sig,
     }
 
-def _force_pi4_key_refresh() -> bool:
+def _force_pi4_key_refresh(mac_key: bytes | None) -> tuple[bool, str]:
     """Ask dash_receiver on the Pi4 to force-refetch its session key from
     Auth (same as pressing 'f' locally), so both sides rotate together
-    instead of drifting independently. Best-effort — the Pi4 may not be up."""
-    if not _mac_key:
-        print('[KEY] No mac_key loaded — cannot sign force-key request.')
-        return False
+    instead of drifting independently. Returns (ok, reason) — the request
+    itself is fire-and-forget on the Pi4 (it just sets a flag the main loop
+    picks up), so a 202 here only means the *request* was accepted, not that
+    the Auth fetch succeeded; watch KEY ID / receiver_debug.log for that.
+
+    `mac_key` must be the key BOTH sides currently share (i.e. the OLD key,
+    captured before any local reload) — signing with a brand-new local key
+    the Pi4 hasn't rotated to yet will be rejected as an invalid signature."""
+    if not mac_key:
+        return False, 'no mac_key loaded — cannot sign the request'
     try:
-        headers = _sign_pi4_request('/force_key')
+        headers = _sign_pi4_request('/force_key', key=mac_key)
         with socket.create_connection((PI4_HOST, PI4_CHALLENGE_PORT), timeout=3) as s:
             header_lines = ''.join(f'{k}: {v}\r\n' for k, v in headers.items())
             req = (
@@ -490,15 +502,24 @@ def _force_pi4_key_refresh() -> bool:
                 f'Connection: close\r\n\r\n'
             ).encode()
             s.sendall(req)
-        return True
+            resp = b''
+            while True:
+                chunk = s.recv(4096)
+                if not chunk:
+                    break
+                resp += chunk
+        status_line = resp.split(b'\r\n', 1)[0].decode(errors='replace')
+        if ' 202 ' in status_line or ' 200 ' in status_line:
+            return True, 'accepted'
+        return False, f'Pi4 rejected the request ({status_line.strip() or "no response"})'
     except Exception as e:
-        print(f'[KEY] Could not reach Pi4 to force key refresh: {e}')
-        return False
+        return False, f'could not reach Pi4: {e}'
 
 @socketio.on('provision_new_key')
 def handle_provision_new_key():
     """Re-run pico_provisioner: fetch fresh key from Auth, push to Pico, reload dashboard."""
     global _mac_key
+    old_mac_key = _mac_key  # the key the Pi4 currently still holds
     port = TX_PORT or '/dev/ttyACM0'
     rx_config = _select_rx_config()
     emit('log_message', {'data': f'[KEY] Requesting new SST key ({os.path.basename(rx_config)}) → Pico on {port}...'})
@@ -513,10 +534,9 @@ def handle_provision_new_key():
             _set_mac_key_verified(False)  # unproven until the Pico transmits with it
             emit('key_loaded_status', {'key_id': _loaded_key_id})
             emit('log_message', {'data': '✓ New key provisioned and loaded.'})
-            if _force_pi4_key_refresh():
-                msg = '[KEY] Told Pi4 to force-refresh its key too.'
-            else:
-                msg = '[KEY] Pi4 not reachable — it will pick up the new key on its own next fetch.'
+            ok, reason = _force_pi4_key_refresh(old_mac_key)
+            msg = ('[KEY] Told Pi4 to force-refresh its key too.' if ok
+                   else f'[KEY] Could not tell Pi4 to refresh: {reason}')
             emit('log_message', {'data': msg})
             emit('wifi_log_message', {'data': msg})  # also surface in the WiFi/Pi4 panel, not just TX
             emit('key_provisioned', {'status': 'ok'})
@@ -536,9 +556,6 @@ def handle_challenge_pi4():
     global _pi4_loaded_key_id
     if not _mac_key:
         emit('challenge_result', {'status': 'error', 'msg': 'No mac_key loaded — provision a key first (NEW KEY)'})
-        return
-    if not _mac_key_verified:
-        emit('challenge_result', {'status': 'error', 'msg': 'Key not yet confirmed over LiFi — waiting for the Pico to transmit'})
         return
 
     nonce = os.urandom(32)
