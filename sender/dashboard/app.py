@@ -404,7 +404,7 @@ def handle_pi4_frame():
     if src in ('wifi', 'both'):
         data['source'] = 'pi4'
         socketio.emit('rx_frame_event', data)
-        key_short = data.get('key_id', '?')[:8]
+        key_short = data.get('key_id', '?')[-8:]
         preview   = data.get('payload_preview', '')
         st        = data.get('stats', {})
         line = f"[Pi4] key={key_short} {preview}  ok={st.get('ok','?')}/{st.get('total','?')}"
@@ -626,12 +626,12 @@ def handle_challenge_pi4():
         if current_key_id != _loaded_key_id:
             emit('challenge_result', {
                 'status': 'failed',
-                'msg': f'Pi4 did not converge to key_id {_loaded_key_id[:8]} after sync — Auth may have rejected it. Check receiver_debug.log on the Pi4.'
+                'msg': f'Pi4 did not converge to key_id ...{_loaded_key_id[-8:]} after sync — Auth may have rejected it. Check receiver_debug.log on the Pi4.'
             })
             return
         _pi4_loaded_key_id = current_key_id
         socketio.emit('pi4_key_loaded_status', {'key_id': current_key_id})
-        emit('wifi_log_message', {'data': f'[CHALLENGE] Pi4 synced to key_id {current_key_id[:8]} — proceeding to HMAC verify'})
+        emit('wifi_log_message', {'data': f'[CHALLENGE] Pi4 synced to key_id ...{current_key_id[-8:]} — proceeding to HMAC verify'})
 
     nonce = os.urandom(32)
     nonce_hex = nonce.hex()
@@ -681,7 +681,7 @@ def handle_challenge_pi4():
             emit('challenge_result', {
                 'status':   'verified',
                 'key_id':   key_id,
-                'msg':      f'Pi4 VERIFIED — holds SST key bound to LiFi key_id {key_id[:8]}'
+                'msg':      f'Pi4 VERIFIED — holds SST key bound to LiFi key_id ...{key_id[-8:]}'
             })
         else:
             emit('challenge_result', {

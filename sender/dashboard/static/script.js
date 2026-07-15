@@ -131,7 +131,7 @@ function _wifiAliveTouch() {
 // ── Pi4 WiFi frame events ─────────────────────────────────────────────────────
 socket.on('rx_frame_event', function (data) {
     var ok      = (data.event === 'frame_decrypted');
-    var keyStr  = (data.key_id || '?').slice(0, 8);
+    var keyStr  = (data.key_id || '?').slice(-8);
     var preview = data.payload_preview || '';
     var stats   = data.stats || {};
     var statStr = stats.total ? ('  ' + stats.ok + '/' + stats.total + ' ok') : '';
@@ -861,7 +861,7 @@ socket.on('mac_key_status', function(msg) {
     macKeyVerified = !!msg.verified;
     var keyEl = document.getElementById('wifi-key-status');
     if (keyEl) {
-        var idShort = (msg.key_id || '').slice(0, 8);
+        var idShort = (msg.key_id || '').slice(-8);
         if (macKeyVerified && idShort) {
             keyEl.textContent = idShort;
             keyEl.classList.remove('offline');
@@ -878,7 +878,7 @@ socket.on('mac_key_status', function(msg) {
 // The key currently loaded from session_key.json — independent of whether
 // the Pi4 has proven (over WiFi) that the Pico is transmitting with it yet.
 socket.on('key_loaded_status', function(msg) {
-    var idShort = (msg.key_id || '').slice(0, 8) || '—';
+    var idShort = (msg.key_id || '').slice(-8) || '—';
     var txEl = document.getElementById('tx-key-id');
     var rxEl = document.getElementById('rx-key-id');
     if (txEl) txEl.textContent = idShort;
@@ -892,7 +892,7 @@ socket.on('pi4_key_loaded_status', function(msg) {
     if (macKeyVerified) return;  // real LiFi proof already showing — don't downgrade it
     var keyEl = document.getElementById('wifi-key-status');
     if (keyEl) {
-        var idShort = (msg.key_id || '').slice(0, 8);
+        var idShort = (msg.key_id || '').slice(-8);
         keyEl.textContent = idShort || '—';
         keyEl.classList.add('offline');
         keyEl.style.color = idShort ? '#ffaa00' : '';
