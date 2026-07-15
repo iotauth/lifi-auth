@@ -126,14 +126,17 @@ def _pi4_reachable(timeout: float = 1.5) -> bool:
     except OSError:
         return False
 
-def _query_pi4_key_status(timeout: float = 1.5) -> str | None:
+def _query_pi4_key_status(timeout: float = 1.5) -> tuple[str | None, str]:
     """GET /status from dash_receiver on the Pi4 — pulls its currently-loaded
     key_id on demand. Complements the one-shot startup push: that push is
     missed if the dashboard wasn't already running when dash_receiver
     started, but this pull (run periodically from pi4_health_monitor)
-    self-corrects regardless of start order."""
-    if not PI4_HOST or not _mac_key:
-        return None
+    self-corrects regardless of start order. Returns (key_id, reason) —
+    reason explains a None result instead of failing silently."""
+    if not PI4_HOST:
+        return None, 'no PI4_HOST known'
+    if not _mac_key:
+        return None, 'no mac_key loaded on the dashboard side'
     try:
         headers = _sign_pi4_request('/status')
         with socket.create_connection((PI4_HOST, PI4_CHALLENGE_PORT), timeout=timeout) as s:
@@ -151,10 +154,14 @@ def _query_pi4_key_status(timeout: float = 1.5) -> str | None:
                 if not chunk:
                     break
                 resp += chunk
+        status_line = resp.split(b'\r\n', 1)[0].decode(errors='replace')
         body = resp.split(b'\r\n\r\n', 1)[-1]
-        return json.loads(body).get('key_id')
-    except Exception:
-        return None
+        key_id = json.loads(body).get('key_id')
+        if key_id is None:
+            return None, f'Pi4 has no key loaded yet ({status_line.strip()})'
+        return key_id, 'ok'
+    except Exception as e:
+        return None, f'could not reach Pi4: {e}'
 
 def _is_wifi_peer(port: str) -> bool:
     """Any RX2 port string that isn't a real serial device path is the Pi4 WiFi peer."""
@@ -309,6 +316,7 @@ def pi4_health_monitor():
     challenge port periodically and flip status the moment it stops answering."""
     global RX2_PORT, _pi4_loaded_key_id
     last_reachable = None
+    last_status_reason = None
     while running:
         if _is_wifi_peer(RX2_PORT):
             reachable = _pi4_reachable()
@@ -318,10 +326,16 @@ def pi4_health_monitor():
                     socketio.emit('wifi_log_message', {'data': f'[RX2] Lost connection to Pi4 at {PI4_HOST}'})
                 last_reachable = reachable
             if reachable:
-                key_id = _query_pi4_key_status()
+                key_id, reason = _query_pi4_key_status()
                 if key_id != _pi4_loaded_key_id:
                     _pi4_loaded_key_id = key_id
                     socketio.emit('pi4_key_loaded_status', {'key_id': key_id})
+                if reason != last_status_reason:
+                    # Only log on change, not every 5s poll — but a changed
+                    # reason (e.g. "ok" -> "could not reach Pi4: ...") is
+                    # exactly the signal you'd otherwise never see.
+                    socketio.emit('wifi_log_message', {'data': f'[RX2] /status: {reason}'})
+                    last_status_reason = reason
             # Continuous-authentication decay: "proven" only counts while LiFi
             # frames keep actually arriving. A one-time proof shouldn't stay
             # trusted forever if the optical link goes dark.
@@ -409,15 +423,26 @@ def handle_pi4_status():
     sig  = request.headers.get('X-SST-HMAC', '').lower()
 
     if not _mac_key:
+        socketio.emit('wifi_log_message', {'data': '[PI4] /pi4_status rejected: no mac_key loaded on the dashboard side'})
         return 'Unauthorized', 401
     expected = hmac.new(_mac_key, body, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, sig):
+        # This is the single most useful diagnostic line for "key id never
+        # populates": it means the Pi4's key genuinely doesn't match the
+        # dashboard's right now — the report was received but is being
+        # dropped, not silently lost in the network.
+        socketio.emit('wifi_log_message', {'data': "[PI4] /pi4_status rejected: HMAC mismatch — Pi4's key doesn't match the dashboard's current key"})
         return 'Unauthorized', 401
 
     try:
         data = json.loads(body)
     except Exception:
+        socketio.emit('wifi_log_message', {'data': '[PI4] /pi4_status: bad JSON body'})
         return 'Bad Request', 400
+
+    if data.get('event') == 'status_message':
+        socketio.emit('wifi_log_message', {'data': f"[PI4] {data.get('message', '(empty)')}"})
+        return '', 204
 
     _pi4_loaded_key_id = data.get('key_id')
     socketio.emit('pi4_key_loaded_status', {'key_id': _pi4_loaded_key_id})

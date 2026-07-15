@@ -474,6 +474,24 @@ static void reporter_post_key_loaded(const uint8_t *key_id) {
     dashboard_http_post("/pi4_status", json, jlen);
 }
 
+// Sends a free-text diagnostic line to the dashboard's WiFi log — so C-side
+// failures (e.g. Auth rejecting a by-ID key fetch) are visible in the
+// browser instead of only in receiver_debug.log on the Pi4 itself.
+static void reporter_post_status_message(const char *message) {
+    char escaped[256];
+    size_t j = 0;
+    for (size_t i = 0; message[i] && j < sizeof(escaped) - 2; i++) {
+        if (message[i] == '"' || message[i] == '\\') escaped[j++] = '\\';
+        escaped[j++] = message[i];
+    }
+    escaped[j] = '\0';
+
+    char json[320];
+    int jlen = snprintf(json, sizeof(json),
+        "{\"event\":\"status_message\",\"message\":\"%s\"}", escaped);
+    dashboard_http_post("/pi4_status", json, jlen);
+}
+
 static void *reporter_thread(void *arg) {
     (void)arg;
     while (1) {
@@ -1090,6 +1108,9 @@ int main(int argc, char* argv[]) {
                             cmd_printf("Error: Failed to fetch requested key ID from SST.");
                             cmd_printf("See receiver_debug.log for the real reason.");
                             cmd_printf("Keeping current session key.");
+                            reporter_post_status_message(
+                                "get_session_key_by_ID failed - Auth rejected or couldn't find "
+                                "the requested key ID. See receiver_debug.log on the Pi4.");
                         } else {
                             s_key = *found;
                             key_valid = true;
