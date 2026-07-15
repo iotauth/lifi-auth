@@ -422,6 +422,19 @@ def handle_pi4_status():
     body = request.get_data()
     sig  = request.headers.get('X-SST-HMAC', '').lower()
 
+    try:
+        data = json.loads(body)
+    except Exception:
+        socketio.emit('wifi_log_message', {'data': '[PI4] /pi4_status: bad JSON body'})
+        return 'Bad Request', 400
+
+    # Diagnostic text only — not security-sensitive, so it's not gated on the
+    # HMAC check below. This is deliberate: debugging why the two sides'
+    # keys don't match requires a channel that still works when they don't.
+    if data.get('event') == 'status_message':
+        socketio.emit('wifi_log_message', {'data': f"[PI4] {data.get('message', '(empty)')}"})
+        return '', 204
+
     if not _mac_key:
         socketio.emit('wifi_log_message', {'data': '[PI4] /pi4_status rejected: no mac_key loaded on the dashboard side'})
         return 'Unauthorized', 401
@@ -433,16 +446,6 @@ def handle_pi4_status():
         # dropped, not silently lost in the network.
         socketio.emit('wifi_log_message', {'data': "[PI4] /pi4_status rejected: HMAC mismatch — Pi4's key doesn't match the dashboard's current key"})
         return 'Unauthorized', 401
-
-    try:
-        data = json.loads(body)
-    except Exception:
-        socketio.emit('wifi_log_message', {'data': '[PI4] /pi4_status: bad JSON body'})
-        return 'Bad Request', 400
-
-    if data.get('event') == 'status_message':
-        socketio.emit('wifi_log_message', {'data': f"[PI4] {data.get('message', '(empty)')}"})
-        return '', 204
 
     _pi4_loaded_key_id = data.get('key_id')
     socketio.emit('pi4_key_loaded_status', {'key_id': _pi4_loaded_key_id})

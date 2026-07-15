@@ -403,6 +403,19 @@ static bool             g_rep_key_valid = false;
 static pthread_mutex_t  g_rep_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t   g_rep_cond  = PTHREAD_COND_INITIALIZER;
 
+// The hex ID of whatever key g_rep_mac_key currently holds — kept separate
+// from g_rep_event.key_id_hex, which only gets written when a real LiFi
+// frame is decrypted (reporter_signal()) and stays empty otherwise. /status
+// and /challenge need to always report the CURRENT key, not "the last frame
+// we happened to decrypt" (which may be never, in dashboard-only testing).
+static char g_current_key_id_hex[SESSION_KEY_ID_SIZE * 2 + 1] = {0};
+
+static void set_current_key_id(const uint8_t *key_id) {
+    for (int i = 0; i < SESSION_KEY_ID_SIZE; i++)
+        sprintf(g_current_key_id_hex + i * 2, "%02x", key_id[i]);
+    g_current_key_id_hex[SESSION_KEY_ID_SIZE * 2] = '\0';
+}
+
 // HMAC-signs `json` with the current session's mac key and POSTs it to
 // `path` on the dashboard. Shared by frame reports and the standalone
 // key-loaded status ping below.
@@ -604,7 +617,7 @@ static void handle_status_request(int client) {
     pthread_mutex_lock(&g_rep_mutex);
     bool key_ready = g_rep_key_valid;
     char key_id_str[SESSION_KEY_ID_SIZE * 2 + 1] = {0};
-    if (key_ready) strncpy(key_id_str, g_rep_event.key_id_hex, sizeof(key_id_str) - 1);
+    if (key_ready) strncpy(key_id_str, g_current_key_id_hex, sizeof(key_id_str) - 1);
     pthread_mutex_unlock(&g_rep_mutex);
 
     char json[128];
@@ -796,14 +809,20 @@ static void challenge_handle(int client) {
     for (int j = 0; j < 32; j++) sprintf(hmac_hex + j * 2, "%02x", hmac_out[j]);
     hmac_hex[64] = '\0';
 
-    // key_id hex (use g_rep_event.key_id_hex which is already hex)
+    // key_id hex — g_current_key_id_hex tracks the CURRENT key, unlike
+    // g_rep_event.key_id_hex which only updates on a real decrypted frame.
     pthread_mutex_lock(&g_rep_mutex);
     char key_id_str[SESSION_KEY_ID_SIZE * 2 + 1];
-    strncpy(key_id_str, g_rep_event.key_id_hex, sizeof(key_id_str));
+    strncpy(key_id_str, g_current_key_id_hex, sizeof(key_id_str));
     pthread_mutex_unlock(&g_rep_mutex);
 
     fprintf(stderr, "[CHALLENGE] Using key_id=%s to answer nonce=%.16s... -> hmac=%.16s...\n",
             key_id_str, nonce_hex, hmac_hex);
+    {
+        char msg[192];
+        snprintf(msg, sizeof(msg), "Answering /challenge using key_id=%s", key_id_str);
+        reporter_post_status_message(msg);
+    }
 
     char json[256];
     int jlen = snprintf(json, sizeof(json),
@@ -965,8 +984,17 @@ int main(int argc, char* argv[]) {
         pthread_mutex_lock(&g_rep_mutex);
         memcpy(g_rep_mac_key, s_key.mac_key, 32);
         g_rep_key_valid = true;
+        set_current_key_id(s_key.key_id);
         pthread_mutex_unlock(&g_rep_mutex);
-        reporter_post_key_loaded(s_key.key_id);
+        // NOT reported to the dashboard here on purpose: this is a blind,
+        // provisional fetch that has nothing to do with whatever key the
+        // dashboard/sender has. Reporting it just causes a confusing
+        // auto-rejected /pi4_status push the moment this process starts.
+        // The dashboard learns the REAL synced key_id once it explicitly
+        // requests one by ID (see the 'f' handling below) or once the
+        // sender's LiFi key-ID broadcast triggers auto-connect.
+        fprintf(stderr, "[STARTUP] Got provisional key_id=%s (not yet synced with dashboard).\n",
+                g_current_key_id_hex);
     }
 
     bool key_valid = (key_list && key_list->num_key > 0);
@@ -1143,6 +1171,7 @@ int main(int argc, char* argv[]) {
                             pthread_mutex_lock(&g_rep_mutex);
                             memcpy(g_rep_mac_key, s_key.mac_key, 32);
                             g_rep_key_valid = true;
+                            set_current_key_id(s_key.key_id);
                             pthread_mutex_unlock(&g_rep_mutex);
                             reporter_post_key_loaded(s_key.key_id);
                             {
@@ -1150,10 +1179,15 @@ int main(int argc, char* argv[]) {
                                 for (int j = 0; j < SESSION_KEY_ID_SIZE; j++)
                                     sprintf(got_hex + j * 2, "%02x", s_key.key_id[j]);
                                 got_hex[SESSION_KEY_ID_SIZE * 2] = '\0';
+                                bool matches = memcmp(s_key.key_id, remote_force_target_id, SESSION_KEY_ID_SIZE) == 0;
                                 fprintf(stderr, "[FORCE_KEY] get_session_key_by_ID() returned key_id=%s "
                                                 "(matches request: %s)\n",
-                                        got_hex,
-                                        memcmp(s_key.key_id, remote_force_target_id, SESSION_KEY_ID_SIZE) == 0 ? "YES" : "NO");
+                                        got_hex, matches ? "YES" : "NO");
+                                char msg[256];
+                                snprintf(msg, sizeof(msg),
+                                    "get_session_key_by_ID succeeded, got key_id=%s (matches request: %s)",
+                                    got_hex, matches ? "YES" : "NO");
+                                reporter_post_status_message(msg);
                             }
                             cmd_printf("✓ Fetched requested key — now matches sender.");
 
@@ -1207,6 +1241,7 @@ int main(int argc, char* argv[]) {
                         pthread_mutex_lock(&g_rep_mutex);
                         memcpy(g_rep_mac_key, s_key.mac_key, 32);
                         g_rep_key_valid = true;
+                        set_current_key_id(s_key.key_id);
                         pthread_mutex_unlock(&g_rep_mutex);
                         reporter_post_key_loaded(s_key.key_id);
                         cmd_printf("✓ New key fetched from SST.");
@@ -1525,6 +1560,7 @@ int main(int argc, char* argv[]) {
                             pthread_mutex_lock(&g_rep_mutex);
                             memcpy(g_rep_mac_key, found_key->mac_key, 32);
                             g_rep_key_valid = true;
+                            set_current_key_id(found_key->key_id);
                             pthread_mutex_unlock(&g_rep_mutex);
                             reporter_post_key_loaded(found_key->key_id);
                             cmd_printf("✓ Key ready. Initiating SST handshake.");
