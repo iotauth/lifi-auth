@@ -1181,23 +1181,19 @@ int main(int argc, char* argv[]) {
                         // do the by-ID fetch over the now-fresh, Auth-synced
                         // distribution key.
                         sst->dist_key.abs_validity = 0;
-                        cmd_printf("[Remote] Refreshing distribution key before by-ID fetch...");
-                        reporter_post_status_message(
-                            "Refreshing distribution key before by-ID fetch...");
+                        cmd_printf("[Remote] Refreshing dist key...");
+                        reporter_post_status_message("1/2 refresh dist key...");
                         session_key_list_t* refresh_list = get_session_key(sst, NULL);
                         if (!refresh_list) {
                             fprintf(stderr, "[FORCE_KEY] Distribution-key refresh failed; "
                                             "by-ID fetch would likely fail too.\n");
-                            cmd_printf("Error: Failed to refresh distribution key.");
-                            reporter_post_status_message(
-                                "Distribution-key refresh failed (see receiver_debug.log) "
-                                "- by-ID fetch will likely fail too.");
+                            cmd_printf("Error: dist key refresh failed.");
+                            reporter_post_status_message("1/2 refresh FAILED");
                         } else {
                             free_session_key_list_t(refresh_list);
-                            reporter_post_status_message(
-                                "Distribution-key refresh OK, proceeding to by-ID fetch.");
+                            reporter_post_status_message("1/2 refresh OK");
                         }
-                        cmd_printf("[Remote] Fetching requested key ID from SST...");
+                        cmd_printf("[Remote] Fetching key by ID...");
                         // get_session_key_by_ID() permanently overwrites
                         // sst->config.purpose[...] with "{\"keyId\":...}"
                         // and never restores it — left as-is, the NEXT
@@ -1214,12 +1210,10 @@ int main(int argc, char* argv[]) {
                                 saved_purpose, sizeof(saved_purpose));
                         if (!found) {
                             fprintf(stderr, "[FORCE_KEY] get_session_key_by_ID() returned NULL.\n");
-                            cmd_printf("Error: Failed to fetch requested key ID from SST.");
+                            cmd_printf("Error: by-ID fetch failed.");
                             cmd_printf("See receiver_debug.log for the real reason.");
                             cmd_printf("Keeping current session key.");
-                            reporter_post_status_message(
-                                "get_session_key_by_ID failed - Auth rejected or couldn't find "
-                                "the requested key ID. See receiver_debug.log on the Pi4.");
+                            reporter_post_status_message("2/2 by-ID FAILED (Auth rejected)");
                         } else {
                             s_key = *found;
                             key_valid = true;
@@ -1239,10 +1233,9 @@ int main(int argc, char* argv[]) {
                                 fprintf(stderr, "[FORCE_KEY] get_session_key_by_ID() returned key_id=%s "
                                                 "(matches request: %s)\n",
                                         got_hex, matches ? "YES" : "NO");
-                                char msg[256];
-                                snprintf(msg, sizeof(msg),
-                                    "get_session_key_by_ID succeeded, got key_id=%s (matches request: %s)",
-                                    got_hex, matches ? "YES" : "NO");
+                                char msg[64];
+                                snprintf(msg, sizeof(msg), "2/2 by-ID OK, ...%.8s (match: %s)",
+                                    got_hex + strlen(got_hex) - 8, matches ? "Y" : "N");
                                 reporter_post_status_message(msg);
                             }
                             cmd_printf("✓ Fetched requested key — now matches sender.");

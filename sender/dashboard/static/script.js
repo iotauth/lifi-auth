@@ -143,6 +143,11 @@ socket.on('rx_frame_event', function (data) {
     _wifiAliveTouch();
 });
 
+socket.on('wifi_log_clear', function() {
+    var box = document.getElementById('wifi-log-console');
+    if (box) box.innerHTML = '';
+});
+
 socket.on('wifi_log_message', function(msg) {
     var d = msg.data;
     var cls = '';

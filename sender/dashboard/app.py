@@ -604,6 +604,7 @@ def handle_challenge_pi4():
     first (which is itself the Auth-side validity check), then prove
     possession over WiFi."""
     global _pi4_loaded_key_id
+    emit('wifi_log_clear')  # start each verify attempt with a clean log, not stale history
     if not _mac_key:
         emit('challenge_result', {'status': 'error', 'msg': 'No mac_key loaded — provision a key first (NEW KEY)'})
         return
