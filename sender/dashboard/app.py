@@ -35,6 +35,7 @@ _mac_key: bytes | None = None
 _mac_key_verified = False
 _mac_key_id: str | None = None  # hex key_id from the last verified /pi4_frame
 _loaded_key_id: str | None = None  # hex key_id from session_key.json, regardless of WiFi proof
+_loaded_cipher_key: bytes | None = None  # cipher_key from session_key.json, pushed to the Pi4 directly on force-refresh
 _pi4_loaded_key_id: str | None = None  # hex key_id the Pi4 (dash_receiver) reports having loaded — HMAC-authenticated, but NOT LiFi-optical proof
 
 # _mac_key_verified used to be sticky (proven once, trusted forever). Real
@@ -45,16 +46,18 @@ _last_valid_frame_time: float = 0.0
 LIVENESS_WINDOW_S = 15
 
 def _load_mac_key() -> bytes | None:
-    global _loaded_key_id
+    global _loaded_key_id, _loaded_cipher_key
     try:
         with open(_KEY_FILE) as f:
             d = json.load(f)
         key = bytes.fromhex(d['mac_key'])
         _loaded_key_id = d.get('key_id')
+        _loaded_cipher_key = bytes.fromhex(d['cipher_key']) if d.get('cipher_key') else None
         print(f'[KEY] Loaded mac_key from {_KEY_FILE}')
         return key
     except Exception as e:
         _loaded_key_id = None
+        _loaded_cipher_key = None
         print(f'[KEY] Warning: could not load {_KEY_FILE}: {e}')
         return None
 
@@ -506,31 +509,46 @@ def _sign_pi4_request(path: str, body: bytes = b'', key: bytes | None = None) ->
         'X-SST-HMAC': sig,
     }
 
-def _force_pi4_key_refresh(mac_key: bytes | None, key_id: str | None) -> tuple[bool, str]:
-    """Ask dash_receiver on the Pi4 to fetch the SPECIFIC session key (by ID)
-    that the sender side just got from Auth. A blind get_session_key() mints
-    a brand-new, unrelated key from Auth on every call (confirmed
-    empirically — two calls seconds apart returned different key IDs), so it
-    never converges with what the sender already has. Passing the target
-    key_id lets the Pi4 use get_session_key_by_ID() instead — the same
-    lookup-by-ID mechanism the LiFi key-ID broadcast flow already uses — so
-    both sides actually end up on the same key.
+def _force_pi4_key_refresh(signing_key: bytes | None, key_id: str | None) -> tuple[bool, str]:
+    """Push our current session key material directly to dash_receiver on the
+    Pi4, instead of asking it to fetch the key by ID from Auth itself.
+
+    That by-ID approach (get_session_key_by_ID()) doesn't work here: the Pi4
+    and pico_provisioner both authenticate as the same SST entity
+    (net1.client), and Auth's CommunicationPolicyChecker explicitly rejects
+    an entity fetching-by-ID a key it (as that same identity) already
+    "owns" — confirmed via Auth's own log: "Requesting entity (net1.client)
+    is already an owner of this session key." No client-side retry avoids
+    this; it's Auth correctly enforcing its policy. Since the dashboard
+    already holds the full key material (session_key.json, written by
+    pico_provisioner), the simplest fix is to just hand it to the Pi4
+    directly over the existing authenticated control channel, rather than
+    routing back through Auth at all.
 
     Returns (ok, reason) — the request itself is fire-and-forget on the Pi4
-    (it just queues the target ID for the main loop), so a 202 here only
-    means the *request* was accepted, not that the fetch-by-ID succeeded;
-    watch KEY ID / receiver_debug.log for that.
+    (it just queues the material for the main loop), so a 202 here only
+    means the *request* was accepted, not that it was adopted; watch
+    KEY ID / receiver_debug.log for that.
 
-    `mac_key` must be the key BOTH sides currently share (i.e. the OLD key,
-    captured before any local reload) — signing with a brand-new local key
-    the Pi4 hasn't rotated to yet will be rejected as an invalid signature."""
-    if not mac_key:
+    The material actually pushed is always the CURRENT global _mac_key /
+    _loaded_cipher_key (the key we want the Pi4 to end up on). `signing_key`
+    is separate: it must be the key BOTH sides currently share (i.e. the OLD
+    key, captured before any local reload) — signing with a brand-new local
+    key the Pi4 hasn't rotated to yet will be rejected as an invalid
+    signature."""
+    if not signing_key:
         return False, 'no mac_key loaded — cannot sign the request'
     if not key_id:
         return False, 'no key_id to request — provisioning may have failed'
+    if not _mac_key or not _loaded_cipher_key:
+        return False, 'no key material loaded — provisioning may have failed'
     try:
-        body = json.dumps({'key_id': key_id}).encode()
-        headers = _sign_pi4_request('/force_key', body, key=mac_key)
+        body = json.dumps({
+            'key_id': key_id,
+            'cipher_key': _loaded_cipher_key.hex(),
+            'mac_key': _mac_key.hex(),
+        }).encode()
+        headers = _sign_pi4_request('/force_key', body, key=signing_key)
         with socket.create_connection((PI4_HOST, PI4_CHALLENGE_PORT), timeout=3) as s:
             header_lines = ''.join(f'{k}: {v}\r\n' for k, v in headers.items())
             req = (

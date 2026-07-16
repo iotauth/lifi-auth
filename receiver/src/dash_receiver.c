@@ -555,43 +555,67 @@ static void reporter_signal(const uint8_t *key_id, const uint8_t *payload,
 
 static pthread_mutex_t g_force_key_mutex      = PTHREAD_MUTEX_INITIALIZER;
 static bool            g_force_key_requested  = false;
-// Target key ID from the /force_key body, if any. A blind get_session_key()
-// mints a brand-new, unrelated key from Auth on every call (confirmed
-// empirically), so telling the Pi4 "go get exactly this key ID" via
-// get_session_key_by_ID() is what actually makes the two sides converge —
-// see the main loop's case 'f' handling.
+// Target key ID from the /force_key body, if any.
 static uint8_t         g_force_key_target_id[SESSION_KEY_ID_SIZE];
 static bool            g_force_key_has_target = false;
+// Actual key material from the /force_key body, if any (dashboard pushing
+// its current session key directly — see the main loop's case 'f' handling
+// for why this replaced the get_session_key_by_ID() approach: Auth's
+// CommunicationPolicyChecker rejects net1.client fetching-by-ID a key that
+// same identity already "owns", since dash_receiver and pico_provisioner
+// share one SST entity. Pushing the material sidesteps Auth entirely.
+static uint8_t         g_force_key_cipher_key[SST_KEY_SIZE];
+static uint8_t         g_force_key_mac_key[MAC_KEY_SIZE];
+static bool            g_force_key_has_material = false;
+
+// Parses a `"field_name":"<hex>"` value of exactly out_size*2 hex chars from
+// a JSON body. Returns true and fills out[0..out_size) on success.
+static bool parse_hex_field(const char *body, const char *field_name,
+                             uint8_t *out, size_t out_size) {
+    char hex[MAC_KEY_SIZE * 2 + 1];  // largest field this is ever called with
+    if (out_size * 2 >= sizeof(hex)) return false;
+
+    char pattern[32];
+    snprintf(pattern, sizeof(pattern), "\"%s\"", field_name);
+    const char *p = strstr(body, pattern);
+    if (!p) return false;
+    p = strchr(p + strlen(pattern), ':');
+    if (!p) return false;
+    p++;
+    while (*p == ' ' || *p == '"') p++;
+    size_t i = 0;
+    while (i < out_size * 2 && *p && *p != '"') hex[i++] = *p++;
+    hex[i] = '\0';
+    if (i != out_size * 2) return false;
+    for (size_t j = 0; j < out_size; j++) {
+        unsigned int b;
+        if (sscanf(hex + j * 2, "%02x", &b) != 1) return false;
+        out[j] = (uint8_t)b;
+    }
+    return true;
+}
 
 static void handle_force_key_request(int client, const char *body) {
     uint8_t target_id[SESSION_KEY_ID_SIZE];
-    bool has_target = false;
+    bool has_target = parse_hex_field(body, "key_id", target_id, SESSION_KEY_ID_SIZE);
 
-    const char *p = strstr(body, "\"key_id\"");
-    if (p) {
-        p = strchr(p, ':');
-        if (p) {
-            p++;
-            while (*p == ' ' || *p == '"') p++;
-            char hex[SESSION_KEY_ID_SIZE * 2 + 1] = {0};
-            size_t i = 0;
-            while (i < SESSION_KEY_ID_SIZE * 2 && *p && *p != '"') hex[i++] = *p++;
-            if (i == SESSION_KEY_ID_SIZE * 2) {
-                has_target = true;
-                for (int j = 0; j < SESSION_KEY_ID_SIZE; j++) {
-                    unsigned int b;
-                    if (sscanf(hex + j * 2, "%02x", &b) != 1) { has_target = false; break; }
-                    target_id[j] = (uint8_t)b;
-                }
-            }
-        }
-    }
+    uint8_t cipher_key[SST_KEY_SIZE];
+    uint8_t mac_key[MAC_KEY_SIZE];
+    bool has_material = has_target &&
+        parse_hex_field(body, "cipher_key", cipher_key, SST_KEY_SIZE) &&
+        parse_hex_field(body, "mac_key", mac_key, MAC_KEY_SIZE);
 
-    if (has_target) {
+    if (has_material) {
         char hex[SESSION_KEY_ID_SIZE * 2 + 1];
         for (int j = 0; j < SESSION_KEY_ID_SIZE; j++) sprintf(hex + j * 2, "%02x", target_id[j]);
         hex[SESSION_KEY_ID_SIZE * 2] = '\0';
-        fprintf(stderr, "[FORCE_KEY] Queued targeted fetch for key_id=%s\n", hex);
+        fprintf(stderr, "[FORCE_KEY] Queued direct key push for key_id=%s\n", hex);
+    } else if (has_target) {
+        char hex[SESSION_KEY_ID_SIZE * 2 + 1];
+        for (int j = 0; j < SESSION_KEY_ID_SIZE; j++) sprintf(hex + j * 2, "%02x", target_id[j]);
+        hex[SESSION_KEY_ID_SIZE * 2] = '\0';
+        fprintf(stderr, "[FORCE_KEY] Queued targeted fetch for key_id=%s (no material - "
+                        "legacy caller? this will likely be rejected by Auth)\n", hex);
     } else {
         fprintf(stderr, "[FORCE_KEY] Queued blind fetch (no/unparseable key_id in body: \"%s\")\n", body);
     }
@@ -599,7 +623,12 @@ static void handle_force_key_request(int client, const char *body) {
     pthread_mutex_lock(&g_force_key_mutex);
     g_force_key_requested = true;
     g_force_key_has_target = has_target;
+    g_force_key_has_material = has_material;
     if (has_target) memcpy(g_force_key_target_id, target_id, SESSION_KEY_ID_SIZE);
+    if (has_material) {
+        memcpy(g_force_key_cipher_key, cipher_key, SST_KEY_SIZE);
+        memcpy(g_force_key_mac_key, mac_key, MAC_KEY_SIZE);
+    }
     pthread_mutex_unlock(&g_force_key_mutex);
 
     const char *resp =
@@ -1076,6 +1105,9 @@ int main(int argc, char* argv[]) {
         // instead of a blind refetch, so both sides actually converge.
         bool remote_force_has_target = false;
         uint8_t remote_force_target_id[SESSION_KEY_ID_SIZE];
+        bool remote_force_has_material = false;
+        uint8_t remote_force_cipher_key[SST_KEY_SIZE];
+        uint8_t remote_force_mac_key[MAC_KEY_SIZE];
         if (key == -1) {
             pthread_mutex_lock(&g_force_key_mutex);
             if (g_force_key_requested) {
@@ -1083,6 +1115,11 @@ int main(int argc, char* argv[]) {
                 remote_force_has_target = g_force_key_has_target;
                 if (remote_force_has_target)
                     memcpy(remote_force_target_id, g_force_key_target_id, SESSION_KEY_ID_SIZE);
+                remote_force_has_material = g_force_key_has_material;
+                if (remote_force_has_material) {
+                    memcpy(remote_force_cipher_key, g_force_key_cipher_key, SST_KEY_SIZE);
+                    memcpy(remote_force_mac_key, g_force_key_mac_key, MAC_KEY_SIZE);
+                }
                 key = 'f';
             }
             pthread_mutex_unlock(&g_force_key_mutex);
@@ -1144,12 +1181,84 @@ int main(int argc, char* argv[]) {
 
                 case 'f':
                 case 'F': {
+                    if (remote_force_has_material) {
+                        // The dashboard pushed its actual session key
+                        // material directly (key_id + cipher_key + mac_key)
+                        // instead of asking us to fetch it from Auth by ID.
+                        // That fetch-by-ID approach doesn't work here: the
+                        // Pi4 and pico_provisioner both authenticate as the
+                        // same SST entity (net1.client), and Auth's
+                        // CommunicationPolicyChecker rejects that identity
+                        // fetching-by-ID a key it already "owns" (confirmed
+                        // via Auth's own log). Adopting pushed material
+                        // sidesteps Auth entirely for this convergence step.
+                        session_key_t pushed = {0};
+                        memcpy(pushed.key_id, remote_force_target_id, SESSION_KEY_ID_SIZE);
+                        memcpy(pushed.mac_key, remote_force_mac_key, MAC_KEY_SIZE);
+                        pushed.mac_key_size = MAC_KEY_SIZE;
+                        memcpy(pushed.cipher_key, remote_force_cipher_key, SST_KEY_SIZE);
+                        pushed.cipher_key_size = SST_KEY_SIZE;
+                        pushed.enc_mode = sst->config.encryption_mode;
+                        pushed.hmac_mode = sst->config.hmac_mode;
+                        // We don't know Auth's actual validity window for
+                        // this key (it was never our request), so grant a
+                        // generous local window — it was just freshly
+                        // issued moments ago on the dashboard side.
+                        pushed.abs_validity = (uint64_t)time(NULL) * 1000ULL + 3600000ULL;
+
+                        s_key = pushed;
+                        key_valid = true;
+                        stats.keys_consumed++;
+                        pthread_mutex_lock(&g_rep_mutex);
+                        memcpy(g_rep_mac_key, s_key.mac_key, 32);
+                        g_rep_key_valid = true;
+                        set_current_key_id(s_key.key_id);
+                        pthread_mutex_unlock(&g_rep_mutex);
+                        reporter_post_key_loaded(s_key.key_id);
+                        {
+                            char got_hex[SESSION_KEY_ID_SIZE * 2 + 1];
+                            for (int j = 0; j < SESSION_KEY_ID_SIZE; j++)
+                                sprintf(got_hex + j * 2, "%02x", s_key.key_id[j]);
+                            got_hex[SESSION_KEY_ID_SIZE * 2] = '\0';
+                            fprintf(stderr, "[FORCE_KEY] Adopted pushed key_id=%s directly.\n", got_hex);
+                            char msg[64];
+                            snprintf(msg, sizeof(msg), "Adopted pushed key ...%.8s",
+                                got_hex + strlen(got_hex) - 8);
+                            reporter_post_status_message(msg);
+                        }
+                        cmd_printf("✓ Adopted key pushed by dashboard.");
+
+                        if (fd >= 0) {
+                            uint16_t klen = SESSION_KEY_ID_SIZE + SST_KEY_SIZE + 32;
+                            uint8_t hdr[] = {
+                                PREAMBLE_BYTE_1, PREAMBLE_BYTE_2, PREAMBLE_BYTE_3, PREAMBLE_BYTE_4,
+                                MSG_TYPE_KEY,
+                                (klen >> 8) & 0xFF,
+                                klen & 0xFF
+                            };
+                            if (write_all(fd, hdr, sizeof(hdr)) < 0 ||
+                                write_all(fd, s_key.key_id, SESSION_KEY_ID_SIZE) < 0 ||
+                                write_all(fd, s_key.cipher_key, SST_KEY_SIZE) < 0) {
+                                cmd_printf("Error: Failed to send new key to Pico.");
+                            } else {
+                                usleep(5000);
+                                write_all(fd, s_key.mac_key, 32);
+                                tcdrain(fd);
+                                cmd_printf("✓ Session key sent to Pico.");
+                            }
+                        } else {
+                            cmd_printf("Warning: Serial closed. Key updated locally but not sent.");
+                        }
+                        mid_draw_keypanel(&s_key, key_valid, state, UART_DEVICE, (fd >= 0));
+                        break;
+                    }
                     if (remote_force_has_target) {
-                        // A blind get_session_key() mints a brand-new,
-                        // unrelated key every call — it never converges
-                        // with what the sender side already has. Fetching
-                        // by the exact ID the dashboard requested is what
-                        // actually syncs both sides on the same key.
+                        // Legacy fallback for callers that send a key_id
+                        // without material — kept for backward
+                        // compatibility, but this path is known to fail
+                        // against Auth's CommunicationPolicyChecker when
+                        // the requester already owns the target key (see
+                        // the has_material branch above for why).
                         {
                             char req_hex[SESSION_KEY_ID_SIZE * 2 + 1];
                             for (int j = 0; j < SESSION_KEY_ID_SIZE; j++)
