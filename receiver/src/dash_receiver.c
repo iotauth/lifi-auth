@@ -1157,6 +1157,17 @@ int main(int argc, char* argv[]) {
                             req_hex[SESSION_KEY_ID_SIZE * 2] = '\0';
                             fprintf(stderr, "[FORCE_KEY] Calling get_session_key_by_ID(%s)...\n", req_hex);
                         }
+                        // Force a fresh RSA handshake instead of reusing our
+                        // cached distribution key: this entity identity
+                        // (net1.client) is shared with the dashboard's
+                        // pico_provisioner, which may have re-handshaked with
+                        // Auth since our last one, invalidating Auth's view
+                        // of *our* cached dist key even though it hasn't
+                        // locally "expired" yet. Reusing it then fails with
+                        // InvalidMacException server-side. Expiring it here
+                        // guarantees send_auth_request_message() re-handshakes
+                        // instead of taking the stale symmetric fast path.
+                        sst->dist_key.abs_validity = 0;
                         cmd_printf("[Remote] Fetching requested key ID from SST...");
                         session_key_t* found = get_session_key_by_ID(remote_force_target_id, sst, key_list);
                         if (!found) {
