@@ -1182,13 +1182,20 @@ int main(int argc, char* argv[]) {
                         // distribution key.
                         sst->dist_key.abs_validity = 0;
                         cmd_printf("[Remote] Refreshing distribution key before by-ID fetch...");
+                        reporter_post_status_message(
+                            "Refreshing distribution key before by-ID fetch...");
                         session_key_list_t* refresh_list = get_session_key(sst, NULL);
                         if (!refresh_list) {
                             fprintf(stderr, "[FORCE_KEY] Distribution-key refresh failed; "
                                             "by-ID fetch would likely fail too.\n");
                             cmd_printf("Error: Failed to refresh distribution key.");
+                            reporter_post_status_message(
+                                "Distribution-key refresh failed (see receiver_debug.log) "
+                                "- by-ID fetch will likely fail too.");
                         } else {
                             free_session_key_list_t(refresh_list);
+                            reporter_post_status_message(
+                                "Distribution-key refresh OK, proceeding to by-ID fetch.");
                         }
                         cmd_printf("[Remote] Fetching requested key ID from SST...");
                         // get_session_key_by_ID() permanently overwrites
