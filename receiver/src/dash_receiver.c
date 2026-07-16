@@ -625,8 +625,6 @@ static void handle_status_request(int client) {
         ? snprintf(json, sizeof(json), "{\"key_id\":\"%s\"}", key_id_str)
         : snprintf(json, sizeof(json), "{\"key_id\":null}");
 
-    fprintf(stderr, "[STATUS] Reporting key_id=%s\n", key_ready ? key_id_str : "(none)");
-
     char resp[256];
     int rlen = snprintf(resp, sizeof(resp),
         "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s",
@@ -740,7 +738,12 @@ static void challenge_handle(int client) {
     char *body_ptr = strstr(buf, "\r\n\r\n");
     char *body = body_ptr ? body_ptr + 4 : (char*)"";
 
-    fprintf(stderr, "[CTRL] %s request received, body=\"%s\"\n", path, body);
+    // /status is polled every 5s by the dashboard's health monitor — logging
+    // every request would drown out the events that actually matter here
+    // (force_key, challenge). Those still log below in their own handlers.
+    if (strcmp(path, "/status") != 0) {
+        fprintf(stderr, "[CTRL] %s request received, body=\"%s\"\n", path, body);
+    }
 
     // TEMPORARILY DISABLED: request signing was masking whether the actual
     // key-convergence fix (get_session_key_by_ID via /force_key) works at
