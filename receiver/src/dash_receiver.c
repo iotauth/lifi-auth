@@ -1157,19 +1157,54 @@ int main(int argc, char* argv[]) {
                             req_hex[SESSION_KEY_ID_SIZE * 2] = '\0';
                             fprintf(stderr, "[FORCE_KEY] Calling get_session_key_by_ID(%s)...\n", req_hex);
                         }
-                        // Force a fresh RSA handshake instead of reusing our
-                        // cached distribution key: this entity identity
-                        // (net1.client) is shared with the dashboard's
-                        // pico_provisioner, which may have re-handshaked with
-                        // Auth since our last one, invalidating Auth's view
-                        // of *our* cached dist key even though it hasn't
-                        // locally "expired" yet. Reusing it then fails with
-                        // InvalidMacException server-side. Expiring it here
-                        // guarantees send_auth_request_message() re-handshakes
-                        // instead of taking the stale symmetric fast path.
+                        // Our cached distribution key can be stale: this
+                        // entity identity (net1.client) is shared with the
+                        // dashboard's pico_provisioner, which may have
+                        // re-handshaked with Auth since our last one,
+                        // invalidating Auth's view of *our* cached dist key
+                        // even though it hasn't locally "expired" yet.
+                        // Reusing it then fails server-side with
+                        // InvalidMacException.
+                        //
+                        // Forcing get_session_key_by_ID() itself to
+                        // re-handshake (by expiring dist_key right before
+                        // it) does NOT work: Auth's public-key/first-contact
+                        // path apparently can't handle a "{\"keyId\":...}"
+                        // purpose — it fails with a generic RSA padding
+                        // error before ever parsing the request, even though
+                        // the same key/entity works fine there for a normal
+                        // group-purpose request. The distribution-key path
+                        // *does* support keyId purposes correctly (it got as
+                        // far as a real MAC comparison above). So: refresh
+                        // the distribution key first via a normal (group-
+                        // purpose, public-key) fetch — proven to work — then
+                        // do the by-ID fetch over the now-fresh, Auth-synced
+                        // distribution key.
                         sst->dist_key.abs_validity = 0;
+                        cmd_printf("[Remote] Refreshing distribution key before by-ID fetch...");
+                        session_key_list_t* refresh_list = get_session_key(sst, NULL);
+                        if (!refresh_list) {
+                            fprintf(stderr, "[FORCE_KEY] Distribution-key refresh failed; "
+                                            "by-ID fetch would likely fail too.\n");
+                            cmd_printf("Error: Failed to refresh distribution key.");
+                        } else {
+                            free_session_key_list_t(refresh_list);
+                        }
                         cmd_printf("[Remote] Fetching requested key ID from SST...");
+                        // get_session_key_by_ID() permanently overwrites
+                        // sst->config.purpose[...] with "{\"keyId\":...}"
+                        // and never restores it — left as-is, the NEXT
+                        // verify's refresh step above would silently send
+                        // that stale keyId purpose instead of our real
+                        // group purpose, recreating the same padding bug.
+                        // Save/restore around the call so it doesn't leak.
+                        char saved_purpose[MAX_PURPOSE_LENGTH + 1];
+                        strncpy(saved_purpose,
+                                sst->config.purpose[sst->config.purpose_index],
+                                sizeof(saved_purpose));
                         session_key_t* found = get_session_key_by_ID(remote_force_target_id, sst, key_list);
+                        strncpy(sst->config.purpose[sst->config.purpose_index],
+                                saved_purpose, sizeof(saved_purpose));
                         if (!found) {
                             fprintf(stderr, "[FORCE_KEY] get_session_key_by_ID() returned NULL.\n");
                             cmd_printf("Error: Failed to fetch requested key ID from SST.");
