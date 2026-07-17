@@ -406,12 +406,12 @@ def handle_pi4_frame():
 
     if src in ('wifi', 'both'):
         data['source'] = 'pi4'
+        # rx_frame_event carries payload_preview + raw_preview both; the
+        # client picks which to show in the WiFi log based on its RAW
+        # toggle (see wifiRawModeEnabled in script.js) — no separate
+        # wifi_log_message push needed here, that used to double-log
+        # every frame.
         socketio.emit('rx_frame_event', data)
-        key_short = data.get('key_id', '?')[-8:]
-        preview   = data.get('payload_preview', '')
-        st        = data.get('stats', {})
-        line = f"[Pi4] key={key_short} {preview}  ok={st.get('ok','?')}/{st.get('total','?')}"
-        socketio.emit('wifi_log_message', {'data': line})
 
     return '', 204
 

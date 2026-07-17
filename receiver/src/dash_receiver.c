@@ -393,6 +393,7 @@ static char g_dashboard_host[INET_ADDRSTRLEN] = DASHBOARD_HOST;
 typedef struct {
     char     key_id_hex[SESSION_KEY_ID_SIZE * 2 + 1];
     char     payload_preview[65];
+    char     raw_preview[65];  // hex-encoded ciphertext, for the dashboard's WiFi-log raw/decrypted toggle
     unsigned long total, ok, fail;
 } ReporterEvent;
 
@@ -465,8 +466,9 @@ static void reporter_post(const ReporterEvent *ev) {
         "{\"event\":\"frame_decrypted\","
         "\"key_id\":\"%s\","
         "\"payload_preview\":\"%s\","
+        "\"raw_preview\":\"%s\","
         "\"stats\":{\"total\":%lu,\"ok\":%lu,\"fail\":%lu}}",
-        ev->key_id_hex, ev->payload_preview,
+        ev->key_id_hex, ev->payload_preview, ev->raw_preview,
         ev->total, ev->ok, ev->fail);
     dashboard_http_post("/pi4_frame", json, jlen);
 }
@@ -522,7 +524,8 @@ static void *reporter_thread(void *arg) {
 }
 
 static void reporter_signal(const uint8_t *key_id, const uint8_t *payload,
-                             size_t payload_len, const SessionStats *st) {
+                             size_t payload_len, const SessionStats *st,
+                             const uint8_t *raw, size_t raw_len) {
     pthread_mutex_lock(&g_rep_mutex);
     for (int i = 0; i < SESSION_KEY_ID_SIZE; i++)
         sprintf(g_rep_event.key_id_hex + i * 2, "%02x", key_id[i]);
@@ -535,6 +538,14 @@ static void reporter_signal(const uint8_t *key_id, const uint8_t *payload,
         if (g_rep_event.payload_preview[i] < 0x20 || g_rep_event.payload_preview[i] > 0x7e)
             g_rep_event.payload_preview[i] = '.';
     g_rep_event.payload_preview[prev] = '\0';
+
+    // Ciphertext isn't printable, so hex-encode it — this is what the WiFi
+    // log shows when the dashboard's RAW toggle is on, instead of the
+    // decrypted payload_preview above.
+    size_t raw_prev = raw_len < 32 ? raw_len : 32;
+    for (size_t i = 0; i < raw_prev; i++)
+        sprintf(g_rep_event.raw_preview + i * 2, "%02x", raw[i]);
+    g_rep_event.raw_preview[raw_prev * 2] = '\0';
 
     g_rep_event.total = st->total_pkts;
     g_rep_event.ok    = st->decrypt_success;
@@ -2127,7 +2138,8 @@ int main(int argc, char* argv[]) {
                                 
                                 stats.decrypt_success++;
                                 reporter_signal(s_key.key_id, decrypted,
-                                                ctext_len, &stats);
+                                                ctext_len, &stats,
+                                                ciphertext, ctext_len);
 
                             } else {
                                 // AES-GCM decryption failed

@@ -132,7 +132,12 @@ function _wifiAliveTouch() {
 socket.on('rx_frame_event', function (data) {
     var ok      = (data.event === 'frame_decrypted');
     var keyStr  = (data.key_id || '?').slice(-8);
-    var preview = data.payload_preview || '';
+    // RAW shows the undecrypted ciphertext (hex); off shows the decrypted
+    // payload — same distinction as the UART panel's raw/decrypted modes,
+    // just decided client-side per-frame instead of via a firmware command.
+    var preview = wifiRawModeEnabled
+        ? ('[raw] ' + (data.raw_preview || ''))
+        : (data.payload_preview || '');
     var stats   = data.stats || {};
     var statStr = stats.total ? ('  ' + stats.ok + '/' + stats.total + ' ok') : '';
     _wifiLog('[WiFi] key=' + keyStr + '  ' + preview + statStr, ok ? 'log-success' : 'log-error');
