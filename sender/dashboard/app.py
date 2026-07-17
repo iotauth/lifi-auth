@@ -37,6 +37,7 @@ _mac_key_id: str | None = None  # hex key_id from the last verified /pi4_frame
 _loaded_key_id: str | None = None  # hex key_id from session_key.json, regardless of WiFi proof
 _loaded_cipher_key: bytes | None = None  # cipher_key from session_key.json, pushed to the Pi4 directly on force-refresh
 _pi4_loaded_key_id: str | None = None  # hex key_id the Pi4 (dash_receiver) reports having loaded — HMAC-authenticated, but NOT LiFi-optical proof
+_pi4_baud: int | None = None  # current UART baud the Pi4 reports for its RX Pico link
 
 # _mac_key_verified used to be sticky (proven once, trusted forever). Real
 # "continuous authentication" requires LiFi reception to keep happening —
@@ -129,17 +130,18 @@ def _pi4_reachable(timeout: float = 1.5) -> bool:
     except OSError:
         return False
 
-def _query_pi4_key_status(timeout: float = 1.5) -> tuple[str | None, str]:
+def _query_pi4_key_status(timeout: float = 1.5) -> tuple[str | None, int | None, str]:
     """GET /status from dash_receiver on the Pi4 — pulls its currently-loaded
-    key_id on demand. Complements the one-shot startup push: that push is
-    missed if the dashboard wasn't already running when dash_receiver
-    started, but this pull (run periodically from pi4_health_monitor)
-    self-corrects regardless of start order. Returns (key_id, reason) —
-    reason explains a None result instead of failing silently."""
+    key_id (and current UART baud) on demand. Complements the one-shot
+    startup push: that push is missed if the dashboard wasn't already
+    running when dash_receiver started, but this pull (run periodically
+    from pi4_health_monitor) self-corrects regardless of start order.
+    Returns (key_id, baud, reason) — reason explains a None result instead
+    of failing silently."""
     if not PI4_HOST:
-        return None, 'no PI4_HOST known'
+        return None, None, 'no PI4_HOST known'
     if not _mac_key:
-        return None, 'no mac_key loaded on the dashboard side'
+        return None, None, 'no mac_key loaded on the dashboard side'
     try:
         headers = _sign_pi4_request('/status')
         with socket.create_connection((PI4_HOST, PI4_CHALLENGE_PORT), timeout=timeout) as s:
@@ -159,12 +161,14 @@ def _query_pi4_key_status(timeout: float = 1.5) -> tuple[str | None, str]:
                 resp += chunk
         status_line = resp.split(b'\r\n', 1)[0].decode(errors='replace')
         body = resp.split(b'\r\n\r\n', 1)[-1]
-        key_id = json.loads(body).get('key_id')
+        parsed = json.loads(body)
+        key_id = parsed.get('key_id')
+        baud   = parsed.get('baud')
         if key_id is None:
-            return None, f'Pi4 has no key loaded yet ({status_line.strip()})'
-        return key_id, 'ok'
+            return None, baud, f'Pi4 has no key loaded yet ({status_line.strip()})'
+        return key_id, baud, 'ok'
     except Exception as e:
-        return None, f'could not reach Pi4: {e}'
+        return None, None, f'could not reach Pi4: {e}'
 
 def _is_wifi_peer(port: str) -> bool:
     """Any RX2 port string that isn't a real serial device path is the Pi4 WiFi peer."""
@@ -317,7 +321,7 @@ def pi4_health_monitor():
     """Keeps rx2_status honest for the WiFi peer entry: the dashboard can't detect
     the Pi4 losing power on its own (it only pushes frames in), so poll the
     challenge port periodically and flip status the moment it stops answering."""
-    global RX2_PORT, _pi4_loaded_key_id
+    global RX2_PORT, _pi4_loaded_key_id, _pi4_baud
     last_reachable = None
     last_status_reason = None
     while running:
@@ -329,10 +333,13 @@ def pi4_health_monitor():
                     socketio.emit('wifi_log_message', {'data': f'[RX2] Lost connection to Pi4 at {PI4_HOST}'})
                 last_reachable = reachable
             if reachable:
-                key_id, reason = _query_pi4_key_status()
+                key_id, baud, reason = _query_pi4_key_status()
                 if key_id != _pi4_loaded_key_id:
                     _pi4_loaded_key_id = key_id
                     socketio.emit('pi4_key_loaded_status', {'key_id': key_id})
+                if baud != _pi4_baud:
+                    _pi4_baud = baud
+                    socketio.emit('pi4_baud_status', {'baud': baud})
                 if reason != last_status_reason:
                     # Only log on change, not every 5s poll — but a changed
                     # reason (e.g. "ok" -> "could not reach Pi4: ...") is
@@ -484,6 +491,7 @@ def on_connect():
     emit('mac_key_status', {'verified': _mac_key_verified, 'key_id': _mac_key_id})
     emit('key_loaded_status', {'key_id': _loaded_key_id})
     emit('pi4_key_loaded_status', {'key_id': _pi4_loaded_key_id})
+    emit('pi4_baud_status', {'baud': _pi4_baud})
     with rx_source_lock:
         emit('rx_source_changed', {'source': rx_source})
 
@@ -573,6 +581,42 @@ def _force_pi4_key_refresh(signing_key: bytes | None, key_id: str | None) -> tup
     except Exception as e:
         return False, f'could not reach Pi4: {e}'
 
+def _set_pi4_baud(baud: int) -> tuple[bool, str]:
+    """Push a UART baud-rate change to dash_receiver on the Pi4 (POST
+    /set_baud). The Pi4's UART link to its own RX Pico only exists on the
+    Pi4 itself — there's no serial port to it from the laptop, so this is
+    the only way to change it (see handle_rx2_set_baud, which routes here
+    instead of writing to a local pyserial connection when RX2 is the Pi4
+    WiFi peer)."""
+    if not _mac_key:
+        return False, 'no mac_key loaded — cannot sign the request'
+    try:
+        body = json.dumps({'baud': baud}).encode()
+        headers = _sign_pi4_request('/set_baud', body, key=_mac_key)
+        with socket.create_connection((PI4_HOST, PI4_CHALLENGE_PORT), timeout=3) as s:
+            header_lines = ''.join(f'{k}: {v}\r\n' for k, v in headers.items())
+            req = (
+                f'POST /set_baud HTTP/1.1\r\n'
+                f'Host: {PI4_HOST}:{PI4_CHALLENGE_PORT}\r\n'
+                f'{header_lines}'
+                f'Content-Type: application/json\r\n'
+                f'Content-Length: {len(body)}\r\n'
+                f'Connection: close\r\n\r\n'
+            ).encode() + body
+            s.sendall(req)
+            resp = b''
+            while True:
+                chunk = s.recv(4096)
+                if not chunk:
+                    break
+                resp += chunk
+        status_line = resp.split(b'\r\n', 1)[0].decode(errors='replace')
+        if ' 202 ' in status_line or ' 200 ' in status_line:
+            return True, 'accepted'
+        return False, f'Pi4 rejected the request ({status_line.strip() or "no response"})'
+    except Exception as e:
+        return False, f'could not reach Pi4: {e}'
+
 @socketio.on('provision_new_key')
 def handle_provision_new_key():
     """Re-run pico_provisioner: fetch fresh key from Auth, push to Pico, reload dashboard."""
@@ -630,7 +674,7 @@ def handle_challenge_pi4():
         emit('challenge_result', {'status': 'error', 'msg': 'No local key_id loaded — provision a key first (NEW KEY)'})
         return
 
-    current_key_id, _ = _query_pi4_key_status()
+    current_key_id, _, _ = _query_pi4_key_status()
     if current_key_id != _loaded_key_id:
         emit('wifi_log_message', {'data': f'[CHALLENGE] Pi4 key_id ({current_key_id}) != ours ({_loaded_key_id}) — syncing via Auth fetch-by-ID...'})
         ok, reason = _force_pi4_key_refresh(_mac_key, _loaded_key_id)
@@ -639,7 +683,7 @@ def handle_challenge_pi4():
             return
         for _ in range(5):
             time.sleep(1)
-            current_key_id, _ = _query_pi4_key_status()
+            current_key_id, _, _ = _query_pi4_key_status()
             if current_key_id == _loaded_key_id:
                 break
         if current_key_id != _loaded_key_id:
@@ -977,7 +1021,7 @@ def handle_rx2_list_ports():
 
 @socketio.on('rx2_connect_to_port')
 def handle_rx2_connect(message):
-    global rx2_serial_conn, RX2_PORT, serial_conn, TX_PORT, rx_serial_conn, RX_PORT, PI4_HOST, _pi4_loaded_key_id
+    global rx2_serial_conn, RX2_PORT, serial_conn, TX_PORT, rx_serial_conn, RX_PORT, PI4_HOST, _pi4_loaded_key_id, _pi4_baud
     port = message.get('port', '').strip()
     if not port:
         return
@@ -1001,9 +1045,11 @@ def handle_rx2_connect(message):
             # Show KEY ID right away instead of waiting for the next 5s poll —
             # this is just the Pi4's self-reported key_id (unauthenticated),
             # not proof it holds it. Verify Pi4 is what establishes trust.
-            key_id, reason = _query_pi4_key_status()
+            key_id, baud, reason = _query_pi4_key_status()
             _pi4_loaded_key_id = key_id
+            _pi4_baud = baud
             emit('pi4_key_loaded_status', {'key_id': key_id})
+            emit('pi4_baud_status', {'baud': baud})
             emit('wifi_log_message', {'data': f'[RX2] /status: {reason}'})
         else:
             emit('wifi_log_message', {'data': f'[RX2] Pi4 not reachable at {PI4_HOST}:{PI4_CHALLENGE_PORT} — check it is powered on and the receiver is running'})
@@ -1072,7 +1118,14 @@ def handle_rx2_reconnect():
 @socketio.on('rx2_set_baud')
 def handle_rx2_set_baud(message):
     baud = int(message.get('baud', 9600))
-    cmd  = f'baud {baud}'
+    if _is_wifi_peer(RX2_PORT):
+        ok, reason = _set_pi4_baud(baud)
+        if ok:
+            emit('wifi_log_message', {'data': f'[RX2] Requested Pi4 UART baud change to {baud}'})
+        else:
+            emit('wifi_log_message', {'data': f'[RX2] Baud change request failed: {reason}'})
+        return
+    cmd = f'baud {baud}'
     with rx2_serial_lock:
         conn = rx2_serial_conn
         if conn and conn.is_open:

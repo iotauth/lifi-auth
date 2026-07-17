@@ -909,6 +909,14 @@ socket.on('pi4_key_loaded_status', function(msg) {
     }
 });
 
+// The Pi4's current UART baud (its link to its own RX Pico) — reported via
+// /status and pushed here whenever it changes, including right after a
+// SET BAUD request (see rx2SetBaud/handle_rx2_set_baud) actually applies.
+socket.on('pi4_baud_status', function(msg) {
+    var el = document.getElementById('wifi-live-baud');
+    if (el) el.textContent = msg.baud || '—';
+});
+
 // RX PORT 1 (UART) only — never includes the WiFi peer
 socket.on('rx_port_list', function(msg) {
     _fillDropdown('rx-port-select', msg.ports || [], rxCurrentPort);
