@@ -567,40 +567,22 @@ static void reporter_signal(const uint8_t *key_id, const uint8_t *payload,
 // GET  /status       no body — Response: {"key_id":"<16 hex chars>"|null,"baud":<int>}
 #define CHALLENGE_PORT 5001
 
-// The UART link to this Pi4's own RX Pico defaults to UART_BAUDRATE_TERMIOS
-// (include/protocol.h) at startup, but can be changed at runtime via
-// /set_baud — g_current_baud_termios is what init_serial() is actually
-// called with (both at startup and on any later reconnect/'r'), so a
-// runtime change sticks across reconnects instead of reverting to the
-// compile-time default.
-static int g_current_baud_termios = UART_BAUDRATE_TERMIOS;
-static int g_current_baud_int     = 1000000;  // human-readable, for /status and reporting
+// The UART link to this Pi4's own RX Pico defaults to 1,000,000 baud at
+// startup, but can be changed at runtime via /set_baud to ANY integer
+// value — g_current_baud is what init_serial_baud() is actually called
+// with (both at startup and on any later reconnect/'r'), so a runtime
+// change sticks across reconnects instead of reverting to the compile-time
+// default. init_serial_baud() uses the Linux BOTHER/termios2 ioctl
+// extension, so it isn't limited to the fixed Bxxxxxx constants the way
+// plain cfsetispeed() is — matches the TX/RX baud inputs on the dashboard,
+// which already accept any typed value via pyserial.
+static int g_current_baud     = 1000000;
+static int g_current_baud_int = 1000000;  // human-readable, for /status and reporting
 
-// termios only accepts a fixed set of standard rates, not arbitrary
-// integers — map the requested integer baud to its Bxxxxxx constant.
-// Returns -1 for an unsupported rate.
-static int baud_int_to_termios(int baud) {
-    switch (baud) {
-        case 9600:    return B9600;
-        case 19200:   return B19200;
-        case 38400:   return B38400;
-        case 57600:   return B57600;
-        case 115200:  return B115200;
-        case 230400:  return B230400;
-        case 460800:  return B460800;
-        case 500000:  return B500000;
-        case 576000:  return B576000;
-        case 921600:  return B921600;
-        case 1000000: return B1000000;
-        case 1152000: return B1152000;
-        case 1500000: return B1500000;
-        case 2000000: return B2000000;
-        case 2500000: return B2500000;
-        case 3000000: return B3000000;
-        case 3500000: return B3500000;
-        case 4000000: return B4000000;
-        default:      return -1;
-    }
+// Sanity range only — no longer a fixed-list lookup. Mirrors the Pico
+// firmware's own accepted range (see receiver_pico's "baud <rate>" command).
+static bool baud_is_sane(int baud) {
+    return baud >= 1000 && baud <= 4000000;
 }
 
 static pthread_mutex_t g_baud_mutex             = PTHREAD_MUTEX_INITIALIZER;
@@ -694,8 +676,8 @@ static void handle_force_key_request(int client, const char *body) {
 
 // POST /set_baud — queues a UART baud-rate change for the main loop to
 // apply (see the case 'r'/'R' handling: the queue-drain synthesizes 'r'
-// after updating g_current_baud_termios, so it reuses the existing
-// close+reopen reconnect logic rather than duplicating it).
+// after updating g_current_baud, so it reuses the existing close+reopen
+// reconnect logic rather than duplicating it).
 static void handle_set_baud_request(int client, const char *body) {
     int baud = 0;
     bool ok = false;
@@ -704,7 +686,7 @@ static void handle_set_baud_request(int client, const char *body) {
         p = strchr(p, ':');
         if (p) {
             baud = atoi(p + 1);
-            ok = baud_int_to_termios(baud) >= 0;
+            ok = baud_is_sane(baud);
         }
     }
 
@@ -1075,7 +1057,7 @@ int main(int argc, char* argv[]) {
     // Initialize serial first so any perror/printf issues don't corrupt the ncurses window
     // and so we know the state immediately.
     int fd = -1;
-    fd = init_serial(UART_DEVICE, g_current_baud_termios);
+    fd = init_serial_baud(UART_DEVICE, g_current_baud);
     if (fd >= 0) {
         int flags = fcntl(fd, F_GETFL, 0);
         if (flags >= 0) fcntl(fd, F_SETFL, flags | O_NONBLOCK);
@@ -1221,9 +1203,9 @@ int main(int argc, char* argv[]) {
         }
 
         // A remote /set_baud request behaves like pressing 'r' locally,
-        // except g_current_baud_termios is updated first so the reconnect
-        // that 'r' already does picks up the new rate. Only checked when no
-        // other key (real or synthesized above) is already queued this
+        // except g_current_baud is updated first so the reconnect that 'r'
+        // already does picks up the new rate. Only checked when no other
+        // key (real or synthesized above) is already queued this
         // iteration; if both a force-key and a baud-change request land in
         // the same ~tick, the baud change just waits for the next one.
         if (key == -1) {
@@ -1231,14 +1213,13 @@ int main(int argc, char* argv[]) {
             if (g_baud_change_requested) {
                 g_baud_change_requested = false;
                 int new_baud = g_baud_change_target;
-                int termios_const = baud_int_to_termios(new_baud);
-                if (termios_const >= 0) {
-                    g_current_baud_termios = termios_const;
+                if (baud_is_sane(new_baud)) {
+                    g_current_baud     = new_baud;
                     g_current_baud_int = new_baud;
                     fprintf(stderr, "[SET_BAUD] Applying baud change to %d\n", new_baud);
                     key = 'r';
                 } else {
-                    fprintf(stderr, "[SET_BAUD] Dropped queued change: %d has no termios mapping\n", new_baud);
+                    fprintf(stderr, "[SET_BAUD] Dropped queued change: %d out of range\n", new_baud);
                 }
             }
             pthread_mutex_unlock(&g_baud_mutex);
@@ -1647,7 +1628,7 @@ int main(int argc, char* argv[]) {
                         close(fd);
                         fd = -1;
                     }
-                    fd = init_serial(UART_DEVICE, g_current_baud_termios);
+                    fd = init_serial_baud(UART_DEVICE, g_current_baud);
                     if (fd >= 0) {
                         int flags = fcntl(fd, F_GETFL, 0);
                         if (flags >= 0) fcntl(fd, F_SETFL, flags | O_NONBLOCK);

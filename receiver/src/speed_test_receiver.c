@@ -104,6 +104,10 @@ int main(int argc, char *argv[]) {
     int buf_idx = 0;
 
     while (read(fd, &byte, 1) > 0) {
+        // TLV3501 comparator output is bit-inverted relative to normal UART
+        // (photodiode reads HIGH when dark). With no Pico/PIO stage doing
+        // the correction, it has to happen here. See docs/HARDWARE.md.
+        byte = (unsigned char)~byte;
         switch (state) {
             case 0:
                 if (byte == PREAMBLE_BYTE_1) state = 1;
