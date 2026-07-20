@@ -1166,9 +1166,34 @@ int main(int argc, char* argv[]) {
     uint8_t pending_key[SESSION_KEY_SIZE] = {0};
     int last_countdown = -1;
 
+    // Raw physical-layer diagnostic: counts every byte read off the UART
+    // fd, completely independent of preamble hunting / uart_state. If the
+    // wiring/baud/analog-frontend is broken, bytes never even reach the
+    // point of forming a valid preamble, so the existing preamble-based
+    // debug tap (below) would stay silent too. This reports on a fixed
+    // timer regardless, so "0 bytes" vs "no report at all" tells you
+    // whether the read loop itself is even running.
+    uint32_t raw_byte_count = 0;
+    struct timespec last_raw_report;
+    clock_gettime(CLOCK_MONOTONIC, &last_raw_report);
+
     while (1) {
         struct timespec now_ts;
         clock_gettime(CLOCK_MONOTONIC, &now_ts);
+
+        {
+            double elapsed = (now_ts.tv_sec - last_raw_report.tv_sec) +
+                             (now_ts.tv_nsec - last_raw_report.tv_nsec) / 1e9;
+            if (elapsed >= 3.0) {
+                char raw_msg[64];
+                snprintf(raw_msg, sizeof(raw_msg),
+                         "[LIFI RAW] %u bytes/3s (fd=%s)",
+                         raw_byte_count, (fd >= 0) ? "open" : "CLOSED");
+                reporter_post_status_message(raw_msg);
+                raw_byte_count = 0;
+                last_raw_report = now_ts;
+            }
+        }
 
         // --- Handle Keyboard Shortcuts ---
         int key = getch();
@@ -1692,6 +1717,8 @@ int main(int argc, char* argv[]) {
         }
 
         if (fd >= 0 && read(fd, &byte, 1) == 1) {
+            raw_byte_count++;
+
             // Activity Blink (Top Right)
             static int act_ctr = 0;
             if (++act_ctr % 10 == 0) {
