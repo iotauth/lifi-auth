@@ -489,6 +489,13 @@ static void reporter_post_key_loaded(const uint8_t *key_id) {
     dashboard_http_post("/pi4_status", json, jlen);
 }
 
+// Same printable-or-dot convention as the Pico's own "raw on" debug mode
+// (see receiver_pico/src/main.c), so raw-byte dumps read the same way on
+// both ends of the link.
+static char printable_char(uint8_t b) {
+    return (b >= 32 && b < 127) ? (char)b : '.';
+}
+
 // Sends a free-text diagnostic line to the dashboard's WiFi log — so C-side
 // failures (e.g. Auth rejecting a by-ID key fetch) are visible in the
 // browser instead of only in receiver_debug.log on the Pi4 itself.
@@ -1738,8 +1745,8 @@ int main(int argc, char* argv[]) {
                     } else {
                         char m[96];
                         snprintf(m, sizeof(m),
-                                 "[LIFI] Preamble broke at byte 2/4: expected 0x%02X, got 0x%02X",
-                                 PREAMBLE_BYTE_2, byte);
+                                 "[LIFI] Preamble broke at byte 2/4: expected 0x%02X, got 0x%02X'%c'",
+                                 PREAMBLE_BYTE_2, byte, printable_char(byte));
                         reporter_post_status_message(m);
                         uart_state = (byte == PREAMBLE_BYTE_1) ? 1 : 0;
                     }
@@ -1750,8 +1757,8 @@ int main(int argc, char* argv[]) {
                     } else {
                         char m[96];
                         snprintf(m, sizeof(m),
-                                 "[LIFI] Preamble broke at byte 3/4: expected 0x%02X, got 0x%02X",
-                                 PREAMBLE_BYTE_3, byte);
+                                 "[LIFI] Preamble broke at byte 3/4: expected 0x%02X, got 0x%02X'%c'",
+                                 PREAMBLE_BYTE_3, byte, printable_char(byte));
                         reporter_post_status_message(m);
                         uart_state = (byte == PREAMBLE_BYTE_1) ? 1 : 0;
                     }
@@ -1764,8 +1771,8 @@ int main(int argc, char* argv[]) {
                     } else {
                         char m[96];
                         snprintf(m, sizeof(m),
-                                 "[LIFI] Preamble broke at byte 4/4: expected 0x%02X, got 0x%02X",
-                                 PREAMBLE_BYTE_4, byte);
+                                 "[LIFI] Preamble broke at byte 4/4: expected 0x%02X, got 0x%02X'%c'",
+                                 PREAMBLE_BYTE_4, byte, printable_char(byte));
                         reporter_post_status_message(m);
                         uart_state = (byte == PREAMBLE_BYTE_1) ? 1 : 0;
                     }
@@ -2300,12 +2307,15 @@ int main(int argc, char* argv[]) {
                                read_exact_timeout(fd, &dbg[dlen], 1, 20) == 1) {
                             dlen++;
                         }
-                        char hex[sizeof(dbg) * 3 + 1];
+                        // Same style as the Pico's own "raw on" mode:
+                        // 0x%02X '%c' per byte, '.' for non-printable.
+                        char hex[sizeof(dbg) * 8 + 1];
                         size_t hlen = 0;
-                        for (size_t i = 0; i < dlen && hlen + 3 < sizeof(hex); i++) {
-                            hlen += (size_t)snprintf(hex + hlen, sizeof(hex) - hlen, "%02X ", dbg[i]);
+                        for (size_t i = 0; i < dlen && hlen + 8 < sizeof(hex); i++) {
+                            hlen += (size_t)snprintf(hex + hlen, sizeof(hex) - hlen,
+                                                      "%02X'%c' ", dbg[i], printable_char(dbg[i]));
                         }
-                        char dbg_msg[300];
+                        char dbg_msg[400];
                         snprintf(dbg_msg, sizeof(dbg_msg),
                                  "[LIFI DEBUG] Unknown TYPE 0x%02X after valid preamble "
                                  "(valid: 0x02=ENCRYPTED 0x06=FILE 0x07=KEY_ID_ONLY "
