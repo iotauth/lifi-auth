@@ -1226,6 +1226,11 @@ int main(int argc, char* argv[]) {
     uint32_t raw_byte_count = 0;
     uint8_t  raw_sample[16];   // first N raw byte values seen this window
     uint32_t raw_sample_len = 0;
+    uint32_t raw_tick_seq   = 0;  // increments every window, reported or not —
+                                   // a gap in the sequence number shown on the
+                                   // dashboard means messages were queued/lost,
+                                   // not just "nothing happened"
+    uint32_t raw_idle_streak = 0; // consecutive empty windows since last report
     struct timespec last_raw_report;
     clock_gettime(CLOCK_MONOTONIC, &last_raw_report);
 
@@ -1237,22 +1242,37 @@ int main(int argc, char* argv[]) {
             double elapsed = (now_ts.tv_sec - last_raw_report.tv_sec) +
                              (now_ts.tv_nsec - last_raw_report.tv_nsec) / 1e9;
             if (elapsed >= 3.0) {
-                // Sample dump uses the same 0x%02X'%c' convention as the
-                // Pico's own "raw on" mode — shows exactly what's arriving,
-                // not just how much, so a count with zero preamble/DEBUG
-                // taps firing (bytes never equal to 0xAB) is easy to spot
-                // as corruption rather than assuming it's a real frame.
-                char sample_str[16 * 8 + 1];
-                size_t slen = 0;
-                for (uint32_t i = 0; i < raw_sample_len && slen + 8 < sizeof(sample_str); i++) {
-                    slen += (size_t)snprintf(sample_str + slen, sizeof(sample_str) - slen,
-                                              "%02X'%c' ", raw_sample[i], printable_char(raw_sample[i]));
+                raw_tick_seq++;
+                // Only actually post when something happened, or every 5th
+                // otherwise-silent window as a low-volume "loop is still
+                // alive" heartbeat — posting an HTTP request every 3s
+                // unconditionally floods the status queue with useless
+                // "0 bytes" noise, which delays real messages behind it
+                // with no way to tell how stale a delivered message is.
+                bool should_report = (raw_byte_count > 0) || (fd < 0) ||
+                                      (raw_idle_streak >= 5);
+                if (should_report) {
+                    // Sample dump uses the same 0x%02X'%c' convention as the
+                    // Pico's own "raw on" mode — shows exactly what's
+                    // arriving, not just how much, so a count with zero
+                    // preamble/DEBUG taps firing (bytes never equal to 0xAB)
+                    // is easy to spot as corruption rather than assuming
+                    // it's a real frame.
+                    char sample_str[16 * 8 + 1];
+                    size_t slen = 0;
+                    for (uint32_t i = 0; i < raw_sample_len && slen + 8 < sizeof(sample_str); i++) {
+                        slen += (size_t)snprintf(sample_str + slen, sizeof(sample_str) - slen,
+                                                  "%02X'%c' ", raw_sample[i], printable_char(raw_sample[i]));
+                    }
+                    char raw_msg[230];
+                    snprintf(raw_msg, sizeof(raw_msg),
+                             "[LIFI RAW #%u] %u bytes/3s (fd=%s) first: %s",
+                             raw_tick_seq, raw_byte_count, (fd >= 0) ? "open" : "CLOSED", sample_str);
+                    reporter_post_status_message(raw_msg);
+                    raw_idle_streak = 0;
+                } else {
+                    raw_idle_streak++;
                 }
-                char raw_msg[220];
-                snprintf(raw_msg, sizeof(raw_msg),
-                         "[LIFI RAW] %u bytes/3s (fd=%s) first: %s",
-                         raw_byte_count, (fd >= 0) ? "open" : "CLOSED", sample_str);
-                reporter_post_status_message(raw_msg);
                 raw_byte_count = 0;
                 raw_sample_len = 0;
                 last_raw_report = now_ts;
