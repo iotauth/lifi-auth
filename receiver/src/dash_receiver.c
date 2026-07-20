@@ -496,22 +496,64 @@ static char printable_char(uint8_t b) {
     return (b >= 32 && b < 127) ? (char)b : '.';
 }
 
+// Status messages (raw-byte heartbeat, preamble-hunt debug, etc.) can fire
+// from inside the UART read loop, which must never block on network I/O —
+// dashboard_http_post() does a blocking connect+send with a 200ms timeout,
+// and stalling the read loop for that long risks missing real bytes right
+// when they matter most. So this queues the message and returns
+// immediately; a dedicated background thread (status_reporter_thread)
+// drains the queue and does the actual (blocking) HTTP POST.
+#define STATUS_QUEUE_SIZE 32
+static char             g_status_queue[STATUS_QUEUE_SIZE][320];
+static int              g_status_head  = 0;
+static int              g_status_tail  = 0;
+static int              g_status_count = 0;
+static pthread_mutex_t  g_status_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t   g_status_cond  = PTHREAD_COND_INITIALIZER;
+
 // Sends a free-text diagnostic line to the dashboard's WiFi log — so C-side
 // failures (e.g. Auth rejecting a by-ID key fetch) are visible in the
 // browser instead of only in receiver_debug.log on the Pi4 itself.
 static void reporter_post_status_message(const char *message) {
-    char escaped[256];
-    size_t j = 0;
-    for (size_t i = 0; message[i] && j < sizeof(escaped) - 2; i++) {
-        if (message[i] == '"' || message[i] == '\\') escaped[j++] = '\\';
-        escaped[j++] = message[i];
+    pthread_mutex_lock(&g_status_mutex);
+    if (g_status_count < STATUS_QUEUE_SIZE) {
+        strncpy(g_status_queue[g_status_tail], message, sizeof(g_status_queue[0]) - 1);
+        g_status_queue[g_status_tail][sizeof(g_status_queue[0]) - 1] = '\0';
+        g_status_tail = (g_status_tail + 1) % STATUS_QUEUE_SIZE;
+        g_status_count++;
+        pthread_cond_signal(&g_status_cond);
     }
-    escaped[j] = '\0';
+    // Queue full: drop the message rather than block the caller — this is
+    // a best-effort debug channel, not a guaranteed delivery one.
+    pthread_mutex_unlock(&g_status_mutex);
+}
 
-    char json[320];
-    int jlen = snprintf(json, sizeof(json),
-        "{\"event\":\"status_message\",\"message\":\"%s\"}", escaped);
-    dashboard_http_post("/pi4_status", json, jlen);
+static void *status_reporter_thread(void *arg) {
+    (void)arg;
+    while (1) {
+        pthread_mutex_lock(&g_status_mutex);
+        while (g_status_count == 0)
+            pthread_cond_wait(&g_status_cond, &g_status_mutex);
+        char message[320];
+        strncpy(message, g_status_queue[g_status_head], sizeof(message));
+        g_status_head = (g_status_head + 1) % STATUS_QUEUE_SIZE;
+        g_status_count--;
+        pthread_mutex_unlock(&g_status_mutex);
+
+        char escaped[256];
+        size_t j = 0;
+        for (size_t i = 0; message[i] && j < sizeof(escaped) - 2; i++) {
+            if (message[i] == '"' || message[i] == '\\') escaped[j++] = '\\';
+            escaped[j++] = message[i];
+        }
+        escaped[j] = '\0';
+
+        char json[320];
+        int jlen = snprintf(json, sizeof(json),
+            "{\"event\":\"status_message\",\"message\":\"%s\"}", escaped);
+        dashboard_http_post("/pi4_status", json, jlen);
+    }
+    return NULL;
 }
 
 static void *reporter_thread(void *arg) {
@@ -1057,6 +1099,7 @@ int main(int argc, char* argv[]) {
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         pthread_create(&tid, &attr, reporter_thread,          NULL);
         pthread_create(&tid, &attr, challenge_server_thread,  NULL);
+        pthread_create(&tid, &attr, status_reporter_thread,   NULL);
         pthread_attr_destroy(&attr);
     }
 
