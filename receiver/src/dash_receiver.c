@@ -2261,6 +2261,31 @@ int main(int argc, char* argv[]) {
 
                         uart_state = 0;  // Reset uart_state machine
                     }
+                    else {
+                        // Debug tap: TYPE byte matched none of the real
+                        // protocol messages. Most likely the RX Pico's raw
+                        // preamble+text debug relay (no LEN/CRC framing —
+                        // just read-until-newline, the same simple logic
+                        // the TX and RX Picos already use to talk to each
+                        // other over LiFi). Surface it straight to the
+                        // dashboard's WiFi log instead of silently
+                        // dropping it, so we get instant proof bytes are
+                        // actually reaching the Pi4.
+                        char dbg[256];
+                        size_t dlen = 0;
+                        dbg[dlen++] = (char)byte;
+                        uint8_t dbg_byte;
+                        while (dlen < sizeof(dbg) - 1 &&
+                               read_exact_timeout(fd, &dbg_byte, 1, 100) == 1) {
+                            if (dbg_byte == '\n' || dbg_byte == '\r') break;
+                            dbg[dlen++] = (char)dbg_byte;
+                        }
+                        dbg[dlen] = '\0';
+                        char dbg_msg[300];
+                        snprintf(dbg_msg, sizeof(dbg_msg), "[LIFI DEBUG] %s", dbg);
+                        reporter_post_status_message(dbg_msg);
+                        uart_state = 0;
+                    }
                     break;
                 default:
                     uart_state = 0;
