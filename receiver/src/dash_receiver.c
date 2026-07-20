@@ -1736,21 +1736,38 @@ int main(int argc, char* argv[]) {
                     if (byte == PREAMBLE_BYTE_2) {
                         uart_state = 2;
                     } else {
-                        uart_state = 0;
+                        char m[96];
+                        snprintf(m, sizeof(m),
+                                 "[LIFI] Preamble broke at byte 2/4: expected 0x%02X, got 0x%02X",
+                                 PREAMBLE_BYTE_2, byte);
+                        reporter_post_status_message(m);
+                        uart_state = (byte == PREAMBLE_BYTE_1) ? 1 : 0;
                     }
                     break;
                 case 2:
                     if (byte == PREAMBLE_BYTE_3) {
                         uart_state = 3;
                     } else {
-                        uart_state = 0;
+                        char m[96];
+                        snprintf(m, sizeof(m),
+                                 "[LIFI] Preamble broke at byte 3/4: expected 0x%02X, got 0x%02X",
+                                 PREAMBLE_BYTE_3, byte);
+                        reporter_post_status_message(m);
+                        uart_state = (byte == PREAMBLE_BYTE_1) ? 1 : 0;
                     }
                     break;
                 case 3:
                     if (byte == PREAMBLE_BYTE_4) {
                         uart_state = 4; // Preamble complete, next is TYPE
+                        reporter_post_status_message(
+                            "[LIFI] Preamble OK (AB CD EF 12) - reading TYPE next");
                     } else {
-                        uart_state = 0;
+                        char m[96];
+                        snprintf(m, sizeof(m),
+                                 "[LIFI] Preamble broke at byte 4/4: expected 0x%02X, got 0x%02X",
+                                 PREAMBLE_BYTE_4, byte);
+                        reporter_post_status_message(m);
+                        uart_state = (byte == PREAMBLE_BYTE_1) ? 1 : 0;
                     }
                     break;
 
@@ -2270,27 +2287,30 @@ int main(int argc, char* argv[]) {
                         uart_state = 0;  // Reset uart_state machine
                     }
                     else {
-                        // Debug tap: TYPE byte matched none of the real
-                        // protocol messages. Most likely the RX Pico's raw
-                        // preamble+text debug relay (no LEN/CRC framing —
-                        // just read-until-newline, the same simple logic
-                        // the TX and RX Picos already use to talk to each
-                        // other over LiFi). Surface it straight to the
-                        // dashboard's WiFi log instead of silently
-                        // dropping it, so we get instant proof bytes are
-                        // actually reaching the Pi4.
-                        char dbg[256];
+                        // Debug tap: preamble matched (AB CD EF 12) but this
+                        // TYPE byte matches none of the real protocol
+                        // messages. Hex-dump exactly what arrived next to
+                        // the real message types, so a framing/bit-error
+                        // problem is visible instead of just "something
+                        // happened".
+                        uint8_t dbg[16];
                         size_t dlen = 0;
-                        dbg[dlen++] = (char)byte;
-                        uint8_t dbg_byte;
-                        while (dlen < sizeof(dbg) - 1 &&
-                               read_exact_timeout(fd, &dbg_byte, 1, 100) == 1) {
-                            if (dbg_byte == '\n' || dbg_byte == '\r') break;
-                            dbg[dlen++] = (char)dbg_byte;
+                        dbg[dlen++] = byte;
+                        while (dlen < sizeof(dbg) &&
+                               read_exact_timeout(fd, &dbg[dlen], 1, 20) == 1) {
+                            dlen++;
                         }
-                        dbg[dlen] = '\0';
+                        char hex[sizeof(dbg) * 3 + 1];
+                        size_t hlen = 0;
+                        for (size_t i = 0; i < dlen && hlen + 3 < sizeof(hex); i++) {
+                            hlen += (size_t)snprintf(hex + hlen, sizeof(hex) - hlen, "%02X ", dbg[i]);
+                        }
                         char dbg_msg[300];
-                        snprintf(dbg_msg, sizeof(dbg_msg), "[LIFI DEBUG] %s", dbg);
+                        snprintf(dbg_msg, sizeof(dbg_msg),
+                                 "[LIFI DEBUG] Unknown TYPE 0x%02X after valid preamble "
+                                 "(valid: 0x02=ENCRYPTED 0x06=FILE 0x07=KEY_ID_ONLY "
+                                 "0x09=SST_HS2). Bytes: %s",
+                                 byte, hex);
                         reporter_post_status_message(dbg_msg);
                         uart_state = 0;
                     }
