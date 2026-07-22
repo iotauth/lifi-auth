@@ -1801,13 +1801,6 @@ int main(int argc, char* argv[]) {
         }
 
         if (fd >= 0 && read(fd, &byte, 1) == 1) {
-            // TLV3501 comparator output is bit-inverted relative to normal
-            // UART (photodiode reads HIGH when dark) — see docs/HARDWARE.md
-            // and the same correction in speed_test_receiver.c. dash_receiver
-            // was the only raw-byte reader in the codebase not applying it;
-            // TEMPORARY test to see whether that's contributing to the
-            // per-character corruption we're chasing.
-            byte = (uint8_t)~byte;
             raw_byte_count++;
             if (raw_sample_len < sizeof(raw_sample)) {
                 raw_sample[raw_sample_len++] = byte;
