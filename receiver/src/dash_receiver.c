@@ -1801,6 +1801,12 @@ int main(int argc, char* argv[]) {
         }
 
         if (fd >= 0 && read(fd, &byte, 1) == 1) {
+            // Reverse-biased photodiode → comparator output is inverted
+            // relative to standard idle-high UART, same correction the
+            // known-working receiver_pico/src/main.c applies. Retesting now
+            // that the MCP4725 threshold is actually calibrated (previous
+            // test of this ran against an uncalibrated ~1.64V threshold).
+            byte = (uint8_t)~byte;
             raw_byte_count++;
             if (raw_sample_len < sizeof(raw_sample)) {
                 raw_sample[raw_sample_len++] = byte;
