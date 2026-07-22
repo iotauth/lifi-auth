@@ -1258,7 +1258,7 @@ int main(int argc, char* argv[]) {
                     // preamble/DEBUG taps firing (bytes never equal to 0xAB)
                     // is easy to spot as corruption rather than assuming
                     // it's a real frame.
-                    char sample_str[16 * 8 + 1];
+                    char sample_str[16 * 8 + 1] = {0};
                     size_t slen = 0;
                     for (uint32_t i = 0; i < raw_sample_len && slen + 8 < sizeof(sample_str); i++) {
                         slen += (size_t)snprintf(sample_str + slen, sizeof(sample_str) - slen,
@@ -1801,6 +1801,13 @@ int main(int argc, char* argv[]) {
         }
 
         if (fd >= 0 && read(fd, &byte, 1) == 1) {
+            // TLV3501 comparator output is bit-inverted relative to normal
+            // UART (photodiode reads HIGH when dark) — see docs/HARDWARE.md
+            // and the same correction in speed_test_receiver.c. dash_receiver
+            // was the only raw-byte reader in the codebase not applying it;
+            // TEMPORARY test to see whether that's contributing to the
+            // per-character corruption we're chasing.
+            byte = (uint8_t)~byte;
             raw_byte_count++;
             if (raw_sample_len < sizeof(raw_sample)) {
                 raw_sample[raw_sample_len++] = byte;
