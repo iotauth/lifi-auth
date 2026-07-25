@@ -19,8 +19,44 @@ include("${PICO_SDK_PATH}/pico_sdk_init.cmake")
 project(lifi_pico2_receiver C CXX ASM)
 pico_sdk_init()
 
+# === mbedTLS (vendored, same source list as the top-level project's
+#     mbedcrypto target) — needed so this standalone debug build can
+#     decrypt AES-GCM frames on-device for the "key <hex>" command. ===
+set(REPO_ROOT   "${CMAKE_CURRENT_LIST_DIR}/..")
+set(MBEDTLS_DIR "${REPO_ROOT}/lib/mbedtls" CACHE PATH "Path to vendored mbedTLS" FORCE)
+if(NOT EXISTS "${MBEDTLS_DIR}/library/aes.c")
+  message(FATAL_ERROR "mbedTLS submodule not found at ${MBEDTLS_DIR}. Run: git submodule update --init --recursive")
+endif()
+
+add_library(mbedcrypto
+  ${MBEDTLS_DIR}/library/aes.c
+  ${MBEDTLS_DIR}/library/gcm.c
+  ${MBEDTLS_DIR}/library/sha256.c
+  ${MBEDTLS_DIR}/library/sha512.c
+  ${MBEDTLS_DIR}/library/cipher.c
+  ${MBEDTLS_DIR}/library/cipher_wrap.c
+  ${MBEDTLS_DIR}/library/platform.c
+  ${MBEDTLS_DIR}/library/platform_util.c
+  ${MBEDTLS_DIR}/library/ctr_drbg.c
+  ${MBEDTLS_DIR}/library/entropy.c
+  ${MBEDTLS_DIR}/library/md.c
+  ${MBEDTLS_DIR}/library/constant_time.c
+)
+target_include_directories(mbedcrypto
+  PUBLIC
+    ${REPO_ROOT}                 # for "config/mbedtls_config.h"
+    ${MBEDTLS_DIR}/include
+  PRIVATE
+    ${REPO_ROOT}/include
+)
+target_compile_definitions(mbedcrypto
+  PUBLIC MBEDTLS_CONFIG_FILE="config/mbedtls_config.h"
+)
+target_link_libraries(mbedcrypto PRIVATE pico_stdlib)
+
 add_executable(lifi_pico2_rx
     src/main.c
+    ${REPO_ROOT}/src/sst_crypto_embedded.c
 )
 
 # Move this AFTER add_executable
@@ -36,6 +72,7 @@ target_link_libraries(lifi_pico2_rx
     pico_stdlib
     hardware_pio
     hardware_clocks
+    mbedcrypto
 )
 
 pico_enable_stdio_usb(lifi_pico2_rx 1)

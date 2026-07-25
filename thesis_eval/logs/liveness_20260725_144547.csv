@@ -1,0 +1,179 @@
+unix_ts,iso_ts,event,detail
+1785015949.630760,2026-07-25T14:45:49.630,frame,msg=122 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015949.630853,2026-07-25T14:45:49.630,VERIFIED,"first valid frame after gap (msg=122, text=""heartbeat"")"
+1785015952.130693,2026-07-25T14:45:52.130,frame,msg=123 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015954.630228,2026-07-25T14:45:54.630,frame,msg=124 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015957.131654,2026-07-25T14:45:57.131,frame,msg=125 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015959.629858,2026-07-25T14:45:59.629,frame,msg=126 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015962.131357,2026-07-25T14:46:02.131,frame,msg=127 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015963.719732,2026-07-25T14:46:03.719,MARKER,occlude
+1785015977.842611,2026-07-25T14:46:17.842,REVOKED,15.711s since last valid frame (window=15.0s)
+1785015980.894231,2026-07-25T14:46:20.894,MARKER,unblock
+1785015982.131484,2026-07-25T14:46:22.131,frame,msg=128 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015982.131553,2026-07-25T14:46:22.131,VERIFIED,"first valid frame after gap (msg=128, text=""heartbeat"")"
+1785015984.630374,2026-07-25T14:46:24.630,frame,msg=129 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015987.129946,2026-07-25T14:46:27.129,frame,msg=130 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015989.629703,2026-07-25T14:46:29.629,frame,msg=131 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015992.130605,2026-07-25T14:46:32.130,frame,msg=132 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015994.630786,2026-07-25T14:46:34.630,frame,msg=133 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015997.131832,2026-07-25T14:46:37.131,frame,msg=134 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785015999.630054,2026-07-25T14:46:39.630,frame,msg=135 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016002.130122,2026-07-25T14:46:42.130,frame,msg=136 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016004.630722,2026-07-25T14:46:44.630,frame,msg=137 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016007.130808,2026-07-25T14:46:47.130,frame,msg=138 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016009.630103,2026-07-25T14:46:49.630,frame,msg=139 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016012.129664,2026-07-25T14:46:52.129,frame,msg=140 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016014.630124,2026-07-25T14:46:54.630,frame,msg=141 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016017.130843,2026-07-25T14:46:57.130,frame,msg=142 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016019.631944,2026-07-25T14:46:59.631,frame,msg=143 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016020.353821,2026-07-25T14:47:00.353,MARKER,occlude
+1785016037.844893,2026-07-25T14:47:17.844,REVOKED,18.213s since last valid frame (window=15.0s)
+1785016040.765404,2026-07-25T14:47:20.765,MARKER,unblock
+1785016042.131176,2026-07-25T14:47:22.131,frame,msg=144 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016042.131256,2026-07-25T14:47:22.131,VERIFIED,"first valid frame after gap (msg=144, text=""heartbeat"")"
+1785016044.631206,2026-07-25T14:47:24.631,frame,msg=145 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016047.145481,2026-07-25T14:47:27.145,frame,msg=146 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016049.629754,2026-07-25T14:47:29.629,frame,msg=147 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016052.130551,2026-07-25T14:47:32.130,frame,msg=148 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016052.857743,2026-07-25T14:47:32.857,MARKER,occlude
+1785016067.845980,2026-07-25T14:47:47.845,REVOKED,15.715s since last valid frame (window=15.0s)
+1785016071.515996,2026-07-25T14:47:51.515,MARKER,unblock
+1785016072.131464,2026-07-25T14:47:52.131,frame,msg=149 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016072.131530,2026-07-25T14:47:52.131,VERIFIED,"first valid frame after gap (msg=149, text=""heartbeat"")"
+1785016074.630388,2026-07-25T14:47:54.630,frame,msg=150 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016077.129866,2026-07-25T14:47:57.129,frame,msg=151 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016079.630538,2026-07-25T14:47:59.630,frame,msg=152 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016080.263969,2026-07-25T14:48:00.263,MARKER,occlude
+1785016097.847637,2026-07-25T14:48:17.847,REVOKED,18.217s since last valid frame (window=15.0s)
+1785016100.274058,2026-07-25T14:48:20.274,MARKER,unblock
+1785016102.130474,2026-07-25T14:48:22.130,frame,msg=153 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016102.130545,2026-07-25T14:48:22.130,VERIFIED,"first valid frame after gap (msg=153, text=""heartbeat"")"
+1785016104.630076,2026-07-25T14:48:24.630,frame,msg=154 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016107.130065,2026-07-25T14:48:27.130,frame,msg=155 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016110.378422,2026-07-25T14:48:30.378,MARKER,occlude
+1785016122.849076,2026-07-25T14:48:42.849,REVOKED,15.719s since last valid frame (window=15.0s)
+1785016125.634991,2026-07-25T14:48:45.634,MARKER,unblock
+1785016127.130187,2026-07-25T14:48:47.130,frame,msg=156 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016127.130261,2026-07-25T14:48:47.130,VERIFIED,"first valid frame after gap (msg=156, text=""heartbeat"")"
+1785016129.629744,2026-07-25T14:48:49.629,frame,msg=157 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016132.131163,2026-07-25T14:48:52.131,frame,msg=158 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016134.629961,2026-07-25T14:48:54.629,frame,msg=159 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016134.896080,2026-07-25T14:48:54.896,MARKER,occlude
+1785016152.850115,2026-07-25T14:49:12.850,REVOKED,18.220s since last valid frame (window=15.0s)
+1785016155.661741,2026-07-25T14:49:15.661,MARKER,unblock
+1785016157.131249,2026-07-25T14:49:17.131,frame,msg=160 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016157.131324,2026-07-25T14:49:17.131,VERIFIED,"first valid frame after gap (msg=160, text=""heartbeat"")"
+1785016159.630388,2026-07-25T14:49:19.630,frame,msg=161 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016162.130229,2026-07-25T14:49:22.130,frame,msg=162 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016162.624229,2026-07-25T14:49:22.624,MARKER,occlude
+1785016177.851143,2026-07-25T14:49:37.851,REVOKED,15.721s since last valid frame (window=15.0s)
+1785016180.055884,2026-07-25T14:49:40.055,MARKER,unblock
+1785016182.130079,2026-07-25T14:49:42.130,frame,msg=163 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016182.130156,2026-07-25T14:49:42.130,VERIFIED,"first valid frame after gap (msg=163, text=""heartbeat"")"
+1785016184.630256,2026-07-25T14:49:44.630,frame,msg=164 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016186.904105,2026-07-25T14:49:46.904,MARKER,occlude
+1785016187.130150,2026-07-25T14:49:47.130,frame,msg=165 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016202.852444,2026-07-25T14:50:02.852,REVOKED,15.722s since last valid frame (window=15.0s)
+1785016206.112459,2026-07-25T14:50:06.112,MARKER,unblock
+1785016207.131765,2026-07-25T14:50:07.131,frame,msg=166 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016207.131833,2026-07-25T14:50:07.131,VERIFIED,"first valid frame after gap (msg=166, text=""heartbeat"")"
+1785016209.630245,2026-07-25T14:50:09.630,frame,msg=167 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016211.845002,2026-07-25T14:50:11.845,MARKER,occlude
+1785016227.853605,2026-07-25T14:50:27.853,REVOKED,18.223s since last valid frame (window=15.0s)
+1785016229.630954,2026-07-25T14:50:29.630,frame,msg=168 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016229.631035,2026-07-25T14:50:29.631,VERIFIED,"first valid frame after gap (msg=168, text=""heartbeat"")"
+1785016229.789559,2026-07-25T14:50:29.789,MARKER,unblock
+1785016232.130278,2026-07-25T14:50:32.130,frame,msg=169 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016234.630718,2026-07-25T14:50:34.630,frame,msg=170 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016237.130436,2026-07-25T14:50:37.130,frame,msg=171 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016239.094324,2026-07-25T14:50:39.094,MARKER,occlude
+1785016252.854939,2026-07-25T14:50:52.854,REVOKED,15.724s since last valid frame (window=15.0s)
+1785016255.149401,2026-07-25T14:50:55.149,MARKER,unblock
+1785016257.131180,2026-07-25T14:50:57.131,frame,msg=172 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016257.131249,2026-07-25T14:50:57.131,VERIFIED,"first valid frame after gap (msg=172, text=""heartbeat"")"
+1785016259.631368,2026-07-25T14:50:59.631,frame,msg=173 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016262.130501,2026-07-25T14:51:02.130,frame,msg=174 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016264.630336,2026-07-25T14:51:04.630,frame,msg=175 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016264.883804,2026-07-25T14:51:04.883,MARKER,occlude
+1785016282.856239,2026-07-25T14:51:22.856,REVOKED,18.226s since last valid frame (window=15.0s)
+1785016287.618074,2026-07-25T14:51:27.618,MARKER,unblock
+1785016289.630378,2026-07-25T14:51:29.630,frame,msg=176 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016289.630459,2026-07-25T14:51:29.630,VERIFIED,"first valid frame after gap (msg=176, text=""heartbeat"")"
+1785016292.130668,2026-07-25T14:51:32.130,frame,msg=177 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016294.630936,2026-07-25T14:51:34.630,frame,msg=178 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016295.058943,2026-07-25T14:51:35.058,MARKER,occlude
+1785016312.857206,2026-07-25T14:51:52.857,REVOKED,18.226s since last valid frame (window=15.0s)
+1785016315.027703,2026-07-25T14:51:55.027,MARKER,unblock
+1785016317.130162,2026-07-25T14:51:57.130,frame,msg=179 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016317.130232,2026-07-25T14:51:57.130,VERIFIED,"first valid frame after gap (msg=179, text=""heartbeat"")"
+1785016319.630555,2026-07-25T14:51:59.630,frame,msg=180 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016321.102477,2026-07-25T14:52:01.102,MARKER,occlude
+1785016337.858472,2026-07-25T14:52:17.858,REVOKED,18.228s since last valid frame (window=15.0s)
+1785016339.360743,2026-07-25T14:52:19.360,MARKER,unblock
+1785016339.630900,2026-07-25T14:52:19.630,frame,msg=181 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016339.630972,2026-07-25T14:52:19.630,VERIFIED,"first valid frame after gap (msg=181, text=""heartbeat"")"
+1785016342.132057,2026-07-25T14:52:22.132,frame,msg=182 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016344.630657,2026-07-25T14:52:24.630,frame,msg=183 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016347.138770,2026-07-25T14:52:27.138,frame,msg=184 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016347.517837,2026-07-25T14:52:27.517,MARKER,occlude
+1785016362.859674,2026-07-25T14:52:42.859,REVOKED,15.721s since last valid frame (window=15.0s)
+1785016365.369387,2026-07-25T14:52:45.369,MARKER,unblock
+1785016367.130942,2026-07-25T14:52:47.130,frame,msg=185 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016367.131013,2026-07-25T14:52:47.131,VERIFIED,"first valid frame after gap (msg=185, text=""heartbeat"")"
+1785016369.630583,2026-07-25T14:52:49.630,frame,msg=186 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016370.670986,2026-07-25T14:52:50.670,MARKER,occlude
+1785016387.860759,2026-07-25T14:53:07.860,REVOKED,18.230s since last valid frame (window=15.0s)
+1785016397.130984,2026-07-25T14:53:17.130,frame,msg=187 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016397.131060,2026-07-25T14:53:17.131,VERIFIED,"first valid frame after gap (msg=187, text=""heartbeat"")"
+1785016397.204545,2026-07-25T14:53:17.204,MARKER,unblock
+1785016399.630461,2026-07-25T14:53:19.630,frame,msg=188 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016402.130560,2026-07-25T14:53:22.130,frame,msg=189 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016404.638227,2026-07-25T14:53:24.638,frame,msg=190 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016406.366466,2026-07-25T14:53:26.366,MARKER,occlude
+1785016422.862165,2026-07-25T14:53:42.862,REVOKED,18.224s since last valid frame (window=15.0s)
+1785016424.453568,2026-07-25T14:53:44.453,MARKER,unblock
+1785016424.631243,2026-07-25T14:53:44.631,frame,msg=191 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016424.631321,2026-07-25T14:53:44.631,VERIFIED,"first valid frame after gap (msg=191, text=""heartbeat"")"
+1785016427.130600,2026-07-25T14:53:47.130,frame,msg=192 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016429.630331,2026-07-25T14:53:49.630,frame,msg=193 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016431.474080,2026-07-25T14:53:51.474,MARKER,occlude
+1785016447.863285,2026-07-25T14:54:07.863,REVOKED,18.233s since last valid frame (window=15.0s)
+1785016449.394931,2026-07-25T14:54:09.394,MARKER,unblock
+1785016449.630683,2026-07-25T14:54:09.630,frame,msg=194 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016449.630754,2026-07-25T14:54:09.630,VERIFIED,"first valid frame after gap (msg=194, text=""heartbeat"")"
+1785016452.130420,2026-07-25T14:54:12.130,frame,msg=195 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016454.631731,2026-07-25T14:54:14.631,frame,msg=196 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016455.514722,2026-07-25T14:54:15.514,MARKER,occlude
+1785016472.864629,2026-07-25T14:54:32.864,REVOKED,18.233s since last valid frame (window=15.0s)
+1785016474.630613,2026-07-25T14:54:34.630,frame,msg=197 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016474.630685,2026-07-25T14:54:34.630,VERIFIED,"first valid frame after gap (msg=197, text=""heartbeat"")"
+1785016474.702555,2026-07-25T14:54:34.702,MARKER,unblock
+1785016477.130832,2026-07-25T14:54:37.130,frame,msg=198 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016479.630492,2026-07-25T14:54:39.630,frame,msg=199 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016480.080694,2026-07-25T14:54:40.080,MARKER,occlude
+1785016497.865971,2026-07-25T14:54:57.865,REVOKED,18.235s since last valid frame (window=15.0s)
+1785016499.875657,2026-07-25T14:54:59.875,MARKER,unblock
+1785016502.130633,2026-07-25T14:55:02.130,frame,msg=200 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016502.130704,2026-07-25T14:55:02.130,VERIFIED,"first valid frame after gap (msg=200, text=""heartbeat"")"
+1785016504.630641,2026-07-25T14:55:04.630,frame,msg=201 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016507.131193,2026-07-25T14:55:07.131,frame,msg=202 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016509.121252,2026-07-25T14:55:09.121,MARKER,occlude
+1785016522.867137,2026-07-25T14:55:22.867,REVOKED,15.736s since last valid frame (window=15.0s)
+1785016527.728349,2026-07-25T14:55:27.728,MARKER,unblock
+1785016529.631880,2026-07-25T14:55:29.631,frame,msg=203 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016529.631966,2026-07-25T14:55:29.631,VERIFIED,"first valid frame after gap (msg=203, text=""heartbeat"")"
+1785016532.131356,2026-07-25T14:55:32.131,frame,msg=204 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016534.630865,2026-07-25T14:55:34.630,frame,msg=205 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016537.130788,2026-07-25T14:55:37.130,frame,msg=206 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016539.630835,2026-07-25T14:55:39.630,frame,msg=207 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016542.132735,2026-07-25T14:55:42.132,frame,msg=208 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016544.644091,2026-07-25T14:55:44.644,frame,msg=209 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016545.481919,2026-07-25T14:55:45.481,MARKER,occlude
+1785016562.868814,2026-07-25T14:56:02.868,REVOKED,18.225s since last valid frame (window=15.0s)
+1785016565.261740,2026-07-25T14:56:05.261,MARKER,unblock
+1785016567.130865,2026-07-25T14:56:07.130,frame,msg=210 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016567.130934,2026-07-25T14:56:07.130,VERIFIED,"first valid frame after gap (msg=210, text=""heartbeat"")"
+1785016569.632244,2026-07-25T14:56:09.632,frame,msg=211 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016572.152732,2026-07-25T14:56:12.152,frame,msg=212 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016574.630906,2026-07-25T14:56:14.630,frame,msg=213 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785016577.130949,2026-07-25T14:56:17.130,frame,msg=214 type=0x02 crc=ok replay=no decrypt=ok valid=True

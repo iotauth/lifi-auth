@@ -33,7 +33,7 @@
 #define PIO_TX_PIN_BASE 6 // GP6
 #define PIO_TX_PIN_COUNT 4 // GP6, GP7, GP8, GP9
 
-#define BAUD_RATE 1000000
+#define BAUD_RATE 100000
 #define SST_MAC_KEY_SIZE 32
 
 // PIO Globals
@@ -91,6 +91,55 @@ bool uart_read_blocking_timeout_us(uart_inst_t *uart, uint8_t *dst, size_t len, 
             dst[received++] = uart_getc(uart);
         }
     }
+    return true;
+}
+
+// Same as above but for the USB console (stdio_usb) instead of a hardware
+// UART — lets a MSG_TYPE_KEY frame be pushed over the same port used for
+// the interactive console, since GP4/5 (UART_ID) has no wire to the laptop.
+static bool stdio_read_blocking_timeout_us(uint8_t *dst, size_t len, uint32_t timeout_us) {
+    absolute_time_t deadline = make_timeout_time_us(timeout_us);
+    size_t received = 0;
+    while (received < len) {
+        if (time_reached(deadline)) return false;
+        int c = getchar_timeout_us(0);
+        if (c != PICO_ERROR_TIMEOUT) {
+            dst[received++] = (uint8_t)c;
+        }
+    }
+    return true;
+}
+
+// Shared by both the UART1 (Pi4-wired) and USB-console MSG_TYPE_KEY paths:
+// writes the new key to flash and activates it in RAM.
+static bool apply_new_key(int current_slot, const uint8_t *new_id, const uint8_t *new_key,
+                           const uint8_t *new_mac_key, uint8_t *session_key,
+                           uint8_t *session_key_id, uint8_t *session_mac_key) {
+    printf("\n[Received New Session Key]\n");
+    printf("Received ID: ");
+    for (int i = 0; i < SST_KEY_ID_SIZE; i++) printf("%02X", new_id[i]);
+    printf("\n");
+
+    if (!pico_write_key_to_slot(current_slot, new_id, new_key)) {
+        printf("[Error] Failed to save key to flash.\n");
+        return false;
+    }
+    store_last_used_slot((uint8_t)current_slot);
+
+    printf("DEBUG: Recv Cipher: ");
+    for (int i = 0; i < SST_KEY_SIZE; i++) printf("%02X ", new_key[i]);
+    printf("\nDEBUG: Recv MAC:    ");
+    for (int i = 0; i < SST_MAC_KEY_SIZE; i++) printf("%02X ", new_mac_key[i]);
+    printf("\n");
+
+    keyram_set_with_id(new_id, new_key);
+    memcpy(session_key, new_key, SST_KEY_SIZE);
+    memcpy(session_key_id, new_id, SST_KEY_ID_SIZE);
+    memcpy(session_mac_key, new_mac_key, SST_MAC_KEY_SIZE);
+    pico_nonce_on_key_change();
+
+    printf("[Auto-Provision] Key saved to Slot %c and activated.\n", current_slot == 0 ? 'A' : 'B');
+    printf("(MAC Key updated in RAM)\n");
     return true;
 }
 
@@ -170,6 +219,11 @@ int main() {
     static uint8_t compressed_buf[8192];  // For FILEB/FILE compression
     static uint8_t crc_buf[1 + 2 + 12 + 8192 + 16];  // TYPE + LEN + NONCE + CIPHERTEXT + TAG
 
+    // Idle heartbeat: keeps continuous traffic flowing for liveness/occlusion
+    // experiments, using the exact same encrypt+frame+send path below.
+    static uint32_t last_heartbeat_ms = 0;
+    #define HEARTBEAT_INTERVAL_MS 2500
+
     while (true) {
         size_t msg_len = 0;
         int ch;  // character
@@ -177,6 +231,16 @@ int main() {
         uint8_t tag[SST_TAG_SIZE] = {0};
 
         for (;;) {
+            // Idle heartbeat — only when nothing is being typed, so it never
+            // interrupts a message in progress.
+            uint32_t now_ms = to_ms_since_boot(get_absolute_time());
+            if (msg_len == 0 && (now_ms - last_heartbeat_ms) >= HEARTBEAT_INTERVAL_MS) {
+                last_heartbeat_ms = now_ms;
+                strcpy(message_buffer, "heartbeat");
+                msg_len = strlen(message_buffer);
+                break;  // falls through to the existing encrypt+send logic below
+            }
+
             // Drain all available UART bytes before checking USB (prevents FIFO overflow)
             while (uart_is_readable(UART_ID)) {
                 static uint8_t uart_byte;
@@ -424,43 +488,15 @@ int main() {
                             uint8_t new_id[SST_KEY_ID_SIZE];
                             uint8_t new_key[SST_KEY_SIZE];
                             uint8_t new_mac_key[SST_MAC_KEY_SIZE];
-                            
+
                             bool ok = uart_read_blocking_timeout_us(UART_ID, len_bytes, 2, 100000);
                             if (ok) ok = uart_read_blocking_timeout_us(UART_ID, new_id, SST_KEY_ID_SIZE, 100000);
                             if (ok) ok = uart_read_blocking_timeout_us(UART_ID, new_key, SST_KEY_SIZE, 100000);
                             if (ok) ok = uart_read_blocking_timeout_us(UART_ID, new_mac_key, SST_MAC_KEY_SIZE, 100000);
-                            
-                            if (ok) {
-                                printf("\n[Received New Session Key via LiFi]\n");
-                                printf("Received ID: ");
-                                for(int i=0; i<SST_KEY_ID_SIZE; i++) printf("%02X", new_id[i]);
-                                printf("\n");
-                                
-                                // Write to CURRENT slot (Cipher Key only for now as flash struct unsure)
-                                if (pico_write_key_to_slot(current_slot, new_id, new_key)) {
-                                    store_last_used_slot((uint8_t)current_slot);
-                                    
-                                    // DEBUG: Print received keys (Full)
-                                    printf("DEBUG: Recv Cipher: ");
-                                    for(int i=0; i<SST_KEY_SIZE; i++) printf("%02X ", new_key[i]);
-                                    printf("\nDEBUG: Recv MAC:    ");
-                                    for(int i=0; i<SST_MAC_KEY_SIZE; i++) printf("%02X ", new_mac_key[i]);
-                                    printf("\n");
 
-                                    // Update RAM
-                                    keyram_set_with_id(new_id, new_key);
-                                    memcpy(session_key, new_key, SST_KEY_SIZE);
-                                    memcpy(session_key_id, new_id, SST_KEY_ID_SIZE);
-                                    memcpy(session_mac_key, new_mac_key, SST_MAC_KEY_SIZE);
-                                    
-                                    pico_nonce_on_key_change();
-                                    
-                                    printf("[Auto-Provision] Key saved to Slot %c and activated.\n", 
-                                           current_slot == 0 ? 'A' : 'B');
-                                    printf("(MAC Key updated in RAM)\n");
-                                } else {
-                                    printf("[Error] Failed to save key to flash.\n");
-                                }
+                            if (ok) {
+                                apply_new_key(current_slot, new_id, new_key, new_mac_key,
+                                              session_key, session_key_id, session_mac_key);
                             } else {
                                 printf("\n[Error] Key update timeout (Waiting for MAC Key?). Flushing RX.\n");
                                 while (uart_is_readable(UART_ID)) (void)uart_getc(UART_ID);
@@ -480,6 +516,38 @@ int main() {
             ch = getchar_timeout_us(0);  // Non-blocking poll
             if (ch == PICO_ERROR_TIMEOUT) {
                 // watchdog_update(); //when enabled
+                continue;
+            }
+
+            // A provisioning key frame (PREAMBLE + MSG_TYPE_KEY + ...) pushed
+            // over the USB console instead of the (unwired) GP4/5 UART.
+            // 0xAB can never be the first byte of real typed/pasted text, so
+            // this is unambiguous — no human message or "CMD:" line starts
+            // with a non-printable byte.
+            if (msg_len == 0 && (uint8_t)ch == PREAMBLE_BYTE_1) {
+                uint8_t hdr[3];
+                if (stdio_read_blocking_timeout_us(hdr, 3, 200000) &&
+                    hdr[0] == PREAMBLE_BYTE_2 && hdr[1] == PREAMBLE_BYTE_3 && hdr[2] == PREAMBLE_BYTE_4) {
+                    uint8_t type;
+                    if (stdio_read_blocking_timeout_us(&type, 1, 200000) && type == MSG_TYPE_KEY) {
+                        uint8_t len_bytes[2], new_id[SST_KEY_ID_SIZE];
+                        uint8_t new_key[SST_KEY_SIZE], new_mac_key[SST_MAC_KEY_SIZE];
+                        bool ok = stdio_read_blocking_timeout_us(len_bytes, 2, 200000);
+                        if (ok) ok = stdio_read_blocking_timeout_us(new_id, SST_KEY_ID_SIZE, 200000);
+                        if (ok) ok = stdio_read_blocking_timeout_us(new_key, SST_KEY_SIZE, 200000);
+                        if (ok) ok = stdio_read_blocking_timeout_us(new_mac_key, SST_MAC_KEY_SIZE, 200000);
+                        if (ok) {
+                            apply_new_key(current_slot, new_id, new_key, new_mac_key,
+                                          session_key, session_key_id, session_mac_key);
+                        } else {
+                            printf("\n[Error] USB key frame incomplete (timed out mid-frame).\n");
+                        }
+                    } else {
+                        printf("\n[USB-KEY] Unexpected frame type after preamble on USB console.\n");
+                    }
+                } else {
+                    printf("\n[USB-KEY] Preamble byte seen but frame invalid/incomplete on USB console.\n");
+                }
                 continue;
             }
 

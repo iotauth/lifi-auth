@@ -403,7 +403,7 @@ function sendMessage() {
     const input = document.getElementById('message-input');
     const text = input.value.trim();
     if (text) {
-        socket.emit('send_command', { data: 'send ' + text });
+        socket.emit('send_command', { data: text });
         input.value = '';
     }
 }

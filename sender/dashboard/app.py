@@ -181,11 +181,45 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(base_dir))
 _RX_CONFIG_HOTSPOT = os.path.join(_PROJECT_ROOT, 'receiver.config')
 _RX_CONFIG_HOME    = os.path.join(_PROJECT_ROOT, 'home_receiver.config')
 
+def _parse_config_auth_addr(config_path: str):
+    """Pull auth.ip.address / auth.port.number out of an SST entity config."""
+    ip, port = None, None
+    try:
+        with open(config_path) as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('auth.ip.address='):
+                    ip = line.split('=', 1)[1].strip()
+                elif line.startswith('auth.port.number='):
+                    port = int(line.split('=', 1)[1].strip())
+    except Exception:
+        pass
+    return ip, port
+
+def _config_auth_reachable(config_path: str, timeout: float = 1.0) -> bool:
+    """Quick TCP connect test to a config's actual Auth server — tests the
+    thing that matters directly instead of inferring the network from an
+    unrelated device (the Pi4) being reachable over SSH."""
+    ip, port = _parse_config_auth_addr(config_path)
+    if not ip or not port:
+        return False
+    try:
+        with socket.create_connection((ip, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
 def _select_rx_config() -> str:
-    """Picks the net1.client SST config matching the network we're actually on,
-    keyed off the Pi4's current live IP (see _detect_ssh_peer): 192.168.0.x is
-    the home WiFi subnet (home_receiver.config), everything else (e.g. the
-    172.20.10.x hotspot subnet) falls back to receiver.config."""
+    """Picks the net1.client SST config matching whichever Auth server is
+    actually reachable right now. Tries home_receiver.config's Auth IP
+    first (no dependency on an SSH session to the Pi4 — that was the old
+    approach and silently picked the wrong config whenever nothing was
+    ssh'd in), then receiver.config, then falls back to the old IP-based
+    guess as a last resort if neither Auth server answers at all."""
+    if os.path.isfile(_RX_CONFIG_HOME) and _config_auth_reachable(_RX_CONFIG_HOME):
+        return _RX_CONFIG_HOME
+    if os.path.isfile(_RX_CONFIG_HOTSPOT) and _config_auth_reachable(_RX_CONFIG_HOTSPOT):
+        return _RX_CONFIG_HOTSPOT
     if PI4_HOST.startswith('192.168.0.') and os.path.isfile(_RX_CONFIG_HOME):
         return _RX_CONFIG_HOME
     return _RX_CONFIG_HOTSPOT
@@ -200,6 +234,15 @@ TX_BAUD   = 115200
 serial_conn = None
 serial_lock = threading.Lock()
 
+# Parsed out of "CMD: slot status" replies (see pico_handler.c
+# pico_print_slot_status) by the background reader below, so the connect
+# flow can ask "does this Pico already have a key?" without a second,
+# racing read of the same serial port.
+_SLOT_CURRENT_RE  = re.compile(r'Current slot: ([AB])')
+_SLOT_VALID_RE    = re.compile(r'Slot ([AB]): (Valid|Invalid)')
+_slot_status       = {}
+_slot_status_event = threading.Event()
+
 def read_from_serial():
     global serial_conn
     while running:
@@ -210,6 +253,14 @@ def read_from_serial():
                     line = conn.readline().decode('utf-8', errors='replace').rstrip()
                     if line and not line.startswith('CMD:'):
                         socketio.emit('log_message', {'data': line})
+                        m = _SLOT_CURRENT_RE.search(line)
+                        if m:
+                            _slot_status['current'] = m.group(1)
+                        m = _SLOT_VALID_RE.search(line)
+                        if m:
+                            _slot_status[m.group(1)] = (m.group(2) == 'Valid')
+                            if m.group(1) == 'B':  # last line pico_print_slot_status emits
+                                _slot_status_event.set()
             except (OSError, serial.SerialException):
                 pass
             except Exception as e:
@@ -242,6 +293,20 @@ RX2_PORT    = ''
 RX2_BAUD    = 115200
 rx2_serial_conn = None
 rx2_serial_lock = threading.Lock()
+
+def _push_key_to_rx_debug(conn):
+    """Push the current AES-GCM session key to the debug RX Pico's RAM
+    (lifi_pico2_rx's 'key <hex>' command) so it can decrypt frames
+    on-device. RAM-only and best-effort by design: this board is a bring-up
+    tool, not a persistent key holder, so the dashboard re-pushes on every
+    (re)connect and key rotation instead of storing the key in its flash."""
+    if not conn or not conn.is_open or not _loaded_cipher_key:
+        return
+    try:
+        conn.write(f'key {_loaded_cipher_key.hex()}\n'.encode('utf-8'))
+        socketio.emit('rx_log_message', {'data': f'[KEY] Pushed session key to debug RX ({_loaded_cipher_key.hex()[:8]}...)'})
+    except Exception as e:
+        socketio.emit('rx_log_message', {'data': f'[KEY] Failed to push key to debug RX: {e}'})
 
 RESULT_RE = re.compile(r'\[TEST_RESULT\] baud=(\d+) sent=(\d+) recv=(\d+)')
 
@@ -311,6 +376,7 @@ def init_rx_serial():
             rx_serial_conn = serial.Serial(port, RX_BAUD, timeout=1)
             RX_PORT = port
             print(f'[RX] Connected to {RX_PORT}')
+            _push_key_to_rx_debug(rx_serial_conn)
             return True
         except serial.SerialException:
             pass
@@ -617,14 +683,16 @@ def _set_pi4_baud(baud: int) -> tuple[bool, str]:
     except Exception as e:
         return False, f'could not reach Pi4: {e}'
 
-@socketio.on('provision_new_key')
-def handle_provision_new_key():
-    """Re-run pico_provisioner: fetch fresh key from Auth, push to Pico, reload dashboard."""
+def _run_provisioner(port: str, note: str = '') -> bool:
+    """Fetch a fresh session key from the Auth server via pico_provisioner
+    and push it to the Pico (+ tell the Pi4 to refresh too). Shared by the
+    manual 'NEW KEY' button and the on-connect auto-provision check below.
+    Uses socketio.emit (broadcast) rather than emit() so it works whether
+    or not this is running inside a live socket request context."""
     global _mac_key
     old_mac_key = _mac_key  # the key the Pi4 currently still holds
-    port = TX_PORT or '/dev/ttyACM0'
     rx_config = _select_rx_config()
-    emit('log_message', {'data': f'[KEY] Requesting new SST key ({os.path.basename(rx_config)}) → Pico on {port}...'})
+    socketio.emit('log_message', {'data': f'[KEY] {note}Requesting new SST key ({os.path.basename(rx_config)}) → Pico on {port}...'})
     try:
         result = subprocess.run(
             [_PROVISIONER, rx_config, port],
@@ -634,26 +702,73 @@ def handle_provision_new_key():
         if result.returncode == 0:
             _mac_key = _load_mac_key()
             _set_mac_key_verified(False)  # unproven until the Pico transmits with it
-            emit('key_loaded_status', {'key_id': _loaded_key_id})
+            socketio.emit('key_loaded_status', {'key_id': _loaded_key_id})
+            _push_key_to_rx_debug(rx_serial_conn)
             if 'SKIPPED' in result.stderr:
-                emit('log_message', {'data': f'⚠ New key fetched and saved, but not pushed to the Pico: {result.stderr.strip()}'})
+                socketio.emit('log_message', {'data': f'⚠ New key fetched and saved, but not pushed to the Pico: {result.stderr.strip()}'})
             else:
-                emit('log_message', {'data': '✓ New key provisioned and loaded (Pico updated).'})
+                socketio.emit('log_message', {'data': '✓ New key provisioned and loaded (Pico updated).'})
             ok, reason = _force_pi4_key_refresh(old_mac_key, _loaded_key_id)
             msg = ('[KEY] Told Pi4 to force-refresh its key too.' if ok
                    else f'[KEY] Could not tell Pi4 to refresh: {reason}')
-            emit('log_message', {'data': msg})
-            emit('wifi_log_message', {'data': msg})  # also surface in the WiFi/Pi4 panel, not just TX
-            emit('key_provisioned', {'status': 'ok'})
+            socketio.emit('log_message', {'data': msg})
+            socketio.emit('wifi_log_message', {'data': msg})  # also surface in the WiFi/Pi4 panel, not just TX
+            socketio.emit('key_provisioned', {'status': 'ok'})
+            return True
         else:
-            emit('log_message', {'data': f'[KEY] Provisioner failed: {result.stderr.strip()}'})
-            emit('key_provisioned', {'status': 'error'})
+            socketio.emit('log_message', {'data': f'[KEY] Provisioner failed: {result.stderr.strip()}'})
+            socketio.emit('key_provisioned', {'status': 'error'})
+            return False
     except subprocess.TimeoutExpired:
-        emit('log_message', {'data': '[KEY] Provisioner timed out.'})
-        emit('key_provisioned', {'status': 'timeout'})
+        socketio.emit('log_message', {'data': '[KEY] Provisioner timed out.'})
+        socketio.emit('key_provisioned', {'status': 'timeout'})
+        return False
     except Exception as e:
-        emit('log_message', {'data': f'[KEY] Error: {e}'})
-        emit('key_provisioned', {'status': 'error'})
+        socketio.emit('log_message', {'data': f'[KEY] Error: {e}'})
+        socketio.emit('key_provisioned', {'status': 'error'})
+        return False
+
+@socketio.on('provision_new_key')
+def handle_provision_new_key():
+    """Manual re-provision (NEW KEY button): always force a fresh key,
+    even if the Pico already has one loaded."""
+    port = TX_PORT or '/dev/ttyACM0'
+    _run_provisioner(port, note='Manual re-provision: ')
+
+def _tx_has_valid_key(conn, timeout: float = 2.0):
+    """Ask the just-connected sender Pico (via 'CMD: slot status') whether
+    its active flash slot already holds a key. Returns True/False, or None
+    if the Pico didn't answer in time (e.g. old firmware, not actually a
+    LiFi sender Pico, still booting)."""
+    _slot_status.clear()
+    _slot_status_event.clear()
+    try:
+        conn.write(b'CMD: slot status\n')
+    except Exception:
+        return None
+    if not _slot_status_event.wait(timeout=timeout):
+        return None
+    current = _slot_status.get('current')
+    if not current:
+        return None
+    return _slot_status.get(current)
+
+def _auto_provision_if_needed(conn, port: str) -> None:
+    """Called right after the TX Pico (re)connects. A key survives Pico
+    reboots in flash, so this only fetches a new one when the active slot
+    is genuinely empty (fresh/reflashed board) — it never overwrites an
+    existing key, mirroring the 'CMD: new key' vs 'new key -f' policy in
+    cmd_handler.c. Rotating on every reconnect would be needless churn."""
+    if not conn or not conn.is_open:
+        return
+    has_key = _tx_has_valid_key(conn)
+    if has_key:
+        socketio.emit('log_message', {'data': '[KEY] Pico already has a key loaded — skipping auto-provision.'})
+    elif has_key is None:
+        socketio.emit('log_message', {'data': '[KEY] Could not confirm Pico key status (no response) — skipping auto-provision.'})
+    else:
+        socketio.emit('log_message', {'data': '[KEY] No key found on Pico — auto-provisioning from Auth...'})
+        _run_provisioner(port, note='Auto-provision: ')
 
 @socketio.on('challenge_pi4')
 def handle_challenge_pi4():
@@ -834,11 +949,14 @@ def handle_reconnect():
                 if old.is_open: old.close()
             except: pass
         time.sleep(0.5)
-        if init_serial():
+        reconnected = init_serial()
+        if reconnected:
             emit('log_message', {'data': f'Reconnected to {TX_PORT}'})
             emit('port_connected', {'port': TX_PORT})
         else:
             emit('log_message', {'data': 'Failed to reconnect TX'})
+    if reconnected:
+        _auto_provision_if_needed(serial_conn, TX_PORT)
 
 def _serial_ports():
     """Real serial devices only — used for TX and RX (UART) which can't handle a WiFi peer."""
@@ -910,6 +1028,7 @@ def handle_connect_to_port(message):
             emit('port_connected', {'port': TX_PORT})
         except serial.SerialException as e:
             emit('log_message', {'data': f'Failed: {e}'})
+    _auto_provision_if_needed(serial_conn, TX_PORT)
 
 # ── Benchmark / Range socket events ──────────────────────────────────────────
 @socketio.on('run_benchmark')
@@ -996,6 +1115,7 @@ def handle_rx_connect(message):
         except serial.SerialException as e:
             emit('rx_log_message', {'data': f'Failed: {e}'})
             emit('rx_status', {'connected': False, 'port': port})
+    _push_key_to_rx_debug(rx_serial_conn)
 
 @socketio.on('rx_reconnect')
 def handle_rx_reconnect():

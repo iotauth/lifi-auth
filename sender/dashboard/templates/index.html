@@ -329,7 +329,12 @@
 
             <div class="control-group">
                 <h3>UART LOG</h3>
-                <div id="rx-log-console" class="console-box" style="height:180px;"></div>
+                <div id="rx-log-console" class="console-box" style="height:360px;"></div>
+                <div class="pb-row" style="margin-top:6px;">
+                    <input type="text" id="rx-cmd-input" class="pb-input" placeholder="key <hex> | status | raw on..." autocomplete="off"
+                           onkeypress="if(event.key==='Enter') rxSendCmd();">
+                    <button class="pb-btn" onclick="rxSendCmd()">SEND</button>
+                </div>
                 <button class="btn-cmd" onclick="clearRxLog()" style="margin-top:6px; width:100%; font-size:0.7rem; padding:4px;">CLEAR LOG</button>
             </div>
 
