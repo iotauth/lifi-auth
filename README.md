@@ -31,7 +31,7 @@ As illustrated, a "Trusted Sender" (e.g., a drone) emits a session key or challe
 
 This work explores access control based on continuous physical presence rather than estimated location. A device receives a short-lived cryptographic token over a light channel; the token remains valid only while the light signal is continuously observed. If the signal is blocked or interrupted, the token expires and access is revoked, either immediately or after a bounded decay window defined by policy.
 
-This design ties authorization to time-bounded physical coupling instead of one-time checks such as GPS or Wi-Fi. We formally model the mechanism and verify key security properties—including:
+This design ties authorization to time-bounded physical coupling instead of one-time checks such as GPS or Wi-Fi. We aim to formally model the mechanism and verify key security properties—including:
 
 - **Token secrecy**  
   Tokens are delivered only via the optical channel and are not observable without physical light access.
@@ -48,9 +48,9 @@ This design ties authorization to time-bounded physical coupling instead of one-
 - **Revocation on interruption**  
   Blocking or loss of the light signal triggers timely expiration and access revocation.
 
-using symbolic verification tools. Under the stated assumptions, authorization is maintained only while fresh optical presence is continuously observed.
+using symbolic verification tools (Tamarin/ProVerif) — **not yet done**; current results are empirically demonstrated on a hardware prototype, not formally proven. Under the stated assumptions, authorization is maintained only while fresh optical presence is continuously observed.
 
-We validate practicality with a prototype built from low-cost hardware (microcontroller, LEDs, and a photodiode), evaluating time-based enforcement, resistance to relay attacks, and imperceptible optical signaling. The result is a clear, verifiable method for binding authorization to ongoing physical presence.
+We validate practicality with a prototype built from low-cost hardware (microcontroller, LEDs, and a photodiode), with empirical results for time-based revocation (G4) and replay resistance (G2). **Relay-bounded authorization (G3) is not currently achieved**: the optical data-frame path has no timing/freshness check, only CRC and nonce-identity — a live relay forwarding genuinely fresh frames in real time would pass every check the system has. This is a known limitation, not a validated property, and is scoped as future work requiring a distance-bounding-style round-trip timing protocol. The result is a clear method for binding authorization to ongoing physical presence, empirically validated where stated and explicitly scoped where not.
 
 ## DRAFT System Overview: Threat Model and Security Goals
 
@@ -621,8 +621,8 @@ Use the on-device command interface over the Pico’s USB serial:
 ### Troubleshooting quickies
 
 * **Nothing prints on USB:** Ensure your terminal is on the Pico’s USB CDC port and baud is 115200. Unplug/replug while holding **BOOTSEL** to reflash if needed.
-* **Key not accepted:** Make sure you sent exactly **2 bytes of preamble** (`AB CD`) + **32 bytes of key** (not ASCII text unless your firmware converts it).
-* **Receiver can’t decrypt:** Double-check both sides use the **same 32-byte key** and the receiver was restarted/reloaded after provisioning.
+* **Key not accepted:** Two different ways to set a key, don't mix them up. (1) `CMD: key <hex>` — type it directly into the USB console as **32 ASCII hex characters** (16 bytes), no preamble needed; see the Command Interface table above. (2) Real Auth-issued provisioning (`pico_provisioner` / the dashboard's "NEW KEY" button) — a binary frame: **4-byte preamble** (`AB CD EF 12`) + `TYPE=0x10` + `LEN:2` + `KEY_ID:8` + `CIPHER_KEY:16` + `MAC_KEY:32`, sent as raw bytes (not ASCII) over the Pico's USB console.
+* **Receiver can’t decrypt:** Double-check both sides are using the **same 16-byte cipher key** (`SST_KEY_SIZE`) — not 32 bytes, that's the separate MAC key used for SST handshake authentication — and that the receiver was restarted/reloaded after provisioning.
 
 ---
 
@@ -630,18 +630,21 @@ Use the on-device command interface over the Pico’s USB serial:
 
 Interact with the Pico over the USB serial connection. All commands are prefixed with `CMD:`.
 
-| Command                    | Description |
-| -------------------------- | -------------------------------------------------------------------- |
-| `help`                     | Displays a list of all available commands.                           |
-| `print key`                | Prints the currently active session key.                             |
-| `slot status`              | Shows the validity of key slots A and B and which one is active.     |
-| `use slot A` / `use slot B`  | Switches the active session key to the one in the specified slot.    |
-| `clear slot A` / `clear slot B`| Erases the key from the specified slot.                              |
-| `new key`                  | Waits to receive a new key, but only if the current slot is empty.   |
-| `new key -f`               | Forcibly overwrites the key in the current slot.                     |
-| `print slot key A` / `B` / `*` | Prints the key stored in a specific slot (or all slots).             |
-| `entropy test`             | Prints a sample of random data from the hardware RNG for verification. |
-| `reboot`                   | Reboots the Pico.                                                    |
+| Command                          | Description |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `help`                           | Displays a list of available commands (the device's own list omits `switch slot` — included below for completeness). |
+| `print slot key`                 | Prints the session key in the *current* slot.                        |
+| `print slot key *`               | Prints the keys in *both* slots (no per-letter variant — it's current-slot or all). |
+| `slot status`                    | Shows the validity of key slots A and B and which one is active.     |
+| `switch slot`                    | Toggles the active slot (A ↔ B), loading whatever key — or empty state — is there. |
+| `use slot A` / `use slot B`      | Switches directly to the specified slot (no-op if already active).   |
+| `clear slot A` / `clear slot B`  | Erases the key from the specified slot.                              |
+| `clear slot *`                   | Erases both slots.                                                   |
+| `new key`                        | Waits (3s) to receive a new key over UART1 — only if the current slot is empty. |
+| `new key -f`                     | Same, but force-overwrites the current slot even if occupied.        |
+| `key <hex>`                      | Manually sets the session key from a pasted 32-hex-char (16-byte) string. Assigns a fixed placeholder key ID (`AABBCCDDEEFF0001`), not a real Auth-issued one — useful for bench testing, but the dashboard's key-sync features (auto-provisioning, `/force_key`) won't recognize a key set this way as coming from Auth. |
+| `leds <hex>`                     | Sets which LED channels are active (bitmask: 1=White, 2=Green, 4=Blue, 8=Red). |
+| `reboot`                         | Reboots the Pico.                                                    |
 
 ---
 
