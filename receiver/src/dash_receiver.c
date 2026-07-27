@@ -2060,33 +2060,41 @@ int main(int argc, char* argv[]) {
                         uint16_t received_crc = ((uint16_t)crc_bytes[0] << 8) | crc_bytes[1];
                         
                         if (computed_crc != received_crc) {
-                            log_printf("CRC16 mismatch! computed=0x%04X received=0x%04X\n", 
+                            log_printf("CRC16 mismatch! computed=0x%04X received=0x%04X\n",
                                        computed_crc, received_crc);
-                            
+                            {
+                                char wmsg[96];
+                                snprintf(wmsg, sizeof(wmsg),
+                                         "[LIFI] CRC16 mismatch (computed=0x%04X received=0x%04X, len=%u) - frame dropped",
+                                         computed_crc, received_crc, payload_len);
+                                reporter_post_status_message(wmsg);
+                            }
+
                             // Dump failed packet to debug log for analysis
                             FILE *f = fopen("receiver_debug.log", "a");
                             if (f) {
-                                fprintf(f, "CRC FAIL: Comp:0x%04X Recv:0x%04X Len:%u\nPayload: ", 
+                                fprintf(f, "CRC FAIL: Comp:0x%04X Recv:0x%04X Len:%u\nPayload: ",
                                         computed_crc, received_crc, payload_len);
                                 for(size_t i=0; i<crc_idx; i++) fprintf(f, "%02X ", crc_buf[i]);
                                 fprintf(f, "\n");
                                 fclose(f);
                             }
-                            
+
                             stats.decrypt_fail++;
                             uart_state = 0;
                             continue;
                         }
-                        
+
                         // --- Nonce Replay Check ---
                         if (replay_window_seen(&rwin, nonce)) {
                             log_printf("Nonce replayed! Rejecting message.\\n");
+                            reporter_post_status_message("[LIFI] Replayed nonce rejected - frame dropped");
                             stats.replay_blocked++;
                             uart_state = 0;
                             continue;
                         }
                         replay_window_add(&rwin, nonce);
-                        
+
                         uint8_t decrypted[ctext_len + 1];  // for null-terminator
 
                         if (!key_valid) {  // Skip decryption if key was
@@ -2094,6 +2102,7 @@ int main(int argc, char* argv[]) {
                             log_printf(
                                 "No valid session key. Rejecting encrypted "
                                 "message.\\n");
+                            reporter_post_status_message("[LIFI] Frame rejected - no valid session key loaded");
                             uart_state = 0;
                             continue;
                         }
@@ -2305,6 +2314,12 @@ int main(int argc, char* argv[]) {
                             } else {
                                 // AES-GCM decryption failed
                                 log_printf("Decryption failed: %d\n", ret);
+                                {
+                                    char wmsg[64];
+                                    snprintf(wmsg, sizeof(wmsg),
+                                             "[LIFI] GCM auth/decrypt failed (err=%d) - frame dropped", ret);
+                                    reporter_post_status_message(wmsg);
+                                }
                                 stats.decrypt_fail++;
                             }
 
