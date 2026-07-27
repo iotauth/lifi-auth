@@ -78,7 +78,7 @@ Wi-Fi RSSI fingerprinting represents the most widely deployed RF-based approach 
 
 Physical layer security as a formal discipline originates with Wyner's landmark 1975 wiretap channel model, which demonstrated that secure communication is achievable without a shared secret key when the legitimate receiver's channel is of higher quality than the eavesdropper's~\cite{wyner1975}. This theoretical foundation motivated decades of subsequent work — channel reciprocity key generation, cooperative jamming, and beamforming — all attempting to engineer a favorable channel advantage for legitimate parties over adversaries. However, these approaches share a common ceiling: secrecy capacity in RF environments is highly sensitive to environmental dynamics, multipath propagation, and physical changes, making deterministic security guarantees structurally difficult to achieve regardless of protocol sophistication.
 
-To address relay attacks specifically — where an adversary forwards authentication exchanges to falsely assert physical proximity — Brands and Chaum introduced distance-bounding protocols in 1993, using round-trip signal timing to compute an upper bound on the prover-to-verifier distance~\cite{brands1993}. While foundational, these protocols remain vulnerable to mafia fraud and terrorist fraud, and critically, they bound distance without enforcing location — they answer how far but not where. A system confined by the physics of light answers both simultaneously, with no timing infrastructure, no cryptographic round-trip overhead, and no residual relay vulnerability.
+To address relay attacks specifically — where an adversary forwards authentication exchanges to falsely assert physical proximity — Brands and Chaum introduced distance-bounding protocols in 1993, using round-trip signal timing to compute an upper bound on the prover-to-verifier distance~\cite{brands1993}. While foundational, these protocols remain vulnerable to mafia fraud and terrorist fraud, and critically, they bound distance without enforcing location — they answer how far but not where. A system confined by the physics of light answers the \emph{where} question directly, without dedicated timing infrastructure. It does not, however, get the \emph{how far} question for free: as discussed in Section~\ref{sec:threat-model} (G3), the present implementation has no round-trip timing check of its own, so a live optical relay that forwards genuinely fresh frames in real time is not excluded by construction. Combining the location-confinement property demonstrated here with a Brands--Chaum-style timing bound is left as future work (Section~\ref{sec:future-work}).
 
 \subsection{VLC and LiFi Security}
 
@@ -249,6 +249,7 @@ The physical properties of the optical channel directly enforce presence-based a
 The system defines a configurable token validity window $\Delta$. The receiver considers its authorization valid only while it has received at least one successfully authenticated frame within the most recent $\Delta$ interval. If no valid frame arrives within $\Delta$, authorization is revoked and the receiver ceases to act on previously received commands. This transforms the physical geometry of the optical link into a continuously enforced security boundary: authorization persists only as long as the device remains in the light.
 
 \section{Threat Model and Security Goals}
+\label{sec:threat-model}
 
 This section defines the system model, the capabilities attributed to the adversary, the trust assumptions under which the system operates, and the security goals that the protocol is designed to achieve. We conclude with an explicit enumeration of non-goals — properties that the system does not claim to provide — to bound the scope of the security analysis and prevent misinterpretation of the system's guarantees.
 
@@ -348,15 +349,15 @@ The nonce itself is constructed as the concatenation of an 8-byte random boot sa
 
 \textbf{Rationale.} Replay resistance is essential because the optical channel is observable: an adversary positioned within line of sight of the sender can capture valid frames. Without nonce-based replay detection, the adversary could re-transmit captured frames from a rogue light source to fraudulently claim presence.
 
-\subsubsection{G3 — Relay-Bounded Authorization}
+\subsubsection{G3 — Relay-Bounded Authorization (not achieved)}
 
-\textbf{Definition.} A relay attack — in which the adversary captures the optical signal at the legitimate location and re-emits it at a remote location — shall not grant the remote receiver indefinite or unbounded authorization. The advantage conferred by a relay is bounded by the token validity window $\Delta$ and degrades with relay latency.
+\textbf{Definition.} A relay attack — in which the adversary captures the optical signal at the legitimate location and re-emits it at a remote location in real time — should not grant the remote receiver authorization, or should at minimum incur a detectable, bounded timing penalty proportional to the relay's introduced latency $\delta_{\text{relay}}$.
 
-\textbf{Mechanism.} The relay introduces a latency $\delta_{\text{relay}} > 0$ on every relayed frame. If $\Delta$ is set sufficiently small, the freshness check (G1) limits the duration for which relayed frames remain valid. Furthermore, if the legitimate sender embeds timing expectations (e.g., challenge-response with bounded round-trip time), relay latency becomes directly detectable.
+\textbf{Status: not achieved by the current implementation.} We state this explicitly rather than let it be inferred, because it is easy to conflate with G2. The freshness window $\Delta$ (G1) bounds how long a \emph{captured-and-later-resent} frame remains useful, and the nonce window (G2) rejects a \emph{byte-identical resend} outright. Neither mechanism examines \emph{when} a frame arrived relative to when it was sent, only whether its nonce is fresh and unseen. A live relay that forwards genuinely fresh frames — never storing and replaying stale bytes, simply passing each frame through with added latency $\delta_{\text{relay}}$ — produces frames that are, from the receiver's point of view, indistinguishable from frames arriving directly: the nonce has never been seen before (G2 passes), the GCM tag is valid because the ciphertext is untouched (confidentiality/integrity passes), and $t_{\text{last}}$ is continuously refreshed because relayed frames keep arriving within $\Delta$ (G1 passes). We verified this directly against the receiver implementation: the LiFi data-frame path (guarded by the nonce window at \texttt{dash\_receiver.c:2082}) checks only CRC validity and byte-exact nonce identity — there is no timestamp field, round-trip bound, or any other timing-derived check on the data path. Consequently, $\Delta$ does not bound relay latency at all; it bounds only the residual validity of a captured, no-longer-live frame, which is the mechanism underlying G1/G2, not G3.
 
-In the current implementation, $\Delta$ serves as the primary relay bound: a relay that is interrupted for any period exceeding $\Delta$ results in authorization revocation at the remote receiver, requiring the relay to be re-established. The adversary cannot extend authorization beyond the last relayed frame's validity, and cannot ``bank'' authorization by relaying many frames in advance, because each frame's freshness is evaluated independently at the time of use.
+\textbf{What would be required.} Relay-boundedness requires binding authorization to a measured round-trip time, not merely to nonce freshness — e.g., a distance-bounding challenge-response (Brands--Chaum style) in which the receiver issues a random nonce and the sender must respond within a tightly bounded window, with any added relay latency $\delta_{\text{relay}}$ causing the response to arrive too late to verify. This is not implemented in the current prototype; see Section~\ref{sec:discussion} and Section~\ref{sec:future-work}.
 
-\textbf{Rationale.} Relay attacks are the most realistic threat against an optical presence system. Unlike RF signals, which can be relayed over arbitrary distances with commodity hardware and negligible latency, optical relay requires physical conversion (light to electrical to light) that introduces measurable delay and engineering complexity. The $\Delta$-bounded design ensures that even a successful relay provides only transient, continuously renewable authorization — never permanent access.
+\textbf{Rationale.} Relay attacks are the most realistic threat against an optical presence system, since unlike RF, optical relay requires physical conversion (light to electrical to light) that introduces measurable delay. We report G3 as an explicit, named limitation rather than an inferred one: a system that is precise about what it does and does not defend against is more defensible at review than one that leaves the gap to be discovered.
 
 \subsubsection{G4 — Revocation on Interruption}
 
@@ -400,7 +401,7 @@ G1 & Freshness / Expiration & Token window $\Delta$ \\
 \hline
 G2 & Replay Resistance & 64-nonce sliding window \\
 \hline
-G3 & Relay-Bounded Auth & $\Delta$ bounds relay advantage \\
+G3 & Relay-Bounded Auth & \textbf{Not achieved} — no timing check on data path \\
 \hline
 G4 & Revocation on Interruption & Absence of signal = revocation \\
 \hline
@@ -480,6 +481,8 @@ Custom PCBs ($\times$2) & 2-layer, fabricated externally & $\sim$\$10 \\
 
 The sender Pico is powered by a 12\,V DC bench supply via screw terminal; the PTN78000WAH module on the sender PCB steps this down to 5\,V for the RP2040 VSYS rail, while the four LED channels are switched directly from the 12\,V supply through the TC4420COA--SIR800DP MOSFET stage. The receiver Pico~2 is powered either via USB-C or from a single-cell LiPo battery through the BQ24074 charger and TPS63031 buck-boost on the receiver PCB. All firmware is written in C, compiled with the Pico SDK and ARM GCC toolchain. The IoTAuth server runs on a Raspberry Pi~4 under Linux. Serial monitoring and control are provided by a Flask-based web dashboard and the \texttt{rx\_monitor.py} utility.
 
+For the freshness, revocation-latency, and replay-boundary measurements reported in Sections~\ref{sec:presence-enforcement} and~\ref{sec:security-validation}, the receiver-side protocol logic under test was exercised on a debug receiver (\texttt{receiver\_pico/src/main.c}) rather than the full Pi~4 deployment path (\texttt{dash\_receiver.c}). The two implementations parse an identical wire format and share the same freshness state machine and 64-entry nonce sliding window (\texttt{NONCE\_HISTORY\_SIZE}), differing only in that the debug receiver omits the WiFi/HMAC control-plane layer used to report status to the dashboard, which simplified direct instrumentation of protocol-level events. Confirming these measurements against the production \texttt{dash\_receiver.c}/Pi~4 path is identified as pending work in Section~\ref{sec:limitations}.
+
 \subsection{Hardware Prototype}
 
 The system was realized on two custom printed circuit boards designed in KiCad and fabricated as 2-layer boards, with all active components procured through DigiKey Electronics (invoices \#120241715 and \#121892487).
@@ -536,22 +539,50 @@ $R_f$ & $C_f$ & \textbf{BW (kHz)} & \textbf{Max Baud (meas.)} & \textbf{Swing} \
 The first two rows of Table~\ref{tab:tia_tuning} have been experimentally validated. The 470\,k$\Omega$ / 5\,pF configuration achieved reliable reception at up to 300\,kbaud at 15\,cm; the 100\,k$\Omega$ / 5\,pF configuration achieved up to 250\,kbaud at the same distance. The lower-resistance configurations (100\,k$\Omega$ / 1\,pF and 47\,k$\Omega$ / 1\,pF) are planned for evaluation in future work targeting data rates above 1\,Mbps.
 
 \subsection{Security Validation}
+\label{sec:security-validation}
 
 Authentication is enforced per-frame by the mbedTLS AES-128-GCM implementation. Each received frame is passed to \texttt{mbedtls\_gcm\_auth\_decrypt()}, which verifies the 16-byte GCM authentication tag before returning plaintext. Any frame with a corrupted, truncated, or forged tag causes mbedTLS to return \texttt{MBEDTLS\_ERR\_GCM\_AUTH\_FAILED}; the frame is discarded and the authorization timestamp is not updated. No partial plaintext is released to the application layer prior to successful tag verification — a property guaranteed by the GCM-authenticated decryption interface.
 
-Replay protection is enforced by the 64-entry nonce sliding window. Each incoming frame's 12-byte nonce is checked against the window before decryption is attempted. A frame bearing any nonce already present in the window is rejected without invoking the GCM primitive. Nonce uniqueness within a boot session is guaranteed by the monotonically increasing 32-bit counter field; uniqueness across reboots is ensured with overwhelming probability by the 8-byte random boot salt generated from the RP2040 hardware ring-oscillator entropy source via CTR\_DRBG at startup. Counter exhaustion ($2^{32}$ messages) triggers a device reboot to regenerate the salt, preventing nonce reuse.
+Replay protection is enforced by the 64-entry nonce sliding window (\texttt{NONCE\_HISTORY\_SIZE}). Each incoming frame's 12-byte nonce is checked against the window before decryption is attempted. A frame bearing any nonce already present in the window is rejected without invoking the GCM primitive. Nonce uniqueness within a boot session is guaranteed by the monotonically increasing 32-bit counter field; uniqueness across reboots is ensured with overwhelming probability by the 8-byte random boot salt generated from the RP2040 hardware ring-oscillator entropy source via CTR\_DRBG at startup. Counter exhaustion ($2^{32}$ messages) triggers a device reboot to regenerate the salt, preventing nonce reuse. This window is distinct from, and should not be confused with, a separate 16-entry replay window that guards the HTTP control-channel requests (e.g., \texttt{/force\_key}) between the Pi~4 and the dashboard — the two protect different channels against different threats and operate independently.
 
-Quantitative measurements of tag verification latency and tampered-frame rejection rates across a larger packet sample are planned for a subsequent evaluation campaign.
+\textbf{Replay rejection test.} We captured one valid encrypted frame's raw bytes (type, nonce, ciphertext, and GCM tag) directly off the receiver's decoded output and re-injected the identical bytes back into the receiver's input. The replayed frame was rejected immediately, with the nonce-window check (\texttt{replay=YES}) firing before decryption was attempted, confirming G2 as designed.
+
+\textbf{Replay window boundary test.} We then reduced the nonce window's capacity to 2 entries at runtime, allowed 2 further legitimate frames to be received (evicting the captured frame's nonce from the window), and re-injected the identical captured frame a second time. In this case the replayed frame was accepted and successfully decrypted. This reproduces a genuine boundary limitation of the sliding-window design: replay protection is bounded by window capacity, not permanent — once a nonce has aged out of the window (64 entries in the production configuration, versus the 2-entry setting used here to make the boundary condition observable within a short test), an identical previously-accepted frame becomes acceptable again. In practice, exhausting the production 64-slot window before an adversary reuses a captured frame requires 64 further legitimate frames to be exchanged, which at the sender's minimum authenticated-frame rate ($1/\Delta$, see Section~\ref{sec:presence-enforcement}) bounds how long a captured frame remains a live replay threat — but the limitation is real and is not eliminated by window size alone. This distinction is recorded here explicitly rather than left for a reviewer to discover.
+
+Quantitative measurements of tag verification latency and tampered-frame rejection rates across a larger packet sample remain future work.
 
 \subsection{Presence Enforcement}
+\label{sec:presence-enforcement}
 
-Authorization revocation upon optical interruption follows directly from the freshness mechanism defined in Section~\ref{eq:freshness}. When the optical path is broken, no new authenticated frames reach the receiver, and the authorization timestamp $t_{\text{last}}$ becomes stale. Within at most $\Delta$ time units, the freshness condition evaluates to false and the receiver revokes authorization without any explicit network-level revocation message.
+Authorization revocation upon optical interruption follows directly from the freshness mechanism defined in Equation~\eqref{eq:freshness}. When the optical path is broken, no new authenticated frames reach the receiver, and the authorization timestamp $t_{\text{last}}$ becomes stale. Within at most $\Delta$ time units, the freshness condition evaluates to false and the receiver revokes authorization without any explicit network-level revocation message.
 
-The configurable token validity window $\Delta$ governs the worst-case revocation latency. For the prototype evaluation, $\Delta$ values in the range of 500\,ms to 2\,s were used, providing a balance between prompt revocation and robustness against momentary optical interruptions (e.g., a person briefly crossing the beam). At a reliable frame rate of 300\,kbaud with standard message sizes, the sender delivers multiple authenticated frames per $\Delta$ interval, ensuring a legitimately positioned receiver maintains continuous authorization without gaps.
+\textbf{Occlusion (shadowing) test.} The production configuration uses $\Delta = 15\,\text{s}$ (\texttt{LIVENESS\_WINDOW\_S} in the dashboard's \texttt{pi4\_health\_monitor()}). To exercise this experimentally, the sender firmware was extended with an idle-time heartbeat — a small authenticated frame sent automatically every 2.5\,s using the existing encrypt/frame/send path — so that continuous traffic exists to interrupt. With the link at steady-state (\texttt{verified: true}), the optical path was physically occluded at a marked $t=0$; the time to the corresponding revocation event was logged, the path was then unblocked, and the time back to re-verification was logged. This was repeated across two batches: 21 trials polling receiver state at 5.0\,s intervals (the dashboard's production polling cadence) and 20 trials at 0.2\,s intervals (to isolate polling-granularity jitter from the mechanism's intrinsic latency).
 
-Quantitative measurements of worst-case revocation latency and relay attack simulations with measured relay-induced delay are planned for future evaluation.
+\begin{table}[htbp]
+\caption{Revocation and Re-verification Latency ($\Delta = 15\,\text{s}$)}
+\begin{center}
+\small
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Condition} & \textbf{Time-to-revoke} & \textbf{Time-to-reverify} \\
+\hline
+As-deployed (5\,s poll), $n{=}21$ & 17.27\,s $\pm$ 1.25\,s & 1.43\,s $\pm$ 0.69\,s \\
+\hline
+Fine-grained (0.2\,s poll), $n{=}20$ & 15.11\,s $\pm$ 0.06\,s & 1.30\,s $\pm$ 0.65\,s \\
+\hline
+\end{tabular}
+\label{tab:revocation_latency}
+\end{center}
+\end{table}
+
+At the production polling cadence, measured time-to-revoke was bimodal (clustering near 15.7\,s and 18.2\,s), an artifact of the 5\,s poll interval aliasing against the underlying revocation event rather than a property of the freshness mechanism itself. At the fine-grained polling cadence, time-to-revoke collapsed to a tight cluster at $15.11\,\text{s} \pm 0.06\,\text{s}$ — essentially exactly $\Delta$ plus a fixed $\approx 0.11\,\text{s}$ processing overhead — confirming that the mechanism enforces its configured bound precisely, and that the additional latency and variance observed in the as-deployed measurement is attributable to dashboard poll granularity, not the underlying protocol. Time-to-reverify was consistent across both batches ($\approx 1.3$--$1.4\,\text{s}$) and is bounded above by the 2.5\,s heartbeat interval, as expected.
+
+\textbf{$\Delta$ sensitivity to benign traffic.} To assess whether $\Delta = 15\,\text{s}$ is justified rather than arbitrary, we logged inter-frame gaps over a 40-minute benign session (960 frames, 959 gaps) and computed, for candidate $\Delta \in \{3, 5, 10, 15, 20, 30\}\,\text{s}$, the fraction of observed gaps that would have exceeded each candidate (a false-revoke event under benign conditions). With heartbeat-only traffic, gaps clustered tightly at 2.409--2.591\,s (98\% within $\pm 20\,\text{ms}$ of the 2.5\,s heartbeat interval), yielding a measured false-revoke rate of 0.0\% at every candidate $\Delta$ tested, including the smallest. This result is degenerate rather than informative: a single mechanically regular heartbeat does not exhibit the gap variability that real, possibly degraded, optical conditions would produce, so it cannot by itself justify a specific $\Delta$ against false-revoke risk. We therefore report the finding narrowly — $\Delta = 15\,\text{s}$ carries zero measured false-revoke cost against heartbeat-only traffic — and identify a full parametric justification of $\Delta$, characterizing gap variability under real degraded-signal conditions (partial occlusion, marginal alignment, ambient light transients), as future work.
+
+At a reliable frame rate of up to 300\,kbaud with standard message sizes, the sender is capable of delivering many authenticated frames per $\Delta$ interval, well in excess of the minimum rate $r > 1/\Delta$ required to maintain continuous authorization for a legitimately positioned receiver.
 
 \section{Discussion}
+\label{sec:discussion}
 
 \subsection{The Bandwidth-Range Tradeoff}
 
@@ -561,11 +592,11 @@ This tradeoff is not unique to our system --- it is inherent to any transimpedan
 
 Future implementations could address this tradeoff through a dedicated high-bandwidth transimpedance amplifier IC (replacing the general-purpose operational amplifier), a second-stage voltage amplifier to recover signal amplitude after a low-gain TIA, or optical concentrators (lenses, compound parabolic concentrators) on the receiver to increase the effective collection area without modifying the electronics.
 
-\subsection{Relay Attack Resilience}
+\subsection{Relay Attack Resilience — a Named Limitation}
 
-The $\Delta$-bounded freshness mechanism provides a configurable upper limit on the duration of any relay attack. However, $\Delta$ itself represents a tradeoff: smaller values of $\Delta$ provide tighter relay bounds but require higher frame transmission rates and are more sensitive to momentary optical interruptions (e.g., a person briefly walking through the beam). In practice, $\Delta$ values on the order of 500\,ms to 2\,s appear to provide a reasonable balance between security and robustness for indoor deployments.
+As established in Section~\ref{sec:threat-model} (G3), the current implementation does \emph{not} bound relay attacks. The $\Delta$-bounded freshness mechanism (G1) and the nonce sliding window (G2) together prevent an adversary from presenting a \emph{captured, no-longer-live} frame after the fact, but neither examines transit time, so a \emph{live} relay that forwards genuinely fresh frames in real time — introducing latency $\delta_{\text{relay}}$ but never storing and resending stale bytes — passes every check the receiver performs. This distinction matters because it is easy to mistake G1's expiration window for a relay bound; it is not, since a continuously operating relay keeps $t_{\text{last}}$ refreshed indefinitely.
 
-A more aggressive relay defense could incorporate challenge-response timing: the receiver periodically challenges the sender with a random nonce, and the sender must respond within a bounded round-trip time. Since the optical channel operates at the speed of light (negligible propagation delay at room scale), any relay that introduces even microseconds of additional latency would be detectable. This extension is architecturally compatible with the existing bidirectional UART link between the sender and receiver but is not implemented in the current prototype.
+Closing this gap would require binding authorization to a measured round-trip time rather than to nonce freshness alone: a distance-bounding challenge-response (Brands--Chaum style), in which the receiver periodically issues a random nonce and the sender must respond within a tightly bounded window, such that any relay-introduced latency $\delta_{\text{relay}}$ becomes directly detectable. Since the optical channel operates at the speed of light (negligible propagation delay at room scale) and the existing bidirectional UART link between sender and receiver already provides the necessary transport, this extension is architecturally compatible with the current design but is not implemented in the current prototype. As a data point supporting its feasibility, not as a security guarantee in itself: end-to-end frame processing latency on the debug receiver was measured at 3--6\,ms (preamble lock to full CRC-validated frame), suggesting there is ample timing margin to add a bounded round-trip check without a hardware redesign — but doing so, and validating it, remains future work (Section~\ref{sec:future-work}).
 
 \subsection{Comparison with RF-Based Alternatives}
 
@@ -574,20 +605,26 @@ The total hardware cost of the prototype is approximately \$82 USD based on veri
 More fundamentally, the system provides a security property --- automatic revocation upon physical departure from the optical zone --- that is structurally impossible to achieve with RF-based protocols without environmental modification. No amount of cryptographic sophistication in a WiFi-based system can prevent a device that has authenticated from retaining its credentials after leaving the room, because the RF signal itself does not respect room boundaries. The optical system achieves this property by construction, without any software-level revocation infrastructure.
 
 \subsection{Limitations}
+\label{sec:limitations}
 
 Several limitations of the current implementation should be acknowledged:
 
 \begin{enumerate}
 \item \textbf{Line-of-sight requirement.} The system requires an unobstructed optical path between sender and receiver. Environments with significant dust, fog, or vibration may experience intermittent frame loss, triggering unnecessary revocation if $\Delta$ is set too aggressively.
 
+\item \textbf{No relay resistance (G3 not achieved).} As detailed in Section~\ref{sec:threat-model} and Section~\ref{sec:discussion}, the current implementation enforces freshness (G1) and replay resistance (G2) but performs no round-trip timing check on the optical data path. A live relay that forwards genuinely fresh frames in real time, rather than resending captured stale bytes, would pass every check the receiver currently performs. Achieving relay-boundedness would require a distance-bounding challenge-response extension, which is not yet implemented.
+
 \item \textbf{Single-channel reception.} Although the sender transmits on four LED channels simultaneously, the current receiver uses a single photodiode. Exploiting the spatial diversity of multiple receiver elements could improve robustness and enable angle-of-arrival estimation.
 
 \item \textbf{Ambient light sensitivity.} Strong ambient light sources (direct sunlight, high-intensity discharge lamps) can saturate the photodiode or shift the operating point of the TIA, degrading reception quality. The programmable DAC threshold provides partial mitigation, but a fully adaptive threshold that tracks ambient conditions in real time is not yet implemented.
 
 \item \textbf{No hardware key protection.} The RP2040 and RP2350 do not include a hardware security module or trusted execution environment. Session keys stored in flash are extractable by an adversary with physical access and a debugger. Integration with a Trusted Platform Module (TPM) or secure element would address this limitation.
+
+\item \textbf{Revocation-latency and replay measurements pending confirmation on the production receiver.} The quantitative results in Section~\ref{sec:presence-enforcement} and Section~\ref{sec:security-validation} were measured against a debug receiver that shares identical wire-protocol parsing and freshness/replay logic with the production Pi~4 receiver (\texttt{dash\_receiver.c}), but omits its WiFi/HMAC control-plane layer. Repeating these measurements against the full Pi~4 deployment is planned to confirm the reported numbers carry over unchanged.
 \end{enumerate}
 
 \section{Future Work}
+\label{sec:future-work}
 
 Several extensions are planned or under consideration:
 
@@ -613,11 +650,11 @@ Several extensions are planned or under consideration:
 
 This work presents the design, implementation, and initial evaluation of a presence-based authorization system that uses LiFi optical communication as both a data channel and a physical security primitive. Unlike conventional authentication models --- in which a device that has verified its identity retains access until explicitly revoked --- the proposed system continuously binds authorization to the physical reception of authenticated optical frames, such that access is automatically revoked within a configurable time window $\Delta$ upon interruption of the optical path.
 
-The system achieves authenticated encryption at 1\,Mbps over a free-space optical link using AES-128-GCM on commodity microcontrollers (RP2040 and RP2350), with a custom analog front-end comprising an OPA381AIDGKT precision transimpedance amplifier, TLV3501AIDBVR high-speed comparator, and MCP4725A1T-E/CH programmable DAC threshold. Session keys are provisioned through the IoTAuth framework with HMAC-SHA256 challenge-response authentication and persisted in a dual-slot flash architecture with SHA-256 integrity verification. A 64-entry nonce sliding window provides replay attack prevention, and the token validity window $\Delta$ bounds the advantage of relay attacks.
+The system achieves authenticated encryption at 1\,Mbps over a free-space optical link using AES-128-GCM on commodity microcontrollers (RP2040 and RP2350), with a custom analog front-end comprising an OPA381AIDGKT precision transimpedance amplifier, TLV3501AIDBVR high-speed comparator, and MCP4725A1T-E/CH programmable DAC threshold. Session keys are provisioned through the IoTAuth framework with HMAC-SHA256 challenge-response authentication and persisted in a dual-slot flash architecture with SHA-256 integrity verification. A 64-entry nonce sliding window provides replay attack prevention, and the token validity window $\Delta$ bounds how long a captured, no-longer-live frame remains usable — a live relay of continuously fresh frames is not excluded by the current implementation and is reported as an explicit limitation (Section~\ref{sec:threat-model}, G3).
 
 The total hardware cost of the prototype is approximately \$82 USD at verified DigiKey unit pricing, demonstrating that presence-based optical authorization is achievable on resource-constrained embedded platforms without specialized or expensive hardware --- remaining two orders of magnitude below commercial LiFi access point pricing. The analog front-end characterization reveals a quantifiable tradeoff between TIA bandwidth and operational range --- a result that directly informs the design of future deployments.
 
-By formalizing the security goals of freshness, replay resistance, relay-bounded authorization, and revocation on interruption, and by demonstrating their enforcement through a physical prototype, this work establishes that light itself --- confined by physics, modulated by electronics, and authenticated by cryptography --- can serve as a verifiable and continuously enforced proof of physical presence.
+By formalizing the security goals of freshness, replay resistance, relay-bounded authorization, and revocation on interruption, and by demonstrating enforcement of freshness, replay resistance, and interruption-revocation through a physical prototype — while identifying relay-boundedness as an explicit, unimplemented goal for future work — this work establishes that light itself --- confined by physics, modulated by electronics, and authenticated by cryptography --- can serve as a verifiable and continuously enforced proof of physical presence.
 
 \section*{Acknowledgment}
 
