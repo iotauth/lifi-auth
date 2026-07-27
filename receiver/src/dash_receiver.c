@@ -625,8 +625,8 @@ static void reporter_signal(const uint8_t *key_id, const uint8_t *payload,
 // extension, so it isn't limited to the fixed Bxxxxxx constants the way
 // plain cfsetispeed() is — matches the TX/RX baud inputs on the dashboard,
 // which already accept any typed value via pyserial.
-static int g_current_baud     = 1000000;
-static int g_current_baud_int = 1000000;  // human-readable, for /status and reporting
+static int g_current_baud     = 100000;
+static int g_current_baud_int = 100000;  // human-readable, for /status and reporting
 
 // Sanity range only — no longer a fixed-list lookup. Mirrors the Pico
 // firmware's own accepted range (see receiver_pico's "baud <rate>" command).
