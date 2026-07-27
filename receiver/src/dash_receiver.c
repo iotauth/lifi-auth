@@ -1210,6 +1210,20 @@ int main(int argc, char* argv[]) {
     uint8_t byte = 0;
     int uart_state = 0;
 
+    // Raw-byte activity reporting: independent of preamble/frame parsing,
+    // so the WiFi log shows *something* every few seconds even when no
+    // byte ever matches PREAMBLE_BYTE_1 (uart_state==0 mismatches are not
+    // otherwise logged at all, since logging every non-matching byte in
+    // steady noise would flood the queue). Answers "is anything reaching
+    // the UART at all?" independently of frame-level diagnosis below.
+    unsigned long raw_byte_total         = 0;
+    unsigned long raw_byte_since_report  = 0;
+    uint8_t       raw_preview[16];
+    size_t        raw_preview_len        = 0;
+    struct timespec raw_report_deadline;
+    clock_gettime(CLOCK_MONOTONIC, &raw_report_deadline);
+    raw_report_deadline.tv_sec += 3;
+
     log_printf("Listening for encrypted message...\n");
     if (fd >= 0) tcflush(fd, TCIFLUSH);
 
@@ -1741,7 +1755,43 @@ int main(int argc, char* argv[]) {
             state_deadline = (struct timespec){0, 0};
         }
 
+        // --- Raw-byte activity report (every ~3s, regardless of whether
+        // any byte was read this iteration or matched anything) ---
+        if (timespec_passed(&raw_report_deadline)) {
+            char hex[16 * 5 + 1];
+            size_t hlen = 0;
+            for (size_t i = 0; i < raw_preview_len && hlen + 6 < sizeof(hex); i++) {
+                hlen += (size_t)snprintf(hex + hlen, sizeof(hex) - hlen,
+                                          "%02X'%c' ", raw_preview[i],
+                                          printable_char(raw_preview[i]));
+            }
+            hex[hlen] = '\0';
+
+            char m[300];
+            if (raw_byte_since_report == 0) {
+                snprintf(m, sizeof(m),
+                         "[LIFI RAW] 0 bytes in last 3s (total=%lu, uart_state=%d) - nothing hitting the UART",
+                         raw_byte_total, uart_state);
+            } else {
+                snprintf(m, sizeof(m),
+                         "[LIFI RAW] %lu bytes in last 3s (total=%lu, uart_state=%d), first %zu: %s",
+                         raw_byte_since_report, raw_byte_total, uart_state, raw_preview_len, hex);
+            }
+            reporter_post_status_message(m);
+
+            raw_byte_since_report = 0;
+            raw_preview_len = 0;
+            clock_gettime(CLOCK_MONOTONIC, &raw_report_deadline);
+            raw_report_deadline.tv_sec += 3;
+        }
+
         if (fd >= 0 && read(fd, &byte, 1) == 1) {
+            raw_byte_total++;
+            raw_byte_since_report++;
+            if (raw_preview_len < sizeof(raw_preview)) {
+                raw_preview[raw_preview_len++] = byte;
+            }
+
             // Activity Blink (Top Right)
             static int act_ctr = 0;
             if (++act_ctr % 10 == 0) {
