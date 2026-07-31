@@ -8,7 +8,7 @@ except ImportError:
     HAS_REQUESTS = False
     print('[rx_monitor] WARNING: "requests" not installed — results won\'t reach dashboard. Run: pip install requests')
 
-PORT        = '/dev/ttyACM0'  # Adjust as needed for your system
+PORT        = '/dev/ttyACM1'  # Adjust as needed for your system
 FLASK_URL   = 'http://localhost:8420/test_result'
 
 # ── Log file setup ────────────────────────────────────────────────────────────
