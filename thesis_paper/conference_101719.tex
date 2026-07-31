@@ -68,7 +68,7 @@ This work exploits that property not solely as a communication channel but as an
 \section{Related Work}
 
 \subsection{LiFi as a Communication Technology}
-The term LiFi was first introduced by Harald Haas in his 2011 TEDGlobal talk~\cite{haas2011}, where he demonstrated that a standard LED bulb, modulated at speeds imperceptible to the human eye, could transmit data at rates exceeding conventional RF wireless technologies. Since then, the IEEE 802.11bb standard~\cite{ieee80211bb}, ratified in June 2023, specifies bidirectional optical PHY layers that achieve throughputs between 10\,Mb/s and 9.6\,Gb/s, operating in the 800\,nm to 1000\,nm near-infrared band — establishing LiFi as a formally recognized wireless standard with measurable and interoperable performance guarantees. Under experimental conditions, researchers have demonstrated peak data rates of 224\,Gb/s — exceeding the fastest commercial Wi-Fi implementations by two orders of magnitude.
+The term LiFi was first introduced by Harald Haas in his 2011 TEDGlobal talk~\cite{haas2011}, where he demonstrated that a standard LED bulb, modulated at speeds imperceptible to the human eye, could transmit data at rates exceeding conventional RF wireless technologies. Since then, the IEEE 802.11bb standard~\cite{ieee80211bb}, ratified in June 2023, specifies bidirectional optical PHY layers that achieve throughputs between 10\,Mb/s and 9.6\,Gb/s, operating in the 800\,nm to 1000\,nm near-infrared band — establishing LiFi as a formally recognized wireless standard with measurable and interoperable performance guarantees. Under experimental conditions, researchers have demonstrated peak data rates of 224\,Gb/s~\cite{gomez2015} — exceeding the fastest commercial Wi-Fi implementations by two orders of magnitude.
 
 \subsection{RF-Based State of the Art}
 
@@ -91,13 +91,13 @@ These approaches share a common limitation: they provide probabilistic secrecy g
 
 \subsubsection{Physical Layer Key Generation}
 
-A second active research direction exploits the reciprocity and spatial variability of VLC channels to generate shared secret keys between communicating parties without prior key distribution. Al-Moliki et al.~\cite{almoliki2017} proposed a key generation scheme for inter-vehicular VLC that extracts randomness from channel measurements, achieving key generation rates that vary with the relative positions and velocities of the vehicles. More recently, key generation protocols for indoor VLC using OFDM subcarrier measurements have been proposed, leveraging the spatial dependence of the optical channel to ensure that an eavesdropper at a different location derives a different key~\cite{keygen_ofdm2017}. Quantum key distribution over VLC channels has also been explored as an extension to post-quantum security, though practical implementations remain limited to laboratory demonstrations~\cite{qkd_vlc2025}.
+A second active research direction exploits the reciprocity and spatial variability of VLC channels to generate shared secret keys between communicating parties without prior key distribution. Zaman et al.~\cite{almoliki2017} proposed a key generation scheme for inter-vehicular VLC that extracts randomness from channel measurements, achieving key generation rates that vary with the relative positions and velocities of the vehicles. More recently, Al-Moliki et al. proposed key generation protocols for indoor VLC using OFDM subcarrier measurements, leveraging the spatial dependence of the optical channel to ensure that an eavesdropper at a different location derives a different key~\cite{keygen_ofdm2017}. Quantum key distribution over VLC channels has also been explored as an extension to post-quantum security, though practical implementations remain limited to laboratory demonstrations~\cite{qkd_vlc2025}.
 
 Physical layer key generation addresses the key establishment problem but does not address continuous authorization. Once a key is generated and shared, the VLC channel's role in the security protocol ends --- the key persists independently of whether the optical link is maintained. An adversary who obtains the key through any means (side channel, device compromise, relay during the key generation phase) retains it regardless of physical presence.
 
 \subsubsection{VLC-Assisted Device Initialization}
 
-Saxena et al.~\cite{lisa2019} proposed LISA, a multichannel protocol that uses VLC from smartphone screens to securely initialize resource-constrained IoT devices. The visible light channel serves as an out-of-band (OoB) channel for bootstrapping cryptographic credentials, exploiting the assumption that an attacker cannot simultaneously observe the screen and the device without being physically present during the initialization ceremony. This work represents the closest conceptual antecedent to our approach in that it leverages the spatial confinement of light for a security purpose beyond simple data confidentiality. However, LISA uses VLC as a one-time initialization channel --- a brief optical ceremony that establishes long-lived credentials. Once initialization is complete, the optical channel plays no further security role, and the device's authorization does not depend on continued optical reception.
+Perkovi\'{c} et al.~\cite{lisa2019} proposed LISA, a multichannel protocol that uses VLC from smartphone screens to securely initialize resource-constrained IoT devices. The visible light channel serves as an out-of-band (OoB) channel for bootstrapping cryptographic credentials, exploiting the assumption that an attacker cannot simultaneously observe the screen and the device without being physically present during the initialization ceremony. This work represents the closest conceptual antecedent to our approach in that it leverages the spatial confinement of light for a security purpose beyond simple data confidentiality. However, LISA uses VLC as a one-time initialization channel --- a brief optical ceremony that establishes long-lived credentials. Once initialization is complete, the optical channel plays no further security role, and the device's authorization does not depend on continued optical reception.
 
 \subsubsection{Encrypted VLC Implementations}
 
@@ -671,11 +671,14 @@ S. Brands and D. Chaum, ``Distance-Bounding Protocols,'' in \textit{Advances in 
 \bibitem{haas2011}
 H. Haas, ``Wireless data from every light bulb,'' TEDGlobal, Edinburgh, July 2011.
 
+\bibitem{gomez2015}
+A. Gomez, K. Shi, C. Quintana, M. Sato, G. Faulkner, B. C. Thomsen, and D. C. O'Brien, ``Beyond 100-Gb/s Indoor Wide Field-of-View Optical Wireless Communications,'' \textit{IEEE Photonics Technology Letters}, vol. 27, no. 4, pp. 367--370, Feb. 2015.
+
 \bibitem{ieee80211bb}
 IEEE, ``IEEE Standard for Information Technology --- Local and Metropolitan Area Networks --- Specific Requirements --- Part 11: Wireless LAN Medium Access Control (MAC) and Physical Layer (PHY) Specifications Amendment 7: Light Communications,'' \textit{IEEE Std 802.11bb-2023}, 2023.
 
 \bibitem{blinowski2019}
-G. Blinowski, ``Security of Visible Light Communication systems --- A survey,'' \textit{Physical Communication}, vol. 34, pp. 246--256, June 2019.
+G. Blinowski, ``Security of Visible Light Communication systems --- A survey,'' \textit{Physical Communication}, vol. 34, pp. 246--260, June 2019.
 
 \bibitem{arfaoui2020}
 M. A. Arfaoui, M. D. Soltani, I. Tavakkolnia, A. Ghrayeb, M. Safari, C. Assi, and H. Haas, ``Physical Layer Security for Visible Light Communication Systems: A Survey,'' \textit{IEEE Communications Surveys \& Tutorials}, vol. 22, no. 3, pp. 1887--1908, 2020.
@@ -684,19 +687,19 @@ M. A. Arfaoui, M. D. Soltani, I. Tavakkolnia, A. Ghrayeb, M. Safari, C. Assi, an
 S. Cho, G. Chen, and J. P. Coon, ``Securing visible light communication systems by beamforming in the presence of randomly distributed eavesdroppers,'' \textit{IEEE Trans. Wireless Commun.}, vol. 17, no. 5, pp. 2918--2931, May 2018.
 
 \bibitem{irs_vlc2024}
-M. Caputo, M. Mucchi, and L. Pierucci, ``Multi-RIS Aided VLC Physical Layer Security for 6G Wireless Networks,'' \textit{IEEE Trans. Inf. Forensics Security}, 2024.
+M. Caputo, L. Mucchi, and L. Pierucci, ``Multi-RIS Aided VLC Physical Layer Security for 6G Wireless Networks,'' \textit{IEEE Transactions on Mobile Computing}, 2024.
 
 \bibitem{almoliki2017}
-Y. M. Al-Moliki, M. T. Alresheedi, and Y. Al-Harthi, ``A Physical Layer Security Key Generation Technique for Inter-Vehicular Visible Light Communication,'' in \textit{Proc. IEEE Int. Conf. Commun.}, 2017.
+I. U. Zaman, A. B. Lopez, M. A. Al Faruque, and O. Boyraz, ``A Physical Layer Security Key Generation Technique for Inter-Vehicular Visible Light Communication,'' in \textit{Advanced Photonics Congress (IPR, Networks, NOMA, PS, SPPCom)}, OSA Technical Digest, paper SpTu1F.3, 2017.
 
 \bibitem{keygen_ofdm2017}
-R. Marin-Garcia, R. Perez-Jimenez, and B. Alonso-Gonzalez, ``Secret Key Generation Protocol for Optical OFDM Systems in Indoor VLC Networks,'' \textit{IEEE Photonics Technology Letters}, 2017.
+Y. M. Al-Moliki, M. T. Alresheedi, and Y. Al-Harthi, ``Secret Key Generation Protocol for Optical OFDM Systems in Indoor VLC Networks,'' \textit{IEEE Photonics Journal}, vol. 9, no. 2, pp. 1--15, Apr. 2017.
 
 \bibitem{qkd_vlc2025}
 M. S. Hossain et al., ``Secure Quantum Key Distribution Over VLC Networks for Next-Generation Smart Cities,'' \textit{Int. J. Networked Distrib. Comput.}, 2025.
 
 \bibitem{lisa2019}
-N. Saxena, J. Y. Choi, and S. Cho, ``LISA: Visible light based initialization and SMS based authentication of constrained IoT devices,'' \textit{Future Generation Computer Systems}, vol. 93, pp. 167--178, Apr. 2019.
+T. Perkovi\'{c}, M. \v{C}agalj, and T. Kova\v{c}evi\'{c}, ``LISA: Visible light based initialization and SMS based authentication of constrained IoT devices,'' \textit{Future Generation Computer Systems}, vol. 97, pp. 775--791, Aug. 2019.
 
 \bibitem{kim2020}
 S.-M. Kim, ``Secure Visible Light Communication Technique Based on Asymmetric Data Encryption for 6G Communication Service,'' \textit{Electronics}, vol. 9, no. 11, p. 1847, Nov. 2020.
