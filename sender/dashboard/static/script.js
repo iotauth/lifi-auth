@@ -427,21 +427,29 @@ document.getElementById('global-baud-input').addEventListener('keypress', functi
 });
 
 // --- LED Channel Control ---
+// Firmware only understands "CMD: leds <hex bitmask>" (1=W, 2=G, 4=B, 8=R) —
+// see src/cmd_handler.c's " leds " handler. Every toggle recomputes the full
+// mask from current per-channel state and sends it as one command.
 const LED_CHANNELS = [
-    { key: 'W', name: 'white' },
-    { key: 'G', name: 'green' },
-    { key: 'B', name: 'blue'  },
-    { key: 'R', name: 'red'   },
+    { key: 'W', bit: 0x1 },
+    { key: 'G', bit: 0x2 },
+    { key: 'B', bit: 0x4 },
+    { key: 'R', bit: 0x8 },
 ];
 
 var ledState = { 'W': true, 'G': true, 'B': true, 'R': true };
+
+function sendLedMask() {
+    var mask = 0;
+    LED_CHANNELS.forEach(ch => { if (ledState[ch.key]) mask |= ch.bit; });
+    sendCommand('CMD: leds ' + mask.toString(16).toUpperCase());
+}
 
 function toggleLed(key) {
     ledState[key] = !ledState[key];
     const btn = document.getElementById('btn-led-' + key.toLowerCase());
     btn.classList.toggle('active', ledState[key]);
-    const ch = LED_CHANNELS.find(c => c.key === key);
-    sendCommand(ch.name + (ledState[key] ? ' on' : ' off'));
+    sendLedMask();
 }
 
 function setAllLeds() {
@@ -449,7 +457,7 @@ function setAllLeds() {
         ledState[ch.key] = true;
         document.getElementById('btn-led-' + ch.key.toLowerCase()).classList.add('active');
     });
-    sendCommand('all');
+    sendLedMask();
 }
 
 function setNoLeds() {
@@ -457,7 +465,7 @@ function setNoLeds() {
         ledState[ch.key] = false;
         document.getElementById('btn-led-' + ch.key.toLowerCase()).classList.remove('active');
     });
-    sendCommand('none');
+    sendLedMask();
 }
 
 // ─── Auto Benchmark ───────────────────────────────────────────────────────────
