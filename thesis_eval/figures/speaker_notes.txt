@@ -1,0 +1,199 @@
+SPEAKER NOTES — Evaluation Figures
+Thesis defense, ~20-25 min slot
+Figures: thesis_eval/figures/*.png
+==================================================================
+
+Each block below is: which slide it's for, what the image shows in one
+line, then a word-for-word script you can read/rehearse from. Read the
+script once for pacing, then compress to bullets in your head — don't
+read it verbatim in the room, or it'll sound recited. Timing estimates
+assume you're speaking at a normal conversational pace.
+
+------------------------------------------------------------------
+1. system_block_diagram.png  —  Slide 5, "System Architecture"
+------------------------------------------------------------------
+WHAT IT SHOWS: The three-participant security model (Sender, Receiver,
+Verifier) on top, with the optical link called out in orange; the real
+deployed reporting path (Pi4 -> WiFi -> dashboard) shown de-emphasized
+in gray underneath as a separate, non-security-relevant layer.
+
+SAY (~60-75s):
+"This is the system architecture. There are three participants. On the
+left, the optical beacon — a Pico RP2040 that encrypts every message
+with AES-128-GCM and drives four LED channels in parallel over a custom
+PIO transmitter. On the right, the client device — a Pico 2, RP2350 —
+with a photodiode front-end that demodulates the signal and checks each
+frame against a 64-entry nonce window before it's ever decrypted. And
+at the top, the key provisioning service — the IoTAuth server — which
+both sides authenticate to independently over TLS with X.509 certs.
+
+The orange arrow is the one that matters for this thesis: that's the
+optical channel, and it's one-way, and it's the thing the whole security
+argument is built on — physical light, not a software boundary.
+
+Below the divider is the actual deployed hardware path — the receiver
+reports over WiFi with HMAC-signed requests to a dashboard, so there's
+a human-visible verified/revoked state. I've drawn that separately and
+grayed out on purpose, because it's implementation, not part of the
+security model above it — and I'll come back to why that distinction
+matters when I get to the evaluation methodology."
+
+WHY IT'S DRAWN THIS WAY (if asked): the top row maps 1:1 to the paper's
+System Model section so the threat model slide right after it doesn't
+need re-explaining; the bottom row exists because a sharp committee
+member will ask "how does this actually get validated/observed" and you
+want the answer on screen before they ask it.
+
+------------------------------------------------------------------
+2. revocation_latency.png  —  Slide 12, "G4 — Time-to-revoke on occlusion"
+------------------------------------------------------------------
+WHAT IT SHOWS: Two strip plots (one per trial batch) of time-to-revoke
+(left) and time-to-reverify (right) on physical occlusion, dashed line
+at the production Δ=15s / heartbeat 2.5s reference.
+
+SAY (~75-90s):
+"This is the occlusion test — physically blocking the optical path and
+timing how long it takes the receiver to revoke authorization, then
+unblocking and timing re-verification. I ran two batches: the top row,
+in blue, is the as-deployed condition — dashboard polling every 5
+seconds, which is production behavior. The bottom row, in orange, polls
+every 0.2 seconds instead, to separate the mechanism's real latency from
+polling artifacts.
+
+Look at the blue row first: it's bimodal — two clusters around 15.7 and
+18.2 seconds. That's not the protocol misbehaving, that's aliasing
+against the 5-second poll interval. You can see that the moment you look
+at the orange row: once polling is fine-grained, everything collapses
+into a tight cluster at 15.11 seconds, standard deviation six
+hundredths of a second — essentially exactly Δ, the 15-second freshness
+window, plus about a tenth of a second of fixed processing overhead.
+That's the evidence that G4 — revocation on interruption — is enforced
+precisely, and that the extra spread you'd see in a naive as-deployed
+measurement is a monitoring artifact, not a security property.
+
+On the right, re-verification after unblocking is consistently under
+one and a half seconds in both batches, bounded above by the 2.5-second
+heartbeat interval, which is exactly what you'd expect."
+
+IF ASKED "why two batches, isn't that redundant": say directly that the
+as-deployed numbers are what a user actually experiences, but they're not
+what the mechanism actually guarantees — the fine-grained batch isolates
+that guarantee from the measurement tool.
+
+------------------------------------------------------------------
+3. delta_sensitivity.png  —  Slide 13, "Δ-sensitivity to benign traffic"
+------------------------------------------------------------------
+WHAT IT SHOWS: Log-scale histogram of 959 inter-frame gaps from a 40-min
+benign session, all clustered near 2.5s, with six candidate Δ values
+(3-30s) marked and each showing 0.0% false-revoke rate.
+
+SAY (~60-75s, deliver this one straight, don't oversell it):
+"This experiment asks a different question: is Δ=15 seconds actually
+justified, or just a number someone picked? I logged 959 gaps between
+valid frames over a 40-minute benign session and checked, for six
+candidate Δ values from 3 to 30 seconds, what fraction of those gaps
+would have caused a false revocation.
+
+The honest result is on screen: every single gap clustered within about
+20 milliseconds of the 2.5-second heartbeat interval — that spike on
+the left — so every candidate Δ, including the most aggressive one at
+3 seconds, comes back with a zero percent false-revoke rate. I want to
+be direct about why that's not as strong a result as it looks: this
+session only has one traffic pattern in it, a mechanically regular
+heartbeat. It doesn't contain the kind of irregular gaps you'd get from
+partial occlusion or marginal alignment in a real degraded environment,
+so it can't be used to find where a real crossover would be. What it
+does establish is a floor: Δ=15 seconds costs nothing against the
+traffic pattern I could measure. A full parametric justification under
+degraded conditions is future work, and I say that in the paper rather
+than let the clean zero-percent number imply more than it shows."
+
+IF ASKED "so why include a null result": because reporting it honestly —
+including what it doesn't prove — is stronger evidence of rigor than
+omitting a result that didn't come out as informative as hoped.
+
+------------------------------------------------------------------
+4. replay_boundary.png  —  Slide 14, "G2 — Replay rejection + boundary limitation"
+------------------------------------------------------------------
+WHAT IT SHOWS: A single-trial event timeline — frame captured/pinned,
+immediate replay rejected (green +), nonce window deliberately shrunk to
+2 slots, two legitimate frames cycle through evicting the pinned nonce,
+then the same replayed frame is accepted again (amber X).
+
+SAY (~75-90s):
+"This is the replay test, and it's really two results in one timeline.
+At t plus zero, a legitimate heartbeat frame arrives and I pin a copy of
+its raw bytes. At t plus 0.21 seconds, I immediately re-inject that
+exact same frame — and it's rejected, the green marker — because its
+nonce is already in the receiver's replay window. That's G2 working
+exactly as designed.
+
+Then I deliberately shrink the nonce window from its production size of
+64 down to just 2 slots, to make a boundary condition observable in a
+short test instead of needing thousands of frames. Two more legitimate
+frames arrive — messages 52 and 53 — and because the window only holds
+2 entries now, the original frame's nonce gets evicted. At t plus 5
+seconds, I replay that exact same original frame a third time, and this
+time — the amber X — it's accepted and successfully decrypted.
+
+That's not a bug I found by accident, it's a real, documented boundary
+of the sliding-window design: replay protection is bounded by window
+capacity, not permanent. In production, at 64 slots, an attacker would
+need 64 fresh legitimate frames to cycle through before a captured
+frame becomes replayable again — which at the sender's minimum
+authenticated rate bounds how long a captured frame stays a live
+threat — but the limitation is real, and I'm putting it on the same
+slide as the positive result instead of only in a footnote."
+
+IF ASKED "isn't a 2-slot window unrealistic": say plainly that it's an
+artificially small window chosen only to make the boundary condition
+observable in a short live demo — the mechanism, and the limitation, are
+the same at any window size, just slower to trigger at 64.
+
+------------------------------------------------------------------
+5. baud_sweep.png  —  Slide 15, "Communication performance"
+------------------------------------------------------------------
+WHAT IT SHOWS: Frame success rate vs. baud rate for two TIA feedback
+resistor configurations (470kΩ, 100kΩ), each with a clean ceiling, a
+measured degradation region, and a hard collapse point.
+
+SAY (~60-75s):
+"This is the baud-rate sweep behind the bandwidth-range tradeoff in the
+paper. Two configurations of the transimpedance amplifier's feedback
+resistor: blue is 470 kiloohms — higher gain, lower bandwidth, 2-volt
+output swing. Orange is 100 kiloohms — lower gain, higher bandwidth,
+400-millivolt swing.
+
+Both hold 100% frame success up to their ceiling — 300 kilobaud for
+470k, 250 kilobaud for 100k — then the orange line shows measurable
+degradation, 96% and 86%, before both configurations hit a hard
+collapse, marked with the X, where control messages themselves get
+corrupted and the link stops working entirely.
+
+The result that matters here is a little counterintuitive: at this
+close range, 15 centimeters, the higher-gain 470k configuration
+actually outperforms the higher-bandwidth 100k configuration. That
+tells us SNR margin from the larger voltage swing is the limiting
+factor at short range, not the TIA's raw bandwidth — the classic
+bandwidth-range tradeoff only starts to favor the higher-bandwidth
+config once you're far enough away that photocurrent drops and the
+400-millivolt swing stops clearing the comparator's noise floor. That's
+also why it's future work rather than a claim in this thesis — I
+haven't measured that crossover distance yet."
+
+==================================================================
+GENERAL DELIVERY NOTES
+==================================================================
+- Don't read these scripts verbatim in the room — rehearse them enough
+  that you can deliver the same content in your own words, glancing at
+  the slide instead of notes.
+- The three moments most likely to draw a follow-up question are:
+  (a) the Δ-sensitivity null result (#3),
+  (b) the replay window boundary limitation (#4),
+  (c) the debug-receiver-vs-Pi4 caveat mentioned on the block diagram (#1).
+  Rehearse those three transitions specifically — you want your voice not
+  to change register when you get to the honest-limitation part of each
+  one. That consistency is what reads as rigor instead of a hedge.
+- Total spoken time for all five, back to back with no interruptions,
+  is roughly 6.5-8 minutes — leaves the rest of a 20-25 min slot for
+  framing, architecture, threat model, discussion, and Q&A.

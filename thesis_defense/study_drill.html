@@ -1,0 +1,841 @@
+<title>LiFi-Auth Defense Drill</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f7f4ef;
+    --surface: #ffffff;
+    --surface-2: #efece4;
+    --ink: #1b1812;
+    --ink-2: #5b564c;
+    --ink-3: #8a8477;
+    --border: #ddd7c9;
+    --accent: #c97a1f;
+    --accent-ink: #ffffff;
+    --accent-glow: rgba(201, 122, 31, 0.16);
+    --good: #1f9d63;
+    --good-bg: rgba(31, 157, 99, 0.12);
+    --shaky: #6f63c9;
+    --shaky-bg: rgba(111, 99, 201, 0.12);
+    --missed: #d1453c;
+    --missed-bg: rgba(209, 69, 60, 0.12);
+    --new: #8a8477;
+    --new-bg: rgba(138, 132, 119, 0.12);
+    --shadow: 0 1px 2px rgba(27, 24, 18, 0.04), 0 8px 24px rgba(27, 24, 18, 0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --bg: #14120f;
+      --surface: #1d1a15;
+      --surface-2: #262219;
+      --ink: #f3efe6;
+      --ink-2: #cfc7b8;
+      --ink-3: #948c7c;
+      --border: #3a352b;
+      --accent: #f2a33e;
+      --accent-ink: #1b1400;
+      --accent-glow: rgba(242, 163, 62, 0.22);
+      --good: #3ddb9d;
+      --good-bg: rgba(61, 219, 157, 0.14);
+      --shaky: #a79cf0;
+      --shaky-bg: rgba(167, 156, 240, 0.16);
+      --missed: #f47a72;
+      --missed-bg: rgba(244, 122, 114, 0.14);
+      --new: #948c7c;
+      --new-bg: rgba(148, 140, 124, 0.14);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #14120f;
+    --surface: #1d1a15;
+    --surface-2: #262219;
+    --ink: #f3efe6;
+    --ink-2: #cfc7b8;
+    --ink-3: #948c7c;
+    --border: #3a352b;
+    --accent: #f2a33e;
+    --accent-ink: #1b1400;
+    --accent-glow: rgba(242, 163, 62, 0.22);
+    --good: #3ddb9d;
+    --good-bg: rgba(61, 219, 157, 0.14);
+    --shaky: #a79cf0;
+    --shaky-bg: rgba(167, 156, 240, 0.16);
+    --missed: #f47a72;
+    --missed-bg: rgba(244, 122, 114, 0.14);
+    --new: #948c7c;
+    --new-bg: rgba(148, 140, 124, 0.14);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f7f4ef;
+    --surface: #ffffff;
+    --surface-2: #efece4;
+    --ink: #1b1812;
+    --ink-2: #5b564c;
+    --ink-3: #8a8477;
+    --border: #ddd7c9;
+    --accent: #c97a1f;
+    --accent-ink: #ffffff;
+    --accent-glow: rgba(201, 122, 31, 0.16);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+    letter-spacing: 0.01em;
+  }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 2.2rem 1.25rem 4rem;
+  }
+
+  /* ---------- header ---------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.6rem;
+  }
+  .brand { display: flex; align-items: center; gap: 0.65rem; }
+  .signal-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 0 var(--accent-glow);
+    animation: pulse 2.5s ease-in-out infinite;
+    flex: none;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 var(--accent-glow); opacity: 1; }
+    60%  { box-shadow: 0 0 0 8px transparent; opacity: 0.75; }
+    100% { box-shadow: 0 0 0 0 transparent; opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .signal-dot { animation: none; }
+  }
+  .brand-text { line-height: 1.15; }
+  .brand-title {
+    font-family: Charter, Georgia, serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: -0.01em;
+  }
+  .brand-sub {
+    font-size: 0.72rem;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .icon-btn {
+    background: none; border: 1px solid var(--border); color: var(--ink-2);
+    border-radius: 7px; padding: 0.4rem 0.65rem; cursor: pointer;
+    font-size: 0.78rem; font-family: inherit;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--ink); }
+  .icon-btn:focus-visible, button:focus-visible, .chip:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  /* ---------- setup screen ---------- */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 1.6rem;
+  }
+  .panel + .panel { margin-top: 1.1rem; }
+  h1.hero {
+    font-size: 1.85rem;
+    line-height: 1.15;
+    margin: 0 0 0.35rem;
+    text-wrap: balance;
+    font-weight: 700;
+  }
+  .hero-sub {
+    color: var(--ink-2);
+    font-size: 0.98rem;
+    margin: 0 0 1.4rem;
+    max-width: 54ch;
+  }
+  .stat-row {
+    display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.2rem;
+  }
+  .stat {
+    flex: 1 1 auto; min-width: 84px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.55rem 0.7rem;
+    background: var(--surface-2);
+  }
+  .stat .n { font-family: ui-monospace, monospace; font-size: 1.3rem; font-weight: 600; line-height: 1; }
+  .stat .l { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3); margin-top: 0.3rem; }
+  .stat.good .n { color: var(--good); }
+  .stat.shaky .n { color: var(--shaky); }
+  .stat.missed .n { color: var(--missed); }
+  .stat.new .n { color: var(--ink-3); }
+
+  .section-label {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--ink-3); margin: 1.3rem 0 0.6rem;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .chip {
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--ink-2);
+    border-radius: 999px;
+    padding: 0.4rem 0.8rem 0.4rem 0.65rem;
+    font-size: 0.83rem;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 0.45rem;
+    font-family: inherit;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  .chip .count { font-family: ui-monospace, monospace; font-size: 0.74rem; color: var(--ink-3); }
+  .chip.active {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+    color: var(--ink);
+  }
+  .chip.active .count { color: var(--ink-2); }
+  .chip .mastery {
+    display: flex; height: 4px; width: 26px; border-radius: 2px; overflow: hidden;
+    background: var(--border);
+  }
+  .chip .mastery span { display: block; height: 100%; }
+
+  .mode-row { display: flex; gap: 0.6rem; margin-top: 0.6rem; flex-wrap: wrap; }
+  .mode-btn {
+    flex: 1 1 160px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--ink);
+  }
+  .mode-btn strong { display: block; font-size: 0.9rem; }
+  .mode-btn span { display: block; font-size: 0.75rem; color: var(--ink-3); margin-top: 0.15rem; }
+  .mode-btn.active { border-color: var(--accent); background: var(--accent-glow); }
+
+  .start-row { display: flex; align-items: center; gap: 0.9rem; margin-top: 1.5rem; }
+  .btn-primary {
+    background: var(--accent); color: var(--accent-ink);
+    border: none; border-radius: 10px;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.98rem; font-weight: 600;
+    font-family: Charter, Georgia, serif;
+    cursor: pointer;
+  }
+  .btn-primary:hover { filter: brightness(1.06); }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+  .reset-link {
+    background: none; border: none; color: var(--ink-3);
+    font-size: 0.78rem; text-decoration: underline; cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* ---------- quiz screen ---------- */
+  .quiz-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 0.9rem; gap: 1rem;
+  }
+  .progress-readout { font-size: 0.85rem; color: var(--ink-2); white-space: nowrap; }
+  .signal-bar {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    background: repeating-linear-gradient(
+      90deg, var(--surface-2) 0 6px, var(--border) 6px 7px
+    );
+    position: relative;
+    overflow: hidden;
+  }
+  .signal-bar-fill {
+    position: absolute; inset: 0 auto 0 0;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width 0.25s ease;
+  }
+  .cat-tag {
+    display: inline-block;
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-3);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    margin-bottom: 0.85rem;
+  }
+  .flag-tag {
+    display: inline-block;
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    margin-bottom: 0.85rem;
+    margin-left: 0.5rem;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 2rem 1.9rem;
+    min-height: 15rem;
+    display: flex;
+    flex-direction: column;
+    animation: card-in 0.22s ease;
+  }
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .q-text {
+    font-size: 1.32rem;
+    line-height: 1.42;
+    font-weight: 600;
+    text-wrap: balance;
+    margin: 0;
+  }
+  .divider {
+    border: none; border-top: 1px solid var(--border);
+    margin: 1.25rem 0;
+  }
+  .a-text {
+    font-size: 1.05rem;
+    line-height: 1.58;
+    color: var(--ink-2);
+    margin: 0;
+    animation: fade-in 0.3s ease;
+  }
+  @keyframes fade-in {
+    from { opacity: 0; } to { opacity: 1; }
+  }
+  .card-footer { margin-top: auto; padding-top: 1.4rem; }
+  .reveal-btn {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1.5px dashed var(--border);
+    color: var(--ink-2);
+    border-radius: 10px;
+    padding: 0.85rem;
+    font-size: 0.92rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .reveal-btn:hover { border-color: var(--accent); color: var(--ink); }
+  .rate-row { display: flex; gap: 0.6rem; }
+  .rate-btn {
+    flex: 1;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    padding: 0.7rem 0.5rem;
+    font-size: 0.86rem;
+    font-family: inherit;
+    cursor: pointer;
+    background: var(--surface-2);
+    color: var(--ink);
+    display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
+  }
+  .rate-btn .k { font-family: ui-monospace, monospace; font-size: 0.68rem; color: var(--ink-3); }
+  .rate-btn.got:hover { border-color: var(--good); background: var(--good-bg); }
+  .rate-btn.shaky:hover { border-color: var(--shaky); background: var(--shaky-bg); }
+  .rate-btn.missed:hover { border-color: var(--missed); background: var(--missed-bg); }
+
+  .hint {
+    text-align: center; color: var(--ink-3); font-size: 0.76rem; margin-top: 0.9rem;
+  }
+
+  /* ---------- summary ---------- */
+  .big-tally { display: flex; gap: 0.7rem; margin: 1.1rem 0 1.5rem; }
+  .cat-break { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.4rem; }
+  .cat-break-row { display: flex; align-items: center; gap: 0.7rem; }
+  .cat-break-name { width: 132px; font-size: 0.82rem; color: var(--ink-2); flex: none; }
+  .cat-break-bar {
+    flex: 1; height: 9px; border-radius: 5px; background: var(--surface-2);
+    display: flex; overflow: hidden; border: 1px solid var(--border);
+  }
+  .cat-break-bar span { display: block; height: 100%; }
+  .summary-actions { display: flex; gap: 0.7rem; margin-top: 1.4rem; flex-wrap: wrap; }
+  .btn-secondary {
+    background: var(--surface-2); color: var(--ink);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 0.7rem 1.2rem; font-size: 0.92rem; font-family: inherit; cursor: pointer;
+  }
+  .btn-secondary:hover { border-color: var(--accent); }
+
+  footer.note {
+    text-align: center; color: var(--ink-3); font-size: 0.75rem;
+    margin-top: 1.6rem;
+  }
+
+  [hidden] { display: none !important; }
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <span class="signal-dot" aria-hidden="true"></span>
+      <div class="brand-text">
+        <div class="brand-title">Defense Drill</div>
+        <div class="brand-sub mono">lifi-auth &middot; presence &amp; freshness eval</div>
+      </div>
+    </div>
+    <button class="icon-btn" id="themeToggle" type="button" title="Toggle light/dark">Theme</button>
+  </div>
+
+  <!-- ================= SETUP SCREEN ================= -->
+  <main id="setupScreen">
+    <div class="panel">
+      <h1 class="hero">Study what's actually in the talk.</h1>
+      <p class="hero-sub">48 questions pulled straight from the paper, the eval data, and the SST/IoTAuth
+        integration — the kind a committee actually asks. Reveal, rate yourself, and the weak ones come
+        back around.</p>
+
+      <div class="stat-row" id="statRow"></div>
+
+      <div class="section-label">Categories</div>
+      <div class="chips" id="catChips"></div>
+
+      <div class="section-label">Session</div>
+      <div class="mode-row" id="modeRow"></div>
+
+      <div class="start-row">
+        <button class="btn-primary" id="startBtn" type="button">Start session</button>
+        <button class="reset-link" id="resetBtn" type="button">Reset all progress</button>
+      </div>
+    </div>
+    <footer class="note">Progress is saved locally in this browser only.</footer>
+  </main>
+
+  <!-- ================= QUIZ SCREEN ================= -->
+  <main id="quizScreen" hidden>
+    <div class="quiz-head">
+      <button class="icon-btn" id="exitBtn" type="button">&larr; End</button>
+      <div class="signal-bar"><div class="signal-bar-fill" id="progFill"></div></div>
+      <div class="progress-readout mono" id="progReadout">1/1</div>
+    </div>
+    <div class="card">
+      <div>
+        <span class="cat-tag" id="cardCat"></span><span class="flag-tag" id="cardFlag" hidden>Committee favorite</span>
+        <p class="q-text" id="cardQ"></p>
+        <div id="answerBlock" hidden>
+          <hr class="divider" />
+          <p class="a-text" id="cardA"></p>
+        </div>
+      </div>
+      <div class="card-footer">
+        <button class="reveal-btn" id="revealBtn" type="button">Reveal answer &nbsp;<span class="mono">(space)</span></button>
+        <div class="rate-row" id="rateRow" hidden>
+          <button class="rate-btn got" data-rate="got" type="button">Got it<span class="k">1</span></button>
+          <button class="rate-btn shaky" data-rate="shaky" type="button">Shaky<span class="k">2</span></button>
+          <button class="rate-btn missed" data-rate="missed" type="button">Missed it<span class="k">3</span></button>
+        </div>
+      </div>
+    </div>
+    <p class="hint">space reveal &middot; 1/2/3 rate &middot; esc end session</p>
+  </main>
+
+  <!-- ================= SUMMARY SCREEN ================= -->
+  <main id="summaryScreen" hidden>
+    <div class="panel">
+      <h1 class="hero">Session done.</h1>
+      <p class="hero-sub" id="summaryLine"></p>
+      <div class="big-tally" id="bigTally"></div>
+      <div class="section-label">By category</div>
+      <div class="cat-break" id="catBreak"></div>
+      <div class="summary-actions">
+        <button class="btn-primary" id="reviewWeakBtn" type="button">Review weak spots</button>
+        <button class="btn-secondary" id="backToSetupBtn" type="button">Back to setup</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var COLORS = { got: "var(--good)", shaky: "var(--shaky)", missed: "var(--missed)", new: "var(--new)" };
+
+  var QUESTIONS = [
+    // ---- Motivation & Gap ----
+    { id: "m1", cat: "Motivation", q: "Why can't RF-based systems (WiFi, Bluetooth, Zigbee) enforce a physical presence boundary?",
+      a: "RF propagates through walls, floors, and physical barriers by design — an attacker doesn't need to be physically present to intercept, relay, or replay a credential. Enforcing a boundary requires costly countermeasures (shielding, Faraday enclosures, attenuation infrastructure); the security burden falls on architecture, not protocol design." },
+    { id: "m2", cat: "Motivation", q: "What's the core reframing this thesis makes about LiFi?",
+      a: "Instead of treating LiFi as a higher-bandwidth wireless alternative, the optical signal itself becomes an active security primitive — continuously asserted, continuously verified, and automatically revoked the instant the optical path breaks." },
+    { id: "m3", cat: "Motivation", q: "What's the literature gap this thesis claims to fill?",
+      a: "No existing work binds authorization to continuous, time-bounded optical reception with automatic revocation on signal loss. Prior work falls into four buckets (info-theoretic PLS, physical-layer key gen, encrypted VLC, commercial LiFi) — each stops short of continuous presence-based authorization." },
+
+    // ---- Related Work ----
+    { id: "r1", cat: "Related Work", q: "How is this different from physical-layer key generation approaches (e.g. Al-Moliki et al.)?",
+      a: "Physical-layer key gen bootstraps a shared secret from channel measurements, but the key persists independently of whether the optical link is maintained — an adversary who obtains the key keeps it regardless of physical presence. This system continuously re-verifies presence, not just once at key establishment." },
+    { id: "r2", cat: "Related Work", q: "How does this differ from commercial LiFi security (Signify Trulifi, Oledcomm)?",
+      a: "Commercial products market spatial confinement as a feature but implement conventional one-time authentication — a device authenticates once and retains access until explicit revocation. This system continuously monitors physical presence as an ongoing condition of authorization." },
+    { id: "r3", cat: "Related Work", q: "What is LISA (Saxena et al.), and how is this work different?",
+      a: "LISA uses VLC from smartphone screens as a one-time out-of-band channel to bootstrap credentials for IoT devices. Once initialization completes, the optical channel plays no further security role — this work uses the optical channel continuously, not just at bootstrap." },
+
+    // ---- System Architecture ----
+    { id: "a1", cat: "Architecture", q: "What are the three participants in the system model?",
+      a: "The optical beacon (Sender, RP2040), the client device (Receiver, RP2350), and the key provisioning service (Verifier / IoTAuth)." },
+    { id: "a2", cat: "Architecture", q: "What MCU does the sender use, and what does it do?",
+      a: "A Raspberry Pi Pico H (RP2040). It encrypts with AES-128-GCM, constructs the nonce, frames the message, and drives four LED channels in parallel via a PIO state machine at 1 Mbps." },
+    { id: "a3", cat: "Architecture", q: "What MCU does the receiver use, and what's the analog signal chain?",
+      a: "A Pico 2 H (RP2350). Photodiode (SFH2400) → OPA381 transimpedance amplifier → TLV3501 comparator → PIO UART receiver." },
+    { id: "a4", cat: "Architecture", q: "Why four LED channels transmitting identical data?",
+      a: "Optical redundancy — the receiver only needs to detect any one channel — and it leaves room for future spatial multiplexing or per-channel encoding." },
+    { id: "a5", cat: "Architecture", q: "What's in the wire frame format?",
+      a: "Preamble (4B, 0xABCDEF12) + Type (1B) + Length (2B) + Nonce (12B) + Ciphertext (NB) + GCM Tag (16B) + CRC16 (2B)." },
+    { id: "a6", cat: "Architecture", q: "How is the nonce constructed, and why that structure?",
+      a: "An 8-byte random boot salt (from CTR_DRBG seeded by hardware RNG) plus a 4-byte monotonic counter. The counter guarantees uniqueness within a boot session, the salt guarantees uniqueness across reboots. Counter exhaustion (2^32 messages) triggers an immediate reboot to regenerate the salt." },
+    { id: "a7", cat: "Architecture", q: "How are session keys persisted on the sender?",
+      a: "A dual-slot A/B flash architecture. Each slot holds a key_flash_block_t with an 8B key ID, 16B AES key, 32B SHA-256 integrity hash, and a magic marker. On boot the last-used slot is validated; if corrupt, the alternate slot is tried." },
+
+    // ---- SST / IoTAuth ----
+    { id: "s1", cat: "SST / Auth", q: "What is SST?",
+      a: "Secure Swarm Toolkit — an open-source authentication/authorization framework for distributed IoT systems, with Auth as the local, automated point of authorization." },
+    { id: "s2", cat: "SST / Auth", q: "What are Auth's two roles?",
+      a: "(1) Authenticate and authorize its own locally registered entities. (2) Bridge authorization between those local entities and the wider network — “locally centralized, globally distributed.”" },
+    { id: "s3", cat: "SST / Auth", q: "Is SST/IoTAuth something built for this thesis?",
+      a: "No — it's a published research architecture spanning IoTDI '17, FiCloud '16, IT Professional '17, ACM TIOT '20, and SoftwareX '23 (its C API), maintained at ASU KIM Labs. Co-authors Hokeun Kim and Dongha Kim are core SST contributors, and the thesis author is a listed active contributor to the repository itself." },
+    { id: "s4", cat: "SST / Auth", q: "How does the sender actually get its session key?",
+      a: "keys_receiver (a Linux host app) uses the SST C API — init_SST(), get_session_key() — to fetch a session_key_t from the IoTAuth server over TLS, then delivers it to the Pico sender over a dedicated UART channel." },
+    { id: "s5", cat: "SST / Auth", q: "How is key delivery confirmed, rather than just assumed?",
+      a: "A four-state HMAC handshake: IDLE → send challenge → WAITING_FOR_YES (ACK) → WAITING_FOR_ACK (KEY_OK) → WAITING_FOR_HMAC_RESP → verified. Only a matching HMAC response confirms both sides hold the identical key." },
+    { id: "s6", cat: "SST / Auth", q: "What is the “optical key-identifier rendezvous” design, and why build it that way?",
+      a: "Only a non-secret 8-byte key ID is transmitted optically — never the session key itself. The receiver independently authenticates to the Auth server over its own TLS channel to fetch the actual key. An adversary capturing the optical transmission gets only a useless lookup ID." },
+    { id: "s7", cat: "SST / Auth", q: "What is “roaming discovery,” and which code implements it?",
+      a: "When a receiver doesn't recognize a broadcast key ID locally, it queries the Auth server directly (get_session_key_by_ID) over mutual TLS. Implemented in ask_receiver.c (“the Detective”) — it starts with no keys and discovers devices from their optical ID broadcast." },
+    { id: "s8", cat: "SST / Auth", q: "What happens if Auth doesn't recognize the device ID being looked up?",
+      a: "Auth returns an explicit rejection (unknown/revoked) instead of a key. This is Auth's identity-layer revocation — an administrative denial — distinct from G4's physical-layer revocation (signal interruption)." },
+    { id: "s9", cat: "SST / Auth", q: "What is the runtime HMAC challenge, and how does it differ from the passive freshness check?",
+      a: "The receiver can send a 32-byte random challenge to the sender at any time (MSG_TYPE_CHALLENGE) over the optical/UART link. The sender computes HMAC-SHA256 under the session MAC key, encrypts the response, and sends it back; the receiver recomputes locally and compares. It's a stronger, on-demand, interactive proof of live key possession — versus just “a frame happened to decrypt.”" },
+    { id: "s10", cat: "SST / Auth", q: "Name the three receiver binaries and their distinct Auth interaction models.",
+      a: "keys_receiver (“the Manager” — proactively fetches and pushes a key at startup), flash_receiver (combined session app — chat/file transfer + HMAC verification + key management), ask_receiver (“the Detective” — starts with no keys, discovers via optical broadcast plus roaming lookup)." },
+
+    // ---- Threat Model ----
+    { id: "t1", cat: "Threat Model", q: "What are the adversary's five capabilities?",
+      a: "Network control (Dolev-Yao on RF/network links only, not the optical link), optical observation (passive eavesdropping of ciphertext/tags/nonces, never plaintext or keys), relay (capture+re-emit with latency δ_relay), optical injection (rogue light source, fails without the key), and denial of service (obstruction, saturation, jamming)." },
+    { id: "t2", cat: "Threat Model", q: "What are the trust assumptions?",
+      a: "Trusted provisioning service (Auth server and its keys aren't compromised); trusted sender hardware (physically secured); standard crypto assumptions (AES-GCM, HMAC-SHA256, SHA-256, CTR_DRBG); bounded clock drift; and no full client compromise." },
+    { id: "t3", cat: "Threat Model", q: "Why does the system “fail closed”?",
+      a: "Denial of the optical signal results in revocation, not persistence of authorization — a conscious design choice: availability is sacrificed for safety, stated explicitly as a non-goal, not discovered as a side effect." },
+    { id: "t4", cat: "Threat Model", q: "What are the stated non-goals?",
+      a: "Indoor localization, DoS prevention, full device-compromise protection (no HSM/TEE), covert channel resistance (the channel's existence is visible), and multi-sender disambiguation." },
+
+    // ---- Security Goals ----
+    { id: "g1", cat: "Security Goals", q: "State G1 (Freshness) — definition and mechanism.",
+      a: "Authorization requires a fresh authenticated frame within the most recent Δ interval; otherwise revoked, regardless of prior valid frames. Mechanism: the receiver tracks t_last and evaluates authorized(t) = (t − t_last) ≤ Δ." },
+    { id: "g2", cat: "Security Goals", q: "State G2 (Replay Resistance) — definition and mechanism.",
+      a: "A previously observed nonce is never accepted again. Mechanism: a 64-entry circular nonce window checked before decryption is even attempted." },
+    { id: "g3", cat: "Security Goals", q: "State G3 (Relay-Bounded Authorization) — status and why.",
+      a: "NOT ACHIEVED. Neither G1 nor G2 examines when a frame arrived, only nonce freshness/uniqueness. A live relay forwarding genuinely fresh frames in real time passes every check (nonce unseen, tag valid, t_last refreshed). Verified directly: the data-frame path checks only CRC + byte-exact nonce identity, no timestamp or round-trip bound." },
+    { id: "g4", cat: "Security Goals", q: "State G4 (Revocation on Interruption) — definition and mechanism.",
+      a: "If the optical path is interrupted, authorization is revoked within at most Δ. It follows directly from G1 — no explicit revocation message needed; absence of signal is itself the revocation event." },
+    { id: "g5", cat: "Security Goals", q: "What would it actually take to achieve G3?",
+      a: "A distance-bounding challenge-response (Brands–Chaum style): the receiver issues a random nonce and the sender must respond within a tightly bounded round trip, so any relay-added latency causes the response to arrive too late. Not implemented — but the existing bidirectional link and ~3–6ms measured processing latency suggest it's architecturally feasible." },
+
+    // ---- Methodology ----
+    { id: "me1", cat: "Methodology", q: "Why was the debug receiver used instead of the production Pi4 (dash_receiver.c)?",
+      a: "They share identical wire format, freshness state machine, and 64-entry nonce window — the debug path just omits the WiFi/HMAC control-plane layer, which simplified direct protocol-event instrumentation. Confirming on the Pi4 path is named explicitly as pending work, not silently assumed equivalent." },
+    { id: "me2", cat: "Methodology", q: "What's the testbed setup for the evaluation?",
+      a: "Pico H sender + Pico 2 H receiver, ~15cm separation, indoor ambient light, no shielding, white LED channel, IoTAuth server running on a Raspberry Pi 4." },
+
+    // ---- Evaluation Results ----
+    { id: "ev1", cat: "Results", q: "What was the measured time-to-revoke, and what does the bimodal as-deployed result mean?",
+      a: "Intrinsic (0.2s poll): 15.11s ± 0.06s — essentially exactly Δ (15s) plus ~0.11s fixed overhead. As-deployed (5s poll): 17.27s ± 1.25s, bimodal (~15.7s / ~18.2s) — that's polling-interval aliasing, not a protocol property." },
+    { id: "ev2", cat: "Results", q: "What was measured for time-to-reverify?",
+      a: "About 1.3–1.4s in both trial batches, bounded above by the 2.5s heartbeat interval." },
+    { id: "ev3", cat: "Results", q: "What did the Δ-sensitivity experiment test, and what's the honest limitation of the result?",
+      a: "959 inter-frame gaps over a 40-minute benign session, checked against six candidate Δ values (3–30s) for false-revoke rate. Result: 0.0% at every Δ tested — but gaps clustered tightly near the 2.5s heartbeat (mechanically regular), so the session can't rule out a smaller crossover under real degraded conditions. It's a floor, not a full parametric justification." },
+    { id: "ev4", cat: "Results", q: "Describe the replay test result, both parts.",
+      a: "(1) Immediate replay of a captured frame was rejected — nonce already in the window, confirming G2. (2) With the window artificially shrunk to 2 slots, after two legitimate frames cycled through and evicted the nonce, replaying that same frame again was ACCEPTED — a real, documented boundary limitation: replay protection is bounded by window capacity, not permanent." },
+    { id: "ev5", cat: "Results", q: "What did the baud-rate / TIA sweep find?",
+      a: "470kΩ (higher gain, 2.0V swing): clean to 300kbaud, collapses at 350k. 100kΩ (higher bandwidth, 400mV swing): clean to 250kbaud, degrades at 300–350k (96%/86%), collapses at 400k+. Counterintuitive finding: higher gain beat higher bandwidth at 15cm — SNR margin, not TIA bandwidth, is the limiting factor at close range." },
+
+    // ---- Discussion / Limitations / Future Work ----
+    { id: "d1", cat: "Discussion", q: "Why report G3 as a “named limitation” instead of hiding it or hand-waving a proof?",
+      a: "Being precise about what the system does and doesn't defend against reads as rigor, not as a gap — naming your own limitation is more defensible than leaving it to be discovered by a committee member." },
+    { id: "d2", cat: "Discussion", q: "Why wasn't symbolic verification (Tamarin/ProVerif) done?",
+      a: "A full model — SST mutual auth plus the AES-GCM data channel plus two independent replay windows — is substantial, specialized modeling work, not something to fit alongside the empirical evaluation chapter. An incomplete or buggy formal model would read worse than an honest “empirically demonstrated, not formally proven” claim." },
+    { id: "d3", cat: "Discussion", q: "List the six stated limitations.",
+      a: "Line-of-sight requirement; no relay resistance (G3); single-channel reception (4 TX / 1 RX); ambient light sensitivity; no hardware key protection (no TPM/secure element); revocation and replay measurements pending confirmation on the production Pi4 path." },
+    { id: "d4", cat: "Discussion", q: "What's the total hardware cost, and why does that matter?",
+      a: "About $82 at verified DigiKey pricing — roughly two orders of magnitude below commercial LiFi access points, showing the approach is achievable on resource-constrained embedded platforms without specialized or expensive hardware." },
+    { id: "d5", cat: "Discussion", q: "What's the single biggest cost driver in the BOM?",
+      a: "The PTN78000WAH DC-DC module at $24.58, chosen for research-prototype convenience — a discrete buck regulator would bring the total under $60." },
+    { id: "d6", cat: "Discussion", q: "How is the future-work list ordered, and why does that ordering matter?",
+      a: "By priority, not novelty: distance-bounding for G3 and confirming results on the Pi4 path come first because they close gaps already admitted to in the talk, ahead of extensions like higher data rates or hardware key protection — signals you know what matters most next." },
+
+    // ---- Toughest Questions ----
+    { id: "x1", cat: "Toughest", flag: true, q: "“Isn't Δ basically a relay bound? Why is G3 not achieved if G1 already limits how long a frame is valid?”",
+      a: "No. Δ (G1) bounds how long a CAPTURED, no-longer-live frame remains useful. A live relay never captures-and-resends — it forwards each frame through in real time. Every relayed frame is genuinely fresh from the receiver's point of view (new nonce, valid tag, arrives within Δ), so a continuously operating relay keeps t_last refreshed indefinitely — Δ never expires against it. G1/G2 answer “is this new and unseen?”; G3 would need to answer “how long did this take to arrive?” — nothing in the implementation checks that." },
+    { id: "x2", cat: "Toughest", flag: true, q: "Is the 2-slot replay window test even realistic? Isn't that a contrived setup?",
+      a: "Yes, it's artificially small — on purpose, specifically to make the boundary condition observable in a short test instead of needing thousands of frames. The mechanism and the limitation are identical at any window size, including production's 64 slots, just slower to trigger." },
+    { id: "x3", cat: "Toughest", flag: true, q: "In production, how many legitimate frames would an attacker need before a captured frame becomes replayable again?",
+      a: "64 — the production nonce window size — which, at the sender's minimum authenticated frame rate (greater than 1/Δ), bounds how long a captured frame remains a live replay threat." },
+  ];
+
+  var CATS = [];
+  QUESTIONS.forEach(function (q) { if (CATS.indexOf(q.cat) === -1) CATS.push(q.cat); });
+
+  var STORE_KEY = "lifiDrillProgress_v1";
+  function loadProgress() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+  function saveProgress(p) {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(p)); } catch (e) {}
+  }
+  var progress = loadProgress(); // { id: 'got'|'shaky'|'missed' }
+
+  function statusOf(id) { return progress[id] || "new"; }
+
+  // ---------------- theme toggle ----------------
+  var root = document.documentElement;
+  function currentTheme() {
+    return root.getAttribute("data-theme") ||
+      (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  }
+  document.getElementById("themeToggle").addEventListener("click", function () {
+    root.setAttribute("data-theme", currentTheme() === "dark" ? "light" : "dark");
+  });
+
+  // ---------------- setup screen state ----------------
+  var selectedCats = CATS.slice();
+  var mode = "all"; // 'all' | 'weak' | 'unseen'
+  var shuffleOn = true;
+
+  function countBy(list, status) {
+    return list.filter(function (q) { return statusOf(q.id) === status; }).length;
+  }
+
+  function renderStats() {
+    var el = document.getElementById("statRow");
+    var got = countBy(QUESTIONS, "got"), shaky = countBy(QUESTIONS, "shaky"),
+        missed = countBy(QUESTIONS, "missed"),
+        seen = got + shaky + missed,
+        unseen = QUESTIONS.length - seen;
+    el.innerHTML =
+      '<div class="stat good"><div class="n mono">' + got + '</div><div class="l">Got it</div></div>' +
+      '<div class="stat shaky"><div class="n mono">' + shaky + '</div><div class="l">Shaky</div></div>' +
+      '<div class="stat missed"><div class="n mono">' + missed + '</div><div class="l">Missed</div></div>' +
+      '<div class="stat new"><div class="n mono">' + unseen + '</div><div class="l">Unseen</div></div>';
+  }
+
+  function renderChips() {
+    var el = document.getElementById("catChips");
+    el.innerHTML = "";
+    CATS.forEach(function (cat) {
+      var list = QUESTIONS.filter(function (q) { return q.cat === cat; });
+      var got = countBy(list, "got"), shaky = countBy(list, "shaky"), missed = countBy(list, "missed");
+      var seen = got + shaky + missed, unseen = list.length - seen;
+      var chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip" + (selectedCats.indexOf(cat) !== -1 ? " active" : "");
+      var bar = "";
+      [["got", got], ["shaky", shaky], ["missed", missed], ["new", unseen]].forEach(function (pair) {
+        if (pair[1] > 0) {
+          bar += '<span style="width:' + (pair[1] / list.length * 100) + '%;background:' + COLORS[pair[0]] + '"></span>';
+        }
+      });
+      chip.innerHTML = cat + ' <span class="count mono">' + list.length + '</span><span class="mastery">' + bar + "</span>";
+      chip.addEventListener("click", function () {
+        var idx = selectedCats.indexOf(cat);
+        if (idx === -1) selectedCats.push(cat); else selectedCats.splice(idx, 1);
+        renderChips();
+        updateStartState();
+      });
+      el.appendChild(chip);
+    });
+  }
+
+  var MODES = [
+    { id: "all", title: "All selected categories", sub: "Every card, in the categories checked above" },
+    { id: "weak", title: "Weak spots only", sub: "Shaky + Missed + never-studied cards" },
+    { id: "unseen", title: "Unseen only", sub: "Cards you haven't rated yet" }
+  ];
+
+  function renderModes() {
+    var el = document.getElementById("modeRow");
+    el.innerHTML = "";
+    MODES.forEach(function (m) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "mode-btn" + (mode === m.id ? " active" : "");
+      b.innerHTML = "<strong>" + m.title + "</strong><span>" + m.sub + "</span>";
+      b.addEventListener("click", function () { mode = m.id; renderModes(); updateStartState(); });
+      el.appendChild(b);
+    });
+  }
+
+  function poolForSession() {
+    var list = QUESTIONS.filter(function (q) { return selectedCats.indexOf(q.cat) !== -1; });
+    if (mode === "weak") {
+      list = list.filter(function (q) { return statusOf(q.id) !== "got"; });
+    } else if (mode === "unseen") {
+      list = list.filter(function (q) { return statusOf(q.id) === "new"; });
+    }
+    return list;
+  }
+
+  function updateStartState() {
+    var n = poolForSession().length;
+    var btn = document.getElementById("startBtn");
+    btn.disabled = n === 0;
+    btn.textContent = n === 0 ? "No cards match" : "Start session (" + n + ")";
+  }
+
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    if (confirm("Clear all saved study progress on this device?")) {
+      progress = {};
+      saveProgress(progress);
+      renderStats(); renderChips();
+    }
+  });
+
+  // ---------------- quiz state ----------------
+  var queue = [], qIndex = 0, revealed = false;
+  var sessionTally = { got: 0, shaky: 0, missed: 0 };
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function showScreen(name) {
+    ["setupScreen", "quizScreen", "summaryScreen"].forEach(function (id) {
+      document.getElementById(id).hidden = id !== name;
+    });
+  }
+
+  function startSession() {
+    var pool = poolForSession();
+    if (!pool.length) return;
+    queue = shuffleOn ? shuffle(pool) : pool.slice();
+    qIndex = 0;
+    sessionTally = { got: 0, shaky: 0, missed: 0 };
+    showScreen("quizScreen");
+    renderCard();
+  }
+
+  function renderCard() {
+    var q = queue[qIndex];
+    revealed = false;
+    document.getElementById("cardCat").textContent = q.cat;
+    document.getElementById("cardFlag").hidden = !q.flag;
+    document.getElementById("cardQ").textContent = q.q;
+    document.getElementById("cardA").textContent = q.a;
+    document.getElementById("answerBlock").hidden = true;
+    document.getElementById("rateRow").hidden = true;
+    document.getElementById("revealBtn").hidden = false;
+    document.getElementById("progReadout").textContent = (qIndex + 1) + "/" + queue.length;
+    document.getElementById("progFill").style.width = ((qIndex) / queue.length * 100) + "%";
+  }
+
+  function reveal() {
+    if (revealed) return;
+    revealed = true;
+    document.getElementById("answerBlock").hidden = false;
+    document.getElementById("revealBtn").hidden = true;
+    document.getElementById("rateRow").hidden = false;
+  }
+
+  function rate(status) {
+    if (!revealed) return;
+    var q = queue[qIndex];
+    progress[q.id] = status;
+    saveProgress(progress);
+    sessionTally[status]++;
+    if (qIndex + 1 < queue.length) {
+      qIndex++;
+      renderCard();
+    } else {
+      document.getElementById("progFill").style.width = "100%";
+      finishSession();
+    }
+  }
+
+  function endSessionEarly() {
+    showScreen("setupScreen");
+    renderStats(); renderChips(); updateStartState();
+  }
+
+  function finishSession() {
+    var total = sessionTally.got + sessionTally.shaky + sessionTally.missed;
+    document.getElementById("summaryLine").textContent =
+      "You reviewed " + total + " card" + (total === 1 ? "" : "s") + " this session.";
+    document.getElementById("bigTally").innerHTML =
+      '<div class="stat good"><div class="n mono">' + sessionTally.got + '</div><div class="l">Got it</div></div>' +
+      '<div class="stat shaky"><div class="n mono">' + sessionTally.shaky + '</div><div class="l">Shaky</div></div>' +
+      '<div class="stat missed"><div class="n mono">' + sessionTally.missed + '</div><div class="l">Missed</div></div>';
+
+    var breakEl = document.getElementById("catBreak");
+    breakEl.innerHTML = "";
+    CATS.forEach(function (cat) {
+      var list = QUESTIONS.filter(function (q) { return q.cat === cat; });
+      var got = countBy(list, "got"), shaky = countBy(list, "shaky"), missed = countBy(list, "missed");
+      var unseen = list.length - got - shaky - missed;
+      var row = document.createElement("div");
+      row.className = "cat-break-row";
+      var bar = "";
+      [["got", got], ["shaky", shaky], ["missed", missed], ["new", unseen]].forEach(function (pair) {
+        if (pair[1] > 0) bar += '<span style="width:' + (pair[1] / list.length * 100) + '%;background:' + COLORS[pair[0]] + '"></span>';
+      });
+      row.innerHTML = '<div class="cat-break-name">' + cat + '</div><div class="cat-break-bar">' + bar + "</div>";
+      breakEl.appendChild(row);
+    });
+
+    showScreen("summaryScreen");
+  }
+
+  document.getElementById("startBtn").addEventListener("click", startSession);
+  document.getElementById("exitBtn").addEventListener("click", endSessionEarly);
+  document.getElementById("revealBtn").addEventListener("click", reveal);
+  document.querySelectorAll(".rate-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () { rate(btn.getAttribute("data-rate")); });
+  });
+  document.getElementById("backToSetupBtn").addEventListener("click", endSessionEarly);
+  document.getElementById("reviewWeakBtn").addEventListener("click", function () {
+    mode = "weak";
+    selectedCats = CATS.slice();
+    startSession();
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (document.getElementById("quizScreen").hidden) return;
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); reveal(); }
+    else if (e.key === "1") rate("got");
+    else if (e.key === "2") rate("shaky");
+    else if (e.key === "3") rate("missed");
+    else if (e.key === "Escape") endSessionEarly();
+  });
+
+  renderStats();
+  renderChips();
+  renderModes();
+  updateStartState();
+})();
+</script>
