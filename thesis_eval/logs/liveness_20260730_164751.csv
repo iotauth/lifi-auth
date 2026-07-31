@@ -1,0 +1,25 @@
+unix_ts,iso_ts,event,detail
+1785455274.419628,2026-07-30T16:47:54.419,frame,msg=343 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455274.419707,2026-07-30T16:47:54.419,VERIFIED,"first valid frame after gap (msg=343, text=""heartbeat"")"
+1785455289.959927,2026-07-30T16:48:09.959,REVOKED,15.540s since last valid frame (window=15.0s)
+1785455294.419178,2026-07-30T16:48:14.419,frame,msg=344 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455294.419280,2026-07-30T16:48:14.419,VERIFIED,"first valid frame after gap (msg=344, text=""heartbeat"")"
+1785455296.917994,2026-07-30T16:48:16.917,frame,msg=345 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455299.419201,2026-07-30T16:48:19.419,frame,msg=346 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455301.918130,2026-07-30T16:48:21.918,frame,msg=347 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455304.417901,2026-07-30T16:48:24.417,frame,msg=348 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455306.918067,2026-07-30T16:48:26.918,frame,msg=349 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455309.417903,2026-07-30T16:48:29.417,frame,msg=350 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455311.919724,2026-07-30T16:48:31.919,frame,msg=351 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455314.418048,2026-07-30T16:48:34.418,frame,msg=352 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455316.918088,2026-07-30T16:48:36.918,frame,msg=353 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455319.418000,2026-07-30T16:48:39.418,frame,msg=354 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455321.930447,2026-07-30T16:48:41.930,frame,msg=355 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455324.418924,2026-07-30T16:48:44.418,frame,msg=356 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455326.918032,2026-07-30T16:48:46.918,frame,msg=357 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455329.419231,2026-07-30T16:48:49.419,frame,msg=358 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455331.918013,2026-07-30T16:48:51.918,frame,msg=359 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455334.418367,2026-07-30T16:48:54.418,frame,msg=360 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455336.918705,2026-07-30T16:48:56.918,frame,msg=361 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455339.421523,2026-07-30T16:48:59.421,frame,msg=362 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455341.917961,2026-07-30T16:49:01.917,frame,msg=363 type=0x02 crc=ok replay=no decrypt=ok valid=True

@@ -1,0 +1,19 @@
+unix_ts,iso_ts,event,detail
+1785455074.418570,2026-07-30T16:44:34.418,frame,msg=282 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455074.418651,2026-07-30T16:44:34.418,VERIFIED,"first valid frame after gap (msg=282, text=""heartbeat"")"
+1785455076.919560,2026-07-30T16:44:36.919,frame,msg=283 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455092.801484,2026-07-30T16:44:52.801,REVOKED,15.882s since last valid frame (window=15.0s)
+1785455096.924981,2026-07-30T16:44:56.924,frame,msg=284 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455096.925063,2026-07-30T16:44:56.925,VERIFIED,"first valid frame after gap (msg=284, text=""heartbeat"")"
+1785455099.420113,2026-07-30T16:44:59.420,frame,msg=285 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455101.933472,2026-07-30T16:45:01.933,frame,msg=286 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455104.418796,2026-07-30T16:45:04.418,frame,msg=287 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455106.918408,2026-07-30T16:45:06.918,frame,msg=288 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455109.418658,2026-07-30T16:45:09.418,frame,msg=289 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455111.931563,2026-07-30T16:45:11.931,frame,msg=290 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455114.419765,2026-07-30T16:45:14.419,frame,msg=291 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455116.921715,2026-07-30T16:45:16.921,frame,msg=292 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455119.418735,2026-07-30T16:45:19.418,frame,msg=293 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455121.918280,2026-07-30T16:45:21.918,frame,msg=294 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455124.418662,2026-07-30T16:45:24.418,frame,msg=295 type=0x02 crc=ok replay=no decrypt=ok valid=True
+1785455126.920126,2026-07-30T16:45:26.920,frame,msg=296 type=0x02 crc=ok replay=no decrypt=ok valid=True
