@@ -30,9 +30,12 @@ INK_MUTED = "#898781"
 GRID = "#e1e0d9"
 BASELINE = "#c3c2b7"
 
+AQUA = "#1baf7a"
+
 CONDITIONS = [
     ("As-deployed (5.0s poll), n=21", LOGS / "liveness_20260725_144547_poll5.0_win15.0_analysis.txt", BLUE),
     ("Fine-grained (0.2s poll), n=20", LOGS / "liveness_20260725_145930_poll0.2_win15.0_analysis.txt", ORANGE),
+    ("On-device decision, n=25", LOGS / "liveness_20260820_125403_ondevice_win15.0_analysis.txt", AQUA),
 ]
 
 
@@ -54,7 +57,7 @@ def load(path):
 
 def strip_plot(ax, panel_key, mean_key, std_key, xref, xref_label, xlabel, title, xmax):
     rng = np.random.default_rng(7)
-    y_positions = [1, 0]
+    y_positions = list(range(len(CONDITIONS) - 1, -1, -1))
     for (label, path, color), y in zip(CONDITIONS, y_positions):
         d = load(path)
         vals = d[panel_key]
@@ -68,7 +71,8 @@ def strip_plot(ax, panel_key, mean_key, std_key, xref, xref_label, xlabel, title
                 ha="center", va="bottom", fontsize=9.5, color=INK_SECONDARY)
 
     ax.axvline(xref, color=INK_MUTED, linestyle=(0, (4, 3)), linewidth=1.4, zorder=1)
-    ax.text(xref, 1.62, xref_label, ha="center", va="bottom", fontsize=9.5,
+    top_y = max(y_positions)
+    ax.text(xref, top_y + 0.62, xref_label, ha="center", va="bottom", fontsize=9.5,
             color=INK_SECONDARY, fontweight="bold")
 
     ax.set_yticks(y_positions)
@@ -76,7 +80,7 @@ def strip_plot(ax, panel_key, mean_key, std_key, xref, xref_label, xlabel, title
     ax.set_xlabel(xlabel, fontsize=10.5, color=INK_SECONDARY)
     ax.set_title(title, fontsize=12.5, color=INK_PRIMARY, loc="left", pad=14, fontweight="bold")
     ax.set_xlim(0, xmax)
-    ax.set_ylim(-0.6, 1.9)
+    ax.set_ylim(-0.6, top_y + 0.9)
     ax.grid(axis="x", color=GRID, linewidth=0.9, zorder=0)
     ax.set_axisbelow(True)
     for spine in ("top", "right", "left"):
@@ -99,12 +103,12 @@ def main():
                xlabel="Time to re-verify (s)",
                title="Time-to-reverify on unblock", xmax=4.5)
 
-    fig.suptitle("Occlusion (shadowing) test — 21 + 20 trials, receiver_pico debug platform",
+    fig.suptitle("Occlusion (shadowing) test — 21 + 20 + 25 trials, receiver_pico platform",
                  fontsize=11, color=INK_MUTED, x=0.20, ha="left", y=0.95)
 
     fig.text(0.02, 0.02,
-              "Bimodal as-deployed spread (≈ 15.7s / ≈ 18.2s) is 5s-poll aliasing, not a protocol property — "
-              "fine-grained polling collapses to Δ + ≈ 0.11s fixed overhead.",
+              "Bimodal as-deployed spread is 5s-poll aliasing, not a protocol property. On-device (green) reads "
+              "the firmware's own [PRESENCE] transitions directly — zero polling, zero spread.",
               fontsize=8.3, color=INK_MUTED, style="italic")
 
     handles = [plt.Line2D([0], [0], marker="o", color="none", markerfacecolor=c, markersize=8, label=l)
