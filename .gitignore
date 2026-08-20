@@ -2,6 +2,7 @@
 */build/
 build/
 */build/**
+receiver_pico/build_two_pico/
 /.build_target
 venv/
 /.tooling/
