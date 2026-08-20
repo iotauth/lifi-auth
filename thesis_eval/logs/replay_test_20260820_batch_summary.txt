@@ -1,0 +1,55 @@
+=== Trial 1/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 2/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 3/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 4/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 5/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 6/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 7/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 8/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 9/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 10/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 11/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 12/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 13/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 14/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 15/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 16/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 17/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 18/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 19/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 20/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 21/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 22/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 23/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 24/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+=== Trial 25/25 ===
+  immediate_rejected=1 boundary_reaccepted=1
+
+=== FINAL: 25 trials ===
+immediate_replay_rejected: 25 / 25
+boundary_wraparound_reaccepted: 25 / 25
+script failures: 0
