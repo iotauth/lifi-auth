@@ -4,10 +4,13 @@ plot_system_block_diagram.py — System architecture slide figure.
 
 Top row matches the paper's System Model (Sec. IV.A) exactly: Sender,
 Receiver, Verifier, and the two channel types (optical vs TLS) that the
-threat model is built on. Bottom row is the real reporting-plane wiring
-used in the deployed prototype (Pi4 dash_receiver.c -> WiFi/HMAC ->
-dashboard) — shown de-emphasized/dashed because it is implementation,
-not part of the security boundary the thesis argues about.
+threat model is built on. Bottom row is the real reporting/monitoring
+plane of the deployed two-microcontroller prototype (on-device presence
+decision -> USB serial -> host logging) — shown de-emphasized because it
+is implementation, not part of the security boundary the thesis argues
+about. No Pi4/dashboard component is part of this deployed reporting
+path; the Verifier's Linux host (top row) is used only for one-time
+session-key provisioning.
 """
 from pathlib import Path
 
@@ -57,7 +60,7 @@ def main():
     fig.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
 
     ax.text(0.3, 9.25, "System Architecture", fontsize=17, fontweight="bold", color=INK_PRIMARY)
-    ax.text(0.3, 8.82, "Three participants of the security model (top) and the deployed reporting path (bottom)",
+    ax.text(0.3, 8.82, "Three participants of the security model (top) and the on-device monitoring path (bottom)",
             fontsize=10.5, color=INK_MUTED)
 
     # ---- Verifier (top center) ----
@@ -122,20 +125,20 @@ def main():
 
     box(ax, p1x, py, p1w, ph, "Receiver MCU", "RP2350 (same box as above)",
         border=INK_MUTED, fill="#f0efec", lw=1.4)
-    box(ax, p2x, py, p2w, ph, "Pi4 Host", "dash_receiver.c\ndecode · decrypt · verify",
+    box(ax, p2x, py, p2w, ph, "On-Device Decision", "presence_check_decay()\nΔ = 15s (LIVENESS_WINDOW_MS)",
         border=INK_MUTED, fill="#f0efec", lw=1.4)
-    box(ax, p3x, py, p3w, ph, "Dashboard", "app.py (Flask)\npi4_health_monitor()",
+    box(ax, p3x, py, p3w, ph, "Host Monitoring", "liveness_monitor.py\nUSB serial, CSV logging",
         border=INK_MUTED, fill="#f0efec", lw=1.4)
 
     arrow(ax, (p1x + p1w / 2, py), (p2x - p2w / 2, py), INK_MUTED, lw=1.6)
-    ax.text((p1x + p2x) / 2, py + 0.28, "UART", fontsize=8.6, color=INK_SECONDARY, ha="center", style="italic")
+    ax.text((p1x + p2x) / 2, py + 0.28, "firmware", fontsize=8.6, color=INK_SECONDARY, ha="center", style="italic")
     arrow(ax, (p2x + p2w / 2, py), (p3x - p3w / 2, py), INK_MUTED, lw=1.6)
-    ax.text((p2x + p3x) / 2, py + 0.28, "WiFi + HMAC\nHTTP", fontsize=8.6, color=INK_SECONDARY, ha="center", style="italic")
+    ax.text((p2x + p3x) / 2, py + 0.28, "USB serial\n[PRESENCE] lines", fontsize=8.6, color=INK_SECONDARY, ha="center", style="italic")
 
     ax.text(0.3, 0.55,
-            "Evaluation results in Section V were measured on receiver_pico/src/main.c — identical wire\n"
-            "format, freshness state machine, and 64-entry nonce window to dash_receiver.c, omitting only the\n"
-            "WiFi/HMAC layer shown here. Confirming on this Pi4 path is listed as pending (Limitations).",
+            "The freshness/revocation decision runs directly on the receiver firmware (presence_check_decay());\n"
+            "the host script only timestamps its [PRESENCE] verified=true/false lines for CSV logging.\n"
+            "Reported occlusion-test numbers predate this on-device port; re-confirming them is pending (Limitations).",
             fontsize=8.0, color=INK_MUTED, style="italic", linespacing=1.5)
 
     # Legend

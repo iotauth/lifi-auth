@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.3.28)  30 JUL 2026 15:36
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.3.28)  20 AUG 2026 12:12
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -368,7 +368,10 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 f-dist/fonts/enc/dvips/base/8r.enc}
 
 
-] [2]
+]
+Underfull \vbox (badness 1107) has occurred while \output is active []
+
+ [2]
 Underfull \hbox (badness 1412) in paragraph at lines 88--89
  \OT1/ptm/m/it/10 1) Information-Theoretic Phys-i-cal Layer Se-cu-rity: [][] \O
 T1/ptm/m/n/10 The
@@ -443,116 +446,130 @@ Underfull \hbox (badness 1490) in paragraph at lines 188--189
  []
 
 [5]
-Underfull \hbox (badness 2368) in paragraph at lines 261--262
+Underfull \hbox (badness 2368) in paragraph at lines 262--263
 []\OT1/ptm/b/n/10 Optical bea-con (sender). \OT1/ptm/m/n/10 A microcontroller-b
 ased
  []
 
 [6]
-Underfull \hbox (badness 3375) in paragraph at lines 265--266
+Underfull \hbox (badness 3375) in paragraph at lines 266--267
 []\OT1/ptm/b/n/10 Key pro-vi-sion-ing ser-vice (ver-i-fier). \OT1/ptm/m/n/10 A 
 network-
  []
 
 [7]
-Underfull \hbox (badness 1642) in paragraph at lines 318--319
+Underfull \hbox (badness 1642) in paragraph at lines 319--320
 []\OT1/ptm/b/n/10 Mechanism. \OT1/ptm/m/n/10 The re-ceiver main-tains a times-t
 amp $\OML/cmm/m/it/10 t[]$
  []
 
 
-Underfull \hbox (badness 1448) in paragraph at lines 358--359
+Underfull \hbox (badness 1448) in paragraph at lines 359--360
 \OT1/ptm/m/n/10 merely to nonce fresh-ness | e.g., a distance-bounding
  []
 
 [8]
-Underfull \hbox (badness 1478) in paragraph at lines 368--369
+Underfull \hbox (badness 1478) in paragraph at lines 369--370
 \OT1/ptm/m/n/10 erty that dis-tin-guishes presence-based au-tho-riza-tion from
  []
 
 
-Underfull \hbox (badness 2980) in paragraph at lines 400--400
+Underfull \hbox (badness 2980) in paragraph at lines 401--401
 []\OT1/ptm/m/n/9 Freshness / Ex-pi-ra-
  []
 
 
-Underfull \hbox (badness 1442) in paragraph at lines 404--405
+Underfull \hbox (badness 1442) in paragraph at lines 405--406
 []\OT1/ptm/b/n/9 Not achieved \OT1/ptm/m/n/9 | no
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 412--413
+Underfull \hbox (badness 10000) in paragraph at lines 413--414
 []\OT1/ptm/m/n/9 HMAC-SHA256
  []
 
 
-Underfull \hbox (badness 6542) in paragraph at lines 414--415
+Underfull \hbox (badness 6542) in paragraph at lines 415--416
 []\OT1/ptm/m/n/9 Boot salt + atomic
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 416--417
+Underfull \hbox (badness 10000) in paragraph at lines 417--418
 []\OT1/ptm/m/n/9 Dual-slot A/B with
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 418--418
+Underfull \hbox (badness 10000) in paragraph at lines 419--419
 []\OT1/ptm/m/n/9 Key Con-fi-den-tial-ity
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 418--419
+Underfull \hbox (badness 10000) in paragraph at lines 419--420
 []\OT1/pcr/m/n/9 secure_zero()
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 449--449
+Underfull \hbox (badness 10000) in paragraph at lines 451--451
 []\OT1/ptm/m/n/8 PTN78000WAH (TI,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 451--451
+Underfull \hbox (badness 10000) in paragraph at lines 453--453
 []\OT1/ptm/m/n/8 SFH4715A-CBDB
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 457--457
+Underfull \hbox (badness 10000) in paragraph at lines 459--459
 []\OT1/ptm/m/n/8 OPA381AIDGKT (TI, 8-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 459--459
+Underfull \hbox (badness 10000) in paragraph at lines 461--461
 []\OT1/ptm/m/n/8 SFH2400-Z (OS-RAM,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 463--463
+Underfull \hbox (badness 10000) in paragraph at lines 465--465
 []\OT1/ptm/m/n/8 MCP4725A1T-E/CH
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 465--465
+Underfull \hbox (badness 10000) in paragraph at lines 467--467
 []\OT1/ptm/m/n/8 BQ24074RGTR (TI, 16-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 473--473
+Underfull \hbox (badness 10000) in paragraph at lines 475--475
 []\OT1/ptm/m/n/8 Custom PCBs
  []
 
 [9]
+Underfull \hbox (badness 3815) in paragraph at lines 486--487
+\OT1/ptm/m/n/10 mea-sure-ments re-ported in Sec-tions [][] and [][], the
+ []
+
+
+Underfull \hbox (badness 2088) in paragraph at lines 486--487
+\OT1/ptm/m/n/10 receiver-side pro-to-col logic un-der test | CRC val-i-da-
+ []
+
+
+Underfull \hbox (badness 4341) in paragraph at lines 486--487
+\OT1/ptm/m/n/10 de-cryp-tion | runs di-rectly on the re-ceiver firmware
+ []
+
 <lifi_receiver_pcb.png, id=45, 863.225pt x 471.26062pt>
 File: lifi_receiver_pcb.png Graphic file (type png)
 <use lifi_receiver_pcb.png>
-Package pdftex.def Info: lifi_receiver_pcb.png  used on input line 498.
+Package pdftex.def Info: lifi_receiver_pcb.png  used on input line 500.
 (pdftex.def)             Requested size: 252.0pt x 137.56813pt.
 <lifi_sender_pcb.png, id=47, 644.90938pt x 547.04375pt>
 File: lifi_sender_pcb.png Graphic file (type png)
 <use lifi_sender_pcb.png>
-Package pdftex.def Info: lifi_sender_pcb.png  used on input line 505.
+Package pdftex.def Info: lifi_sender_pcb.png  used on input line 507.
 (pdftex.def)             Requested size: 252.0pt x 213.7552pt.
 
-Underfull \hbox (badness 1616) in paragraph at lines 506--506
+Underfull \hbox (badness 1616) in paragraph at lines 508--508
 \OT1/ptm/m/n/10 FETs ($\OMS/cmsy/m/n/10 ^^B$\OT1/ptm/m/n/10 4), PTN78000WAH 12V
 $\OMS/cmsy/m/n/10 !$\OT1/ptm/m/n/10 5V mod-ule, and 4-
  []
@@ -560,21 +577,49 @@ $\OMS/cmsy/m/n/10 !$\OT1/ptm/m/n/10 5V mod-ule, and 4-
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-[10 <./lifi_receiver_pcb.png>]
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
- [11 <./lifi_sender_pcb.png>]
-Overfull \hbox (22.88226pt too wide) in paragraph at lines 565--575
+[10 <./lifi_receiver_pcb.png>] [11 <./lifi_sender_pcb.png>]
+Overfull \hbox (22.88226pt too wide) in paragraph at lines 567--577
  [] 
  []
 
 [12]
-Underfull \hbox (badness 1460) in paragraph at lines 603--604
+Underfull \hbox (badness 1460) in paragraph at lines 605--606
 \OT1/ptm/m/n/10 The sin-gle largest cost driver is the Texas In-stru-ments
  []
 
+
+Underfull \hbox (badness 10000) in paragraph at lines 625--626
+[]\OT1/ptm/b/n/10 Revocation-latency mea-sure-ments pend-ing re-
+ []
+
+
+Underfull \hbox (badness 5203) in paragraph at lines 625--626
+\OT1/ptm/m/n/10 was com-puted by an ex-ter-nal mon-i-tor-ing script
+ []
+
+
+Underfull \hbox (badness 2443) in paragraph at lines 625--626
+\OT1/ptm/m/n/10 than by the re-ceiver's own on-device state. This
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 625--626
+\OT1/ptm/m/n/10 re-ceiver firmware (\OT1/pcr/m/n/10 presence_check_decay()
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 625--626
+\OT1/ptm/m/n/10 in \OT1/pcr/m/n/10 receiver_pico/src/main.c\OT1/ptm/m/n/10 ); r
+e-peat-ing
+ []
+
+
+Underfull \hbox (badness 2035) in paragraph at lines 625--626
+\OT1/ptm/m/n/10 the oc-clu-sion mea-sure-ments against this on-device
+ []
+
 [13]
-Underfull \hbox (badness 2435) in paragraph at lines 638--639
+Underfull \hbox (badness 2435) in paragraph at lines 640--641
 \OT1/ptm/m/n/10 loop con-trol sys-tem that con-tin-u-ously ad-justs the
  []
 
@@ -599,13 +644,13 @@ L3 programming layer <2024-01-22>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 5870 strings out of 476106
- 96511 string characters out of 5793933
- 1953975 words of memory out of 5000000
- 27814 multiletter control sequences out of 15000+600000
+ 5872 strings out of 476106
+ 96562 string characters out of 5793933
+ 1954975 words of memory out of 5000000
+ 27816 multiletter control sequences out of 15000+600000
  607692 words of font info for 140 fonts, out of 8000000 for 9000
  59 hyphenation exceptions out of 8191
- 67i,13n,77p,1757b,378s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 67i,13n,77p,1812b,378s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></us
 r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/shar
 e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb></usr/share/texli
@@ -622,7 +667,7 @@ live/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/share/texlive/texmf-dist
 /fonts/type1/urw/times/utmbi8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/u
 rw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmri8
 a.pfb>
-Output written on conference_101719.pdf (15 pages, 860149 bytes).
+Output written on conference_101719.pdf (15 pages, 860627 bytes).
 PDF statistics:
  144 PDF objects out of 1000 (max. 8388607)
  88 compressed objects within 1 object stream

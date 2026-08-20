@@ -334,12 +334,13 @@ set_notes(s,
           "every message with AES-128-GCM and driving four LED channels in parallel; the client device (Receiver, "
           "RP2350) with a photodiode front-end checking each frame against a 64-entry nonce window before "
           "decryption; and the key provisioning service (IoTAuth), which both sides authenticate to independently "
-          "over TLS with X.509 certs. The orange arrow is the one that matters: the optical channel, one-way, is "
-          "the whole security argument. Below the divider is the real deployed reporting path — WiFi with "
-          "HMAC-signed requests to a dashboard — drawn separately and grayed out on purpose, because it is "
-          "implementation, not part of the security model above it. Flag here that evaluation results were "
-          "measured on the debug receiver shown in the footnote, not this production Pi4 path — you'll return to "
-          "why on the methodology slide.")
+          "over TLS with X.509 certs — the IoTAuth host is used only at provisioning time, not in the runtime "
+          "data path. The orange arrow is the one that matters: the optical channel, one-way, is the whole "
+          "security argument. Below the divider is the on-device monitoring path — the receiver makes its own "
+          "revocation decision in firmware and reports it over USB serial — drawn separately and grayed out on "
+          "purpose, because it is implementation, not part of the security model above it. Flag here that the "
+          "reported occlusion-test numbers predate this on-device decision logic — you'll return to why on the "
+          "methodology slide.")
 
 # ==================================================================
 # SLIDE 6 — Sender
@@ -499,18 +500,18 @@ s = new_slide()
 add_title(s, "Experimental Setup & Methodology")
 add_bullets(s, [
     "Testbed: Pico H sender + Pico 2 H receiver, ~15cm separation, indoor ambient light, no shielding",
-    "IoTAuth provisioning server runs on a Raspberry Pi 4 under Linux",
-    "Freshness, revocation-latency, and replay-boundary results were measured on the debug receiver (receiver_pico/src/main.c)",
-    ("Identical wire format, freshness state machine, and 64-entry nonce window to the production dash_receiver.c", 1),
-    ("Only difference: the debug path omits the WiFi/HMAC control-plane layer, which simplified direct protocol-event instrumentation", 1),
-    "Confirming these measurements on the production Pi4 path is named explicitly as pending work, not silently assumed",
+    "IoTAuth provisioning server runs on a Raspberry Pi 4 under Linux, used only at session-key setup — not part of the runtime data path",
+    "Frame-level protocol logic (CRC, replay, decrypt) runs on the deployed receiver firmware (receiver_pico/src/main.c)",
+    ("The Δ-based revocation decision itself was computed by an external monitoring script at measurement time", 1),
+    ("That decision logic has since been ported directly into the receiver firmware as well (presence_check_decay())", 1),
+    "Re-confirming the reported numbers against this on-device decision is named explicitly as pending work, not silently assumed",
 ])
-set_notes(s, "State the debug-receiver caveat proactively and plainly, in the same tone as every other sentence "
-             "on this slide — don't let your delivery shift when you get to it. The wire format, freshness "
-             "state machine, and nonce window are byte-identical between the two receivers; the only thing "
-             "omitted is the reporting layer, which has nothing to do with the security logic being measured. "
-             "If pressed: this was a deliberate choice to get clean, directly-instrumented protocol events "
-             "rather than parsing them back out of HTTP/dashboard state.")
+set_notes(s, "State the measurement-provenance caveat proactively and plainly, in the same tone as every other "
+             "sentence on this slide — don't let your delivery shift when you get to it. The frame-level parsing "
+             "and crypto were always on-device; only the revocation *decision* (the Δ timer) was external at "
+             "measurement time, mirroring the same logic that's now been moved on-device. If pressed: this was "
+             "a deliberate sequencing choice — get clean, directly-instrumented protocol events first, then move "
+             "the decision itself on-device once the wire-level logic was validated.")
 
 # ==================================================================
 # SLIDE 14 — G4 result (image)
@@ -522,7 +523,7 @@ add_caption(s, "Intrinsic time-to-revoke: 15.11s ± 0.06s — essentially exactl
             top=6.35, bold=True, italic=False)
 set_notes(s,
           "Two strip plots: time-to-revoke on the left, time-to-reverify on the right, two trial batches each. "
-          "Blue is the as-deployed condition, 5-second dashboard polling — 21 trials. Orange is fine-grained "
+          "Blue is the as-deployed condition, 5-second external-monitor polling — 21 trials. Orange is fine-grained "
           "0.2-second polling — 20 trials, run to separate the mechanism's real latency from polling artifacts. "
           "The blue row is bimodal, clustering near 15.7 and 18.2 seconds — that's aliasing against the "
           "5-second poll interval, not the protocol misbehaving. The orange row proves it: once polling is "
@@ -648,19 +649,19 @@ add_bullets(s, [
     "Single-channel reception — four LED channels transmit, but only one photodiode receives",
     "Ambient light sensitivity — partial mitigation via programmable DAC threshold, no full adaptive control yet",
     "No hardware key protection — RP2040/RP2350 lack a TPM or secure element; keys are extractable with physical access + debugger",
-    "Revocation-latency and replay measurements are pending confirmation on the production Pi4 receiver path",
+    "Revocation-latency measurements are pending re-confirmation against the on-device presence decision, ported after these numbers were collected",
 ])
 set_notes(s, "Six limitations, read at the same pace and volume as everything else in the talk — don't rush "
              "through this slide to get past it. The last bullet is the one to make sure lands clearly: it's not "
              "a generic hedge, it's a specific, checkable pending item with a known reason to be cautious. During "
-             "eval prep, debugging surfaced two real, previously-invisible protocol bugs on the debug receiver — "
+             "eval prep, debugging surfaced two real, previously-invisible protocol bugs on the receiver — "
              "a framing bug that broke on binary ciphertext containing 0x0A/0x0D bytes, and a key-push tool "
              "silently writing to the wrong UART, so key rotation no-op'd for an unknown stretch of time despite "
-             "reporting success. Both are fixed on the debug receiver. dash_receiver.c consumes the identical "
-             "wire protocol and hasn't been exercised against a correctly-synced key since — so this isn't "
-             "'probably fine, just untested,' it's 'a specific known bug class this exact path could still have.' "
-             "See the backup slide on the two bugs found during eval prep if asked how you know your measurements "
-             "are trustworthy.")
+             "reporting success. Both are fixed. The reported occlusion-test numbers were collected before the "
+             "revocation decision itself was moved on-device (presence_check_decay()) — the frame-level logic "
+             "was already on-device throughout, so this is a precision re-check, not a rebuild. See the backup "
+             "slide on the two bugs found during eval prep if asked how you know your measurements are "
+             "trustworthy.")
 
 # ==================================================================
 # SLIDE 21 — Future Work
@@ -678,7 +679,7 @@ r.font.name = FONT
 r.font.color.rgb = hexc(CRITICAL)
 add_bullets(s, [
     "Distance-bounding challenge-response for G3 — measured 3–6ms processing latency suggests ample timing margin",
-    "Confirm revocation/replay measurements on the production Pi4 (dash_receiver.c) path",
+    "Confirm revocation-latency measurements against the on-device presence decision (receiver_pico/src/main.c), not just the external monitor",
     "Formal protocol verification (Tamarin / ProVerif) of G1–G4 — not yet attempted, explicitly scoped out",
     "Time-bounded key validity enforcement — abs_validity/rel_validity fields exist but are not yet enforced",
 ], top=col_top, left=0.75, width=5.6, height=4.6, font_size=15, sub_font_size=13)
@@ -699,7 +700,7 @@ add_bullets(s, [
 ], top=col_top, left=6.95, width=5.6, height=4.6, font_size=15, sub_font_size=13)
 
 set_notes(s, "Two columns, and the grouping itself is the point: the left column closes gaps you already admitted "
-             "to earlier in the talk — G3's distance-bounding, the Pi4 confirmation, formal verification — while "
+             "to earlier in the talk — G3's distance-bounding, the on-device confirmation, formal verification — while "
              "the right column extends capability the system already has. Say the grouping out loud rather than "
              "just reading bullets: it signals you know what matters most next, rather than reciting a flat wish "
              "list.")
@@ -906,16 +907,17 @@ add_table(s, ["Bug", "What was wrong", "Impact / fix"], rows, col_widths=[2.2, 5
 add_caption(s, "Both found and fixed on the debug receiver during 2026-07-25 eval prep, before any of the reported measurements were taken.",
             top=4.75, bold=True, italic=False)
 add_bullets(s, [
-    "dash_receiver.c (the production Pi4 path) consumes the identical wire format and session_key.json handling",
-    "It has not been exercised against a correctly-synced key since — a specific, named risk, not a generic caveat",
+    "The receiver firmware's on-device revocation decision (presence_check_decay()) was added after these numbers were measured",
+    "Re-running the occlusion test against it, to confirm the reported latency carries over unchanged, is a specific, named check — not a generic caveat",
 ], top=5.3, height=1.7, font_size=14)
-set_notes(s, "Pull this up if asked how you know the eval numbers are trustworthy, or why the Pi4 confirmation "
-             "gap in Limitations is called out so specifically rather than as generic future work. The honest "
-             "framing: these bugs are evidence the instrumentation was rigorous enough to catch real, "
+set_notes(s, "Pull this up if asked how you know the eval numbers are trustworthy, or why the on-device "
+             "confirmation gap in Limitations is called out so specifically rather than as generic future work. "
+             "The honest framing: these bugs are evidence the instrumentation was rigorous enough to catch real, "
              "previously-invisible problems — including one, the silent key-rotation no-op, that had been "
-             "reporting false success for an unknown stretch of time before anyone noticed. That same class of "
-             "bug is exactly what hasn't been ruled out yet on the production Pi4 path, which is why that item "
-             "is flagged by name rather than left as a vague 'pending' bullet.")
+             "reporting false success for an unknown stretch of time before anyone noticed. The revocation-latency "
+             "numbers were collected while that same decision logic lived in an external monitoring script; it's "
+             "since been ported onto the receiver itself, and re-measuring against it is flagged by name rather "
+             "than left as a vague 'pending' bullet.")
 
 prs.save(OUT)
 print(f"Wrote {OUT}  ({len(prs.slides)} slides)")
