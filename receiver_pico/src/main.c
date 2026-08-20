@@ -54,6 +54,41 @@ static uint8_t  replay_buf[REPLAY_CAP_MAX][NONCE_SIZE];
 static uint32_t replay_idx = 0;
 static uint32_t replay_cap = REPLAY_CAP_MAX;
 
+// Presence/freshness decision — on-device port of the dashboard's
+// pi4_health_monitor()/_set_mac_key_verified() state machine (app.py). A
+// frame that CRC-checks, isn't a replay, and decrypts (DEC_OK) is this
+// board's proof of live presence, same role a Pi4 frame passing HMAC played
+// there. Checked every main-loop iteration (not on a 5s poll like the
+// dashboard), so this is the intrinsic Δ bound with no polling-cadence
+// artifact to explain away.
+#define LIVENESS_WINDOW_MS 15000
+static bool     presence_verified  = false;
+static uint32_t t_last_valid_frame = 0;  // to_ms_since_boot(); 0 = never proven
+
+static void presence_mark_valid(void) {
+    t_last_valid_frame = to_ms_since_boot(get_absolute_time());
+    if (!presence_verified) {
+        presence_verified = true;
+        gpio_put(PICO_DEFAULT_LED_PIN, 1);
+        printf("[PRESENCE] verified=true\n");
+        fflush(stdout);
+    }
+}
+
+// Called every main-loop iteration. Mirrors app.py's decay check:
+// `_mac_key_verified and (now - _last_valid_frame_time) > LIVENESS_WINDOW_S`.
+static void presence_check_decay(void) {
+    if (!presence_verified || t_last_valid_frame == 0) return;
+    uint32_t now = to_ms_since_boot(get_absolute_time());
+    uint32_t age = now - t_last_valid_frame;
+    if (age > LIVENESS_WINDOW_MS) {
+        presence_verified = false;
+        gpio_put(PICO_DEFAULT_LED_PIN, 0);
+        printf("[PRESENCE] verified=false stale_ms=%lu\n", (unsigned long)age);
+        fflush(stdout);
+    }
+}
+
 static bool replay_seen(const uint8_t *nonce) {
     for (uint32_t i = 0; i < replay_cap; i++) {
         if (memcmp(replay_buf[i], nonce, NONCE_SIZE) == 0) return true;
@@ -282,6 +317,13 @@ static void process_complete_frame(const uint8_t *frame_buf, int frame_len, uint
     if (crc_ok) {
         print_frame_fields(frame_buf, frame_len, f_declared_len);
         dec = decrypt_frame(frame_buf, frame_len, f_declared_len, f_type, is_replay, text, sizeof(text));
+        // Only genuinely live frames count as presence proof — a console-
+        // triggered "replay"/"replaypin" re-injection (replay_test=true) is
+        // a deliberate G2 test action, not real traffic, and must not be
+        // able to re-arm G1's liveness timer.
+        if (!replay_test && dec == DEC_OK) {
+            presence_mark_valid();
+        }
     } else {
         printf("  (CRC mismatch - skipping field breakdown/decrypt)\n");
         print_hex_dump(frame_buf, frame_len);
@@ -310,6 +352,10 @@ int main() {
     stdio_init_all();
     sleep_ms(3000);  // Allow USB to enumerate
 
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+    gpio_put(PICO_DEFAULT_LED_PIN, 0);  // Off until the first frame proves presence
+
     printf("\n");
     print_divider('=');
     printf(" Pico 2 LiFi Receiver\n");
@@ -331,6 +377,10 @@ int main() {
     uint32_t last_heartbeat = 0;
 
     while (true) {
+        // Decay check runs every loop iteration (sub-ms cadence), not on a
+        // poll timer, so time-to-revoke is bounded by Δ alone.
+        presence_check_decay();
+
         // Heartbeat every 2s so we know USB output is working
         uint32_t now = to_ms_since_boot(get_absolute_time());
         if (now - last_heartbeat >= 2000) {
@@ -353,9 +403,10 @@ int main() {
                     raw_mode = false;
                     printf("Raw mode OFF\n");
                 } else if (strcmp(cmd, "status") == 0) {
-                    printf("RX: GP%d | Baud: %lu | Mode: %s | Msgs: %lu | Key: %s\n",
+                    printf("RX: GP%d | Baud: %lu | Mode: %s | Msgs: %lu | Key: %s | Presence: %s\n",
                            RX_PIN, current_baud, raw_mode ? "RAW" : "SST", msg_count,
-                           key_loaded ? "loaded" : "none");
+                           key_loaded ? "loaded" : "none",
+                           presence_verified ? "verified" : "unverified");
                 } else if (strcmp(cmd, "pintest") == 0) {
                     printf("Sampling GP%d for 3s...\n", RX_PIN);
                     fflush(stdout);
