@@ -1,31 +1,34 @@
 #!/usr/bin/env python3
 """
-liveness_monitor.py — standalone liveness/revocation state machine for the
-debug receiver (receiver_pico/src/main.c), mirroring pi4_health_monitor() /
-_set_mac_key_verified() in sender/dashboard/app.py so results are directly
-comparable if this logic is later ported to the real Pi4 path.
+liveness_monitor.py — passive CSV logger for the debug receiver's own
+on-device presence decision (receiver_pico/src/main.c's presence_mark_valid()/
+presence_check_decay(), see LIVENESS_WINDOW_MS).
 
-Watches the receiver's USB serial output for the machine-parseable
-"[EVT] msg=N type=0xXX crc=ok|fail replay=no|YES decrypt=ok|... text=\"...\""
-lines that receiver_pico/src/main.c emits per frame (see process_complete_frame()).
+Watches the receiver's USB serial output for two machine-parseable line
+families that receiver_pico/src/main.c emits:
 
-A frame counts as "valid" (refreshes the liveness clock) only if:
-  crc=ok AND replay=no AND decrypt=ok
-— i.e. it actually decrypted with the current key, matching what an HMAC
-match on /pi4_frame proves on the real system.
+  "[EVT] msg=N type=0xXX crc=ok|fail replay=no|YES decrypt=ok|... text=\"...\""
+      — per-frame detail, logged verbatim as a 'frame' row for context.
 
-State-change logging mirrors _set_mac_key_verified()'s "only log on actual
-change" guard exactly, so a steady stream of valid frames doesn't spam the
-log every poll tick.
+  "[PRESENCE] verified=true" / "[PRESENCE] verified=false stale_ms=N"
+      — the receiver's own VERIFIED/REVOKED transitions, checked every
+      main-loop iteration on-device. This script no longer computes the
+      decay itself (that used to mirror app.py's pi4_health_monitor() over
+      a --poll-interval, which is exactly the polling-cadence jitter the
+      firmware port was meant to remove) — it just timestamps the board's
+      decisions as they arrive.
 
 Usage:
     python3 liveness_monitor.py [--port /dev/ttyACM0] [--baud 115200]
-                                 [--poll-interval 5.0] [--liveness-window 15.0]
 
 While running, type any line + Enter (e.g. "occlude", "unblock") to drop a
 timestamped manual marker into the same log — useful for correlating human
 actions (physically blocking/unblocking the beam) with the logged state
 transitions during the occlusion experiment.
+
+Output CSV schema (unix_ts, iso_ts, event, detail) is unchanged from the
+previous version, so analyze_occlusion.py works against these logs as-is —
+REVOKED rows still carry a "<age>s since last valid frame" detail string.
 """
 
 import argparse
@@ -40,20 +43,15 @@ from datetime import datetime
 EVT_RE = re.compile(
     r'\[EVT\]\s+msg=(\d+)\s+type=0x([0-9A-Fa-f]+)\s+crc=(\w+)\s+replay=(\w+)\s+decrypt=(\w+)\s+text="([^"]*)"'
 )
+PRESENCE_RE = re.compile(
+    r'\[PRESENCE\]\s+verified=(true|false)(?:\s+stale_ms=(\d+))?'
+)
 
 
 class LivenessMonitor:
-    def __init__(self, port, baud, poll_interval, liveness_window, log_path):
-        self.port = port
-        self.baud = baud
-        self.poll_interval = poll_interval
-        self.liveness_window = liveness_window
+    def __init__(self, log_path):
         self.log_path = log_path
-
         self.lock = threading.Lock()
-        self.verified = False
-        self.last_valid_frame_time = None
-        self.running = True
 
         self._log_f = open(log_path, 'w', newline='')
         self._csv = csv.writer(self._log_f)
@@ -74,38 +72,18 @@ class LivenessMonitor:
             return
         msg_num, msg_type, crc, replay, decrypt, text = m.groups()
         is_valid = (crc == 'ok' and replay == 'no' and decrypt == 'ok')
+        self._log('frame', f'msg={msg_num} type=0x{msg_type} crc={crc} replay={replay} decrypt={decrypt} valid={is_valid} text="{text}"')
 
-        self._log('frame', f'msg={msg_num} type=0x{msg_type} crc={crc} replay={replay} decrypt={decrypt} valid={is_valid}')
-
-        if not is_valid:
+    def handle_presence_line(self, line):
+        m = PRESENCE_RE.search(line)
+        if not m:
             return
-
-        with self.lock:
-            self.last_valid_frame_time = time.time()
-            changed = not self.verified
-            self.verified = True
-        if changed:
-            self._log('VERIFIED', f'first valid frame after gap (msg={msg_num}, text="{text}")')
-
-    def decay_loop(self):
-        while self.running:
-            time.sleep(self.poll_interval)
-            with self.lock:
-                verified = self.verified
-                last = self.last_valid_frame_time
-            if verified and last is not None:
-                age = time.time() - last
-                if age > self.liveness_window:
-                    with self.lock:
-                        # re-check under lock in case a frame arrived between
-                        # the read above and now
-                        if self.verified and self.last_valid_frame_time == last:
-                            self.verified = False
-                            changed = True
-                        else:
-                            changed = False
-                    if changed:
-                        self._log('REVOKED', f'{age:.3f}s since last valid frame (window={self.liveness_window}s)')
+        verified, stale_ms = m.groups()
+        if verified == 'true':
+            self._log('VERIFIED', 'first valid frame after gap (on-device)')
+        else:
+            age_s = int(stale_ms) / 1000.0 if stale_ms is not None else float('nan')
+            self._log('REVOKED', f'{age_s:.3f}s since last valid frame (on-device decision)')
 
     def marker_loop(self):
         for line in sys.stdin:
@@ -114,7 +92,6 @@ class LivenessMonitor:
                 self._log('MARKER', line)
 
     def close(self):
-        self.running = False
         self._log_f.close()
 
 
@@ -134,10 +111,6 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--port', default='/dev/ttyACM0', help='Debug receiver serial port (default: /dev/ttyACM0)')
     ap.add_argument('--baud', type=int, default=115200, help='Serial baud for the USB CDC link (cosmetic for RP2 CDC-ACM, default 115200)')
-    ap.add_argument('--poll-interval', type=float, default=5.0,
-                     help='Decay-check cadence in seconds (default 5.0, matches pi4_health_monitor exactly)')
-    ap.add_argument('--liveness-window', type=float, default=15.0,
-                     help='Seconds without a valid frame before revoking (default 15.0, matches LIVENESS_WINDOW_S)')
     ap.add_argument('--logdir', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs'),
                      help='Directory for the timestamped CSV log (default thesis_eval/logs)')
     ap.add_argument('--duration', type=float, default=None,
@@ -149,12 +122,11 @@ def main():
     session_ts = datetime.now().strftime('%Y%m%d_%H%M%S')
     log_path = os.path.join(args.logdir, f'liveness_{session_ts}.csv')
 
-    mon = LivenessMonitor(args.port, args.baud, args.poll_interval, args.liveness_window, log_path)
+    mon = LivenessMonitor(log_path)
     print(f'[liveness_monitor] Logging to {log_path}')
-    print(f'[liveness_monitor] poll_interval={args.poll_interval}s liveness_window={args.liveness_window}s')
+    print('[liveness_monitor] Watching for on-device [PRESENCE] verified=true/false lines (no local decay computation).')
     print('[liveness_monitor] Type a line + Enter anytime to drop a timestamped marker (e.g. "occlude", "unblock").')
 
-    threading.Thread(target=mon.decay_loop, daemon=True).start()
     threading.Thread(target=mon.marker_loop, daemon=True).start()
 
     if args.duration:
@@ -177,6 +149,7 @@ def main():
                 continue
             if raw:
                 mon.handle_evt_line(raw)
+                mon.handle_presence_line(raw)
     except KeyboardInterrupt:
         pass
     finally:
