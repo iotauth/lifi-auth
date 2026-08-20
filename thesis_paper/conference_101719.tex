@@ -229,15 +229,11 @@ An HMAC-SHA256 challenge-response protocol authenticates the key exchange:
 \item The sender independently computes the same HMAC using its copy of the session key and compares the result. A match confirms that both parties hold the same key.
 \end{enumerate}
 
-\subsubsection{Optical Key Identifier Distribution}
+\subsubsection{Key Delivery to Receiver}
 
-In addition to direct key delivery over UART, the system supports an independent key acquisition mode in which the session key itself never traverses the optical channel. In this mode, the sender — having received a session key from the provisioning host — extracts the 8-byte key identifier and transmits it over the LiFi optical link as a standard encrypted frame. The key identifier is not secret: it serves only as a lookup index into the IoTAuth server's key database.
+Unlike the sender, the receiver in the evaluated two-microcontroller configuration does not itself authenticate to the IoTAuth server or hold network credentials — the Pico~2~H used in this prototype has no wireless interface, and \texttt{receiver\_pico/src/main.c} implements no TLS client. Instead, the session key reaches the receiver over its USB serial console: the sender prints its active session key in hex after receiving it from the provisioning host, and an operator pastes this value into the receiver's \texttt{key <hex>} console command, which accepts the identical hex format and loads it for on-device AES-128-GCM decryption.
 
-Upon receiving and decoding the key identifier, the receiver independently connects to the IoTAuth authentication server over its own TLS-authenticated network channel, presents the received key identifier, and retrieves the corresponding session key. Both devices now hold the same session key, established through two independent authenticated channels — the sender via UART from the provisioning host, the receiver via TLS from the IoTAuth server — with only the non-secret identifier bridging the two paths over light.
-
-This design provides two security advantages. First, the session key material is never exposed on the optical channel, even in encrypted form — eliminating the optical link as an attack surface for key extraction. An adversary who captures the optical transmission obtains only a key identifier that is useless without authenticated access to the IoTAuth server. Second, the receiver's independent authentication to the IoTAuth server provides mutual verification: the server confirms the receiver's identity via X.509 credentials before releasing the key, and the receiver confirms the server's identity via the TLS certificate chain. The optical channel serves only as a rendezvous signal — a lightweight, physically scoped notification that a specific key is now active — while the cryptographic heavy lifting occurs over the authenticated network path.
-
-This separation of the signaling plane (optical) from the key distribution plane (network) mirrors the architectural pattern used in cellular networks, where the radio channel carries identifiers and the core network handles credential distribution. In the LiFi context, it additionally ensures that key provisioning is contingent on physical optical presence: the receiver cannot learn which key to request without first being positioned within the sender's optical transmission cone.
+This is a manual, operator-mediated step in the current prototype, not an independently authenticated network exchange — the receiver's copy of the key is only as trustworthy as the local USB connection used to enter it, and it is not corroborated by any second, independent channel the way the sender's HMAC-SHA256 challenge-response (Section~\ref{sec:key-provisioning-arch}) corroborates its own. Automating this — for example, having the receiver retrieve its key from IoTAuth via a networked host companion once the receiver's optical key identifier is decoded, so both devices' keys are established over two independently authenticated channels rather than one being copied by hand — is identified as future work (Section~\ref{sec:future-work}).
 
 \subsubsection{Key Rotation}
 
@@ -624,6 +620,8 @@ Several limitations of the current implementation should be acknowledged:
 
 \item \textbf{No hardware key protection.} The RP2040 and RP2350 do not include a hardware security module or trusted execution environment. Session keys stored in flash are extractable by an adversary with physical access and a debugger. Integration with a Trusted Platform Module (TPM) or secure element would address this limitation.
 
+\item \textbf{Receiver key delivery is manual, not independently authenticated.} Unlike the sender, which acquires its session key over UART with HMAC-SHA256 challenge-response verification (Section~\ref{sec:key-provisioning-arch}), the receiver's copy is entered by an operator pasting hex output from the sender's console into the receiver's own console. This is adequate for a benchtop prototype but is not corroborated by a second, independent channel the way the sender's key is — an operator error or a compromised console session could load an incorrect or stale key without detection.
+
 \end{enumerate}
 
 \section{Future Work}
@@ -637,6 +635,8 @@ Several extensions are planned or under consideration:
 \item \textbf{Formal protocol verification.} The security goals G1--G4 are amenable to formal verification using symbolic model checkers such as ProVerif or Tamarin Prover. Modeling the optical channel as a location-restricted link and verifying that the protocol satisfies freshness, replay resistance, and relay-boundedness under the stated adversary model would strengthen the theoretical foundations of this work.
 
 \item \textbf{Multi-sender and multi-receiver environments.} Extending the system to support multiple overlapping optical zones, each with independent session keys and sender identifiers, would enable deployment in open-plan offices, warehouses, and multi-room facilities. The key identifier field in the existing flash block structure provides an architectural anchor for this extension.
+
+\item \textbf{Independently authenticated receiver key delivery.} Automating receiver key acquisition — e.g., a networked host companion that retrieves the session key from IoTAuth over TLS once the receiver has decoded a key identifier from the sender, mirroring the sender's own provisioning path — would replace the current manual console-paste step with a second, independently authenticated channel, removing the operator-trust dependency identified in Section~\ref{sec:limitations}.
 
 \item \textbf{Adaptive threshold control.} Implementing a closed-loop control system that continuously adjusts the MCP4725 DAC threshold based on measured ambient light levels and signal amplitude would improve robustness across varying lighting conditions without manual calibration.
 
