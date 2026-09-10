@@ -1755,29 +1755,26 @@ int main(int argc, char* argv[]) {
             state_deadline = (struct timespec){0, 0};
         }
 
-        // --- Raw-byte activity report (every ~3s, regardless of whether
-        // any byte was read this iteration or matched anything) ---
+        // --- Raw-byte activity report (checked every ~3s, but only
+        // actually reported when bytes were seen — a silent UART shouldn't
+        // spam the log/dashboard every 3s) ---
         if (timespec_passed(&raw_report_deadline)) {
-            char hex[16 * 5 + 1];
-            size_t hlen = 0;
-            for (size_t i = 0; i < raw_preview_len && hlen + 6 < sizeof(hex); i++) {
-                hlen += (size_t)snprintf(hex + hlen, sizeof(hex) - hlen,
-                                          "%02X'%c' ", raw_preview[i],
-                                          printable_char(raw_preview[i]));
-            }
-            hex[hlen] = '\0';
+            if (raw_byte_since_report > 0) {
+                char hex[16 * 5 + 1];
+                size_t hlen = 0;
+                for (size_t i = 0; i < raw_preview_len && hlen + 6 < sizeof(hex); i++) {
+                    hlen += (size_t)snprintf(hex + hlen, sizeof(hex) - hlen,
+                                              "%02X'%c' ", raw_preview[i],
+                                              printable_char(raw_preview[i]));
+                }
+                hex[hlen] = '\0';
 
-            char m[300];
-            if (raw_byte_since_report == 0) {
-                snprintf(m, sizeof(m),
-                         "[LIFI RAW] 0 bytes in last 3s (total=%lu, uart_state=%d) - nothing hitting the UART",
-                         raw_byte_total, uart_state);
-            } else {
+                char m[300];
                 snprintf(m, sizeof(m),
                          "[LIFI RAW] %lu bytes in last 3s (total=%lu, uart_state=%d), first %zu: %s",
                          raw_byte_since_report, raw_byte_total, uart_state, raw_preview_len, hex);
+                reporter_post_status_message(m);
             }
-            reporter_post_status_message(m);
 
             raw_byte_since_report = 0;
             raw_preview_len = 0;

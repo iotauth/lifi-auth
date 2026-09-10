@@ -404,7 +404,7 @@
   <main id="setupScreen">
     <div class="panel">
       <h1 class="hero">Study what's actually in the talk.</h1>
-      <p class="hero-sub">48 questions pulled straight from the paper, the eval data, and the SST/IoTAuth
+      <p class="hero-sub">46 questions pulled straight from the paper, the eval data, and the SST/IoTAuth
         integration — the kind a committee actually asks. Reveal, rate yourself, and the weak ones come
         back around.</p>
 
@@ -518,16 +518,12 @@
       a: "keys_receiver (a Linux host app) uses the SST C API — init_SST(), get_session_key() — to fetch a session_key_t from the IoTAuth server over TLS, then delivers it to the Pico sender over a dedicated UART channel." },
     { id: "s5", cat: "SST / Auth", q: "How is key delivery confirmed, rather than just assumed?",
       a: "A four-state HMAC handshake: IDLE → send challenge → WAITING_FOR_YES (ACK) → WAITING_FOR_ACK (KEY_OK) → WAITING_FOR_HMAC_RESP → verified. Only a matching HMAC response confirms both sides hold the identical key." },
-    { id: "s6", cat: "SST / Auth", q: "What is the “optical key-identifier rendezvous” design, and why build it that way?",
-      a: "Only a non-secret 8-byte key ID is transmitted optically — never the session key itself. The receiver independently authenticates to the Auth server over its own TLS channel to fetch the actual key. An adversary capturing the optical transmission gets only a useless lookup ID." },
-    { id: "s7", cat: "SST / Auth", q: "What is “roaming discovery,” and which code implements it?",
-      a: "When a receiver doesn't recognize a broadcast key ID locally, it queries the Auth server directly (get_session_key_by_ID) over mutual TLS. Implemented in ask_receiver.c (“the Detective”) — it starts with no keys and discovers devices from their optical ID broadcast." },
-    { id: "s8", cat: "SST / Auth", q: "What happens if Auth doesn't recognize the device ID being looked up?",
-      a: "Auth returns an explicit rejection (unknown/revoked) instead of a key. This is Auth's identity-layer revocation — an administrative denial — distinct from G4's physical-layer revocation (signal interruption)." },
-    { id: "s9", cat: "SST / Auth", q: "What is the runtime HMAC challenge, and how does it differ from the passive freshness check?",
-      a: "The receiver can send a 32-byte random challenge to the sender at any time (MSG_TYPE_CHALLENGE) over the optical/UART link. The sender computes HMAC-SHA256 under the session MAC key, encrypts the response, and sends it back; the receiver recomputes locally and compares. It's a stronger, on-demand, interactive proof of live key possession — versus just “a frame happened to decrypt.”" },
-    { id: "s10", cat: "SST / Auth", q: "Name the three receiver binaries and their distinct Auth interaction models.",
-      a: "keys_receiver (“the Manager” — proactively fetches and pushes a key at startup), flash_receiver (combined session app — chat/file transfer + HMAC verification + key management), ask_receiver (“the Detective” — starts with no keys, discovers via optical broadcast plus roaming lookup)." },
+    { id: "s6", cat: "SST / Auth", q: "How does the receiver actually get its session key today?",
+      a: "Manually — the sender prints its active session key in hex to its own console after receiving it via the HMAC-verified UART provisioning path, and an operator pastes that hex into the receiver's key <hex> console command. Unlike the sender's key, the receiver's copy isn't corroborated by a second, independent channel; that asymmetry is a named limitation, with an automated networked-companion-host version identified as future work." },
+    { id: "s7", cat: "SST / Auth", q: "Was “roaming” key-ID discovery over TLS ever part of the evaluated system?",
+      a: "No. It was prototyped in the retired Pi4/dashboard stack (ask_receiver.c, dash_receiver.c/app.py), but receiver_pico/src/main.c — the canonical firmware this thesis evaluates — never implemented it. The relevant message type is recognized for framing only, with no TLS client or lookup logic behind it, and the Pico 2 H has no wireless interface to do TLS on regardless." },
+    { id: "s9", cat: "SST / Auth", q: "Is there a live, on-demand challenge-response check during operation, separate from the passive per-frame freshness check?",
+      a: "No — MSG_TYPE_CHALLENGE is recognized for framing in receiver_pico/src/main.c but has no challenge logic behind it; that live-HMAC-challenge design existed only in the retired Pi4/dashboard stack. In the evaluated system, live key possession is proven passively, per frame: GCM tag verification plus the nonce window check, not an interactive challenge." },
 
     // ---- Threat Model ----
     { id: "t1", cat: "Threat Model", q: "What are the adversary's five capabilities?",
@@ -552,8 +548,8 @@
       a: "A distance-bounding challenge-response (Brands–Chaum style): the receiver issues a random nonce and the sender must respond within a tightly bounded round trip, so any relay-added latency causes the response to arrive too late. Not implemented — but the existing bidirectional link and ~3–6ms measured processing latency suggest it's architecturally feasible." },
 
     // ---- Methodology ----
-    { id: "me1", cat: "Methodology", q: "Why was the debug receiver used instead of the production Pi4 (dash_receiver.c)?",
-      a: "They share identical wire format, freshness state machine, and 64-entry nonce window — the debug path just omits the WiFi/HMAC control-plane layer, which simplified direct protocol-event instrumentation. Confirming on the Pi4 path is named explicitly as pending work, not silently assumed equivalent." },
+    { id: "me1", cat: "Methodology", q: "Why is receiver_pico/src/main.c the evaluated receiver, rather than the Pi4 (dash_receiver.c)?",
+      a: "The Pi4/Flask-dashboard stack was retired as a runtime component — Pi4 is now described consistently as an offline IoTAuth provisioning host only, not a receiver participant. All reported freshness, revocation-latency, and replay-boundary results (CRC validation, nonce-window replay checking, AES-128-GCM decryption, and — since the on-device port — the Δ-based revocation decision itself) run on receiver_pico/src/main.c, the canonical firmware in the evaluated two-microcontroller architecture." },
     { id: "me2", cat: "Methodology", q: "What's the testbed setup for the evaluation?",
       a: "Pico H sender + Pico 2 H receiver, ~15cm separation, indoor ambient light, no shielding, white LED channel, IoTAuth server running on a Raspberry Pi 4." },
 
@@ -575,13 +571,13 @@
     { id: "d2", cat: "Discussion", q: "Why wasn't symbolic verification (Tamarin/ProVerif) done?",
       a: "A full model — SST mutual auth plus the AES-GCM data channel plus two independent replay windows — is substantial, specialized modeling work, not something to fit alongside the empirical evaluation chapter. An incomplete or buggy formal model would read worse than an honest “empirically demonstrated, not formally proven” claim." },
     { id: "d3", cat: "Discussion", q: "List the six stated limitations.",
-      a: "Line-of-sight requirement; no relay resistance (G3); single-channel reception (4 TX / 1 RX); ambient light sensitivity; no hardware key protection (no TPM/secure element); revocation and replay measurements pending confirmation on the production Pi4 path." },
+      a: "Line-of-sight requirement; no relay resistance (G3); single-channel reception (4 TX / 1 RX); ambient light sensitivity; no hardware key protection (no TPM/secure element); receiver key delivery is manual and not independently authenticated (unlike the sender's HMAC-verified provisioning)." },
     { id: "d4", cat: "Discussion", q: "What's the total hardware cost, and why does that matter?",
       a: "About $82 at verified DigiKey pricing — roughly two orders of magnitude below commercial LiFi access points, showing the approach is achievable on resource-constrained embedded platforms without specialized or expensive hardware." },
     { id: "d5", cat: "Discussion", q: "What's the single biggest cost driver in the BOM?",
       a: "The PTN78000WAH DC-DC module at $24.58, chosen for research-prototype convenience — a discrete buck regulator would bring the total under $60." },
     { id: "d6", cat: "Discussion", q: "How is the future-work list ordered, and why does that ordering matter?",
-      a: "By priority, not novelty: distance-bounding for G3 and confirming results on the Pi4 path come first because they close gaps already admitted to in the talk, ahead of extensions like higher data rates or hardware key protection — signals you know what matters most next." },
+      a: "It's a mix: some items close gaps already named elsewhere in the talk — formal protocol verification (the symbolic-verification gap), independently authenticated receiver key delivery (the manual-paste limitation) — others are capability extensions, like higher data rates, optical concentration, or a robotic-platform demo. If pressed live on priority, lead with the gap-closing items — they're the ones a careful committee member is already thinking about." },
 
     // ---- Toughest Questions ----
     { id: "x1", cat: "Toughest", flag: true, q: "“Isn't Δ basically a relay bound? Why is G3 not achieved if G1 already limits how long a frame is valid?”",

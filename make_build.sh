@@ -201,6 +201,17 @@ if [[ "$BUILD_TARGET" == "pico" ]]; then
     echo "📦 UF2 (speed test): $art_dir/$fname"
   fi
 
+  # 3. Legacy UART flash sender (lifi_flash) - prototype, not the active firmware
+  uf2="$build_dir/sender/lifi_flash.uf2"
+  if [[ -f "$uf2" ]]; then
+    fname="${ts}_lifi_flash.uf2"
+    cp -f -- "$uf2" "$art_dir/$fname"
+    (cd "$art_dir" && sha256sum "$fname" > "$fname.sha256")
+    manifest="$art_dir/${ts}_lifi_flash.json"
+    write_manifest "$manifest" "pico" "$ver_tag" "$ts" "$fname"
+    echo "📦 UF2 (legacy flash): $art_dir/$fname"
+  fi
+
 elif [[ "$BUILD_TARGET" == "pi4" || "$BUILD_TARGET" == "receiver" ]]; then
   # 1. Flash Receiver (Original Session Receiver)
   # Look for 'flash_receiver' (was lifi_session_receiver)

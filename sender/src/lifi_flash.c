@@ -29,6 +29,10 @@
 #define PREAMBLE_BYTE_2 0xCD
 #define MSG_TYPE_ENCRYPTED 0x02
 
+// cmd_handler.c calls this extern for "CMD: leds <mask>"; this legacy
+// single-UART sender predates the multi-LED PIO hardware, so it's a no-op.
+void set_led_mask(uint8_t mask) { (void)mask; }
+
 int main() {
     stdio_init_all();
     pico_prng_init();

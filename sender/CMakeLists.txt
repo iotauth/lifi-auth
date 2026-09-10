@@ -61,3 +61,31 @@ target_link_libraries(pico_speed_test_sender PRIVATE
 pico_enable_stdio_usb(pico_speed_test_sender 1)
 pico_enable_stdio_uart(pico_speed_test_sender 0)
 pico_add_extra_outputs(pico_speed_test_sender)
+
+# --- Legacy UART Flash Sender (lifi_flash) ---
+add_executable(lifi_flash
+  src/lifi_flash.c
+)
+
+target_include_directories(lifi_flash PRIVATE
+  ${CMAKE_SOURCE_DIR}            # for "config/mbedtls_config.h"
+  ${MBEDTLS_DIR}/include
+  ${CMAKE_SOURCE_DIR}/include
+)
+
+target_compile_definitions(lifi_flash PRIVATE
+  MBEDTLS_CONFIG_FILE="config/mbedtls_config.h"
+)
+
+target_link_libraries(lifi_flash PRIVATE
+  pico_stdlib
+  pico_rand
+  sst_embedded
+  hardware_flash
+  hardware_watchdog
+  hardware_sync
+)
+
+pico_enable_stdio_usb(lifi_flash 1)
+pico_enable_stdio_uart(lifi_flash 0)
+pico_add_extra_outputs(lifi_flash)

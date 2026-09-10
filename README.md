@@ -79,7 +79,7 @@ Our primary goal is presence-based authorization: a device should remain authori
 
 Concretely, we aim to provide:
 
-*   **G1 — Freshness / Expiration:** authorization depends on presence material that expires automatically after Δ.
+*   **G1 — Freshness / Expiration:** authorization decays automatically after Δ elapses since the last verified frame — a continuous-presence bound anchored to the receiver's local clock, not a per-message embedded timestamp.
 *   **G2 — Replay Resistance:** previously observed presence material cannot be reused after expiration.
 *   **G3 — Relay-Bounded Authorization:** relay attacks cannot extend authorization indefinitely; success is limited by Δ and degrades with relay delay/jitter.
 *   **G4 — Revocation on Interruption:** loss of optical reception leads to deauthorization within Δ (immediately or via the decay window).

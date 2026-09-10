@@ -298,11 +298,16 @@ static void process_complete_frame(const uint8_t *frame_buf, int frame_len, uint
                                     uint16_t f_declared_len, uint32_t elapsed_ms, bool replay_test) {
     int  crc_ok    = crc16_validate(frame_buf, frame_len);
     bool is_replay = false;
+    bool has_nonce = false;
     const int nonce_off = 3;
 
     if (crc_ok && f_type == MSG_TYPE_ENCRYPTED && frame_len >= nonce_off + NONCE_SIZE) {
+        has_nonce = true;
         is_replay = replay_seen(&frame_buf[nonce_off]);
-        if (!is_replay) replay_add(&frame_buf[nonce_off]);
+        // Insertion happens below, only after GCM auth succeeds — adding on
+        // CRC-pass alone let an attacker with no key evict real captured
+        // nonces from the window using unauthenticated junk frames, then
+        // replay the evicted (genuine) frame once its slot was freed.
     }
 
     print_divider('=');
@@ -317,6 +322,11 @@ static void process_complete_frame(const uint8_t *frame_buf, int frame_len, uint
     if (crc_ok) {
         print_frame_fields(frame_buf, frame_len, f_declared_len);
         dec = decrypt_frame(frame_buf, frame_len, f_declared_len, f_type, is_replay, text, sizeof(text));
+        // Only a nonce that actually proved presence (successful GCM auth)
+        // is remembered — see comment above where has_nonce/is_replay are set.
+        if (has_nonce && !is_replay && dec == DEC_OK) {
+            replay_add(&frame_buf[nonce_off]);
+        }
         // Only genuinely live frames count as presence proof — a console-
         // triggered "replay"/"replaypin" re-injection (replay_test=true) is
         // a deliberate G2 test action, not real traffic, and must not be

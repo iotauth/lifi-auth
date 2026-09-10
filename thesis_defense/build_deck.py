@@ -411,23 +411,40 @@ set_notes(s, "This slide exists to head off a specific committee assumption: tha
 # SLIDE 9 — Sender provisioning & key rotation
 # ==================================================================
 s = new_slide()
-add_title(s, "Sender Provisioning & Key Rotation")
+add_title(s, "Sender Provisioning & Key Rotation",
+          "Corrected against source — pico_provisioner.c and lifi_session_sender.c, not the earlier diagram")
 add_bullets(s, [
-    "IoTAuth Server (Java, TLS-protected) ↔ keys_receiver (Linux host) via the SST C API",
+    "IoTAuth Server (Java, TLS-protected) → pico_provisioner (Linux host) via the SST C API",
     ("init_SST() → get_session_key() → session_key_t { key ID, cipher key, MAC key, mode, validity }", 1),
-    "Session key delivered to the Pico sender over a dedicated UART channel (1 Mbps)",
-    "Delivery is confirmed, not assumed — a 4-state HMAC handshake between host and sender:",
-    ("IDLE → send challenge → WAITING_FOR_YES (ACK) → WAITING_FOR_ACK (KEY_OK) → WAITING_FOR_HMAC_RESP → verified", 1),
-    "Only once the HMAC response matches does the host consider the key genuinely loaded",
-    "Keys persist in dual-slot (A/B) flash, SHA-256 integrity-checked — rotation writes the inactive slot first, old slot kept as rollback",
-], top=1.75, height=5.3, font_size=15.5, sub_font_size=13.5)
-set_notes(s, "This is the mechanical half of the provisioning story: how a session key actually gets from the "
-             "Java Auth server into the Pico's flash with confidence it arrived correctly. The four-state "
-             "handshake is a real, implemented state machine — not a conceptual sketch — walk it in order without "
-             "rushing the last transition, since 'verified' here is exactly what makes the difference between "
-             "'we sent a key' and 'we confirmed both sides hold the identical key.' The dual-slot rotation point "
-             "is worth a sentence on its own: rotation is zero-downtime because the new key lands in the inactive "
-             "slot first, and the old key is still available as an explicit rollback until someone clears it.")
+    "Session key pushed to the Pico sender over its USB serial port (CDC-ACM, /dev/ttyACM0, 1 Mbps) — the "
+    "same USB connection used for power and the console, not a separate dedicated UART wire",
+    "Delivery is best-effort, not confirmed: pico_provisioner writes the MSG_TYPE_KEY frame and reports "
+    "success as soon as write() returns — nothing reads back an acknowledgment from the Pico",
+    ("If the write itself fails (Pico not connected), the key is saved to session_key.json for manual retry "
+     "— but a successful write is never verified end-to-end. The 4-state HMAC handshake once shown here "
+     "(IDLE→WAITING_FOR_YES→WAITING_FOR_ACK→WAITING_FOR_HMAC_RESP) is real code, but it lives in the retired "
+     "Pi4-side receiver binaries (flash_receiver.c/dash_receiver.c), explicitly marked legacy — it never "
+     "confirmed sender key delivery.", 1),
+    "Keys persist in dual-slot (A/B) flash, SHA-256 integrity-checked",
+    ("Operator-driven rotation ('CMD: new key' at the sender console) writes the inactive slot first and "
+     "refuses to overwrite an occupied slot without -f — genuine rollback safety", 1),
+    ("The automated provisioning push above writes directly to whichever slot is currently active — it does "
+     "not use the inactive-slot-first pattern", 1),
+], top=1.75, height=5.3, font_size=14.5, sub_font_size=12.5)
+set_notes(s, "This slide was corrected during defense prep after cross-checking it against pico_provisioner.c "
+             "and lifi_session_sender.c directly — two claims didn't hold up. First: the host tool is "
+             "pico_provisioner, not 'keys_receiver' — that name doesn't correspond to any binary in the "
+             "codebase, only to a stale diagram label. Second, and more substantive: there is no delivery "
+             "confirmation handshake for the sender at all. The 4-state HMAC handshake is real, implemented "
+             "code — but it belongs to the retired Pi4-side receiver stack (flash_receiver.c), where the "
+             "header literally comments it 'Legacy HMAC challenge.' It was never wired to the sender path. "
+             "The honest story is a best-effort push: pico_provisioner writes over the Pico's USB serial port "
+             "and considers it done once the write() call returns, with no read-back proving the Pico actually "
+             "applied the key. If asked how you'd know a push silently failed: you wouldn't, from the host "
+             "side — you'd have to check the Pico's own console output. The dual-slot/SHA-256 storage claim "
+             "held up, with one nuance worth having ready: the rollback-safe inactive-slot-first behavior is "
+             "real, but only for the manual 'CMD: new key' console path, not the automated push this slide's "
+             "diagram is actually depicting.")
 
 # ==================================================================
 # SLIDE 10 — Auth's role at runtime (image)
@@ -512,6 +529,28 @@ set_notes(s, "State the measurement-provenance caveat proactively and plainly, i
              "measurement time, mirroring the same logic that's now been moved on-device. If pressed: this was "
              "a deliberate sequencing choice — get clean, directly-instrumented protocol events first, then move "
              "the decision itself on-device once the wire-level logic was validated.")
+
+# ==================================================================
+# SLIDE 13b — Link Geometry / Alignment Tolerance
+# ==================================================================
+s = new_slide()
+add_title(s, "Link Geometry — Alignment Tolerance",
+          "How much lateral misalignment the testbed's ~15cm separation actually tolerates")
+add_image(s, FIG / "cone_geometry.png", top=1.55, max_height=4.4)
+add_caption(s, "Free-intercept fit: half-angle ≈ 4.2° (R²=0.997) — the naive origin-forced fit "
+               "overstates the cone at ≈6.1° and its residuals drift systematically.",
+            top=6.1, bold=True, italic=False)
+set_notes(s, "Six manually measured (distance, lateral-offset) pairs bounding the LED emission / photodiode "
+             "acceptance cone, from 6 to 21 inches. Two fits are shown deliberately: a free-intercept line, "
+             "which is the honest model, and a forced-through-origin line, which is the naive 'point source' "
+             "assumption. The origin-forced fit looks fine in isolation (R²=0.986) but its residuals are "
+             "systematically positive at short range and negative at long range — that's not noise, it's "
+             "curvature the model can't capture, because the emitter/receiver aperture has real physical size "
+             "even at zero distance. The free-intercept fit's ~0.55in intercept is that aperture term. Land on "
+             "the practical point: at the ~15cm (~5.9in) separation used throughout the evaluation testbed, the "
+             "measured tolerance is about 1 inch of lateral slop — comfortably wide for a fixed benchtop rig, "
+             "but this is exactly the number that would need to shrink and be re-characterized for the mobile "
+             "robotic-platform future-work item, where the LED and receiver are no longer rigidly fixtured.")
 
 # ==================================================================
 # SLIDE 14 — G4 result (image)

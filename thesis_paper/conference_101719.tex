@@ -328,7 +328,7 @@ The primary objective is \emph{presence-based authorization}: a device should re
 
 \subsubsection{G2 — Replay Resistance}
 
-\textbf{Definition.} A previously observed authenticated frame shall not be accepted as valid upon re-presentation to the receiver. Specifically, if a frame with nonce $n$ was accepted at time $t_1$, any subsequent frame bearing the same nonce $n$ shall be rejected at all times $t > t_1$.
+\textbf{Definition.} A previously observed authenticated frame shall not be accepted as valid upon re-presentation to the receiver. Specifically, if a frame with nonce $n$ was accepted at time $t_1$, any subsequent frame bearing the same nonce $n$ shall be rejected for as long as $n$ remains in the receiver's replay window $W$ (Equation~\eqref{eq:replay}); window capacity bounds this guarantee, as characterized empirically in Section~\ref{sec:security-validation}.
 
 \textbf{Mechanism.} The receiver maintains a circular buffer of the 64 most recently accepted nonces. Before decryption, each incoming frame's nonce is checked against this window:
 \begin{equation}
@@ -340,7 +340,7 @@ The primary objective is \emph{presence-based authorization}: a device should re
 \label{eq:replay}
 \end{equation}
 
-\noindent where $W$ is the set of nonces currently in the replay window. Upon acceptance, $n$ is added to $W$, evicting the oldest entry if the window is full.
+\noindent where $W$ is the set of nonces currently in the replay window. Upon acceptance, $n$ is added to $W$, evicting the oldest entry if the window is full. Insertion is gated on successful GCM authentication rather than on frame-format validity alone: an earlier implementation added $n$ to $W$ once CRC and message-type checks passed, before decryption was attempted, which would have let an attacker without the session key force eviction of a genuinely captured nonce using unauthenticated, syntactically well-formed frames. This was corrected during evaluation so that only frames passing full GCM verification are recorded in $W$, ensuring eviction requires possession of the session key.
 
 The nonce itself is constructed as the concatenation of an 8-byte random boot salt and a 4-byte monotonically increasing counter. The boot salt ensures that nonces from different boot sessions are distinct with overwhelming probability, and the counter ensures that nonces within a single boot session are strictly unique. Counter exhaustion ($2^{32}$ messages) triggers an immediate device reboot, regenerating the boot salt and resetting the counter.
 
