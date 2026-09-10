@@ -515,6 +515,11 @@ static pthread_cond_t   g_status_cond  = PTHREAD_COND_INITIALIZER;
 // failures (e.g. Auth rejecting a by-ID key fetch) are visible in the
 // browser instead of only in receiver_debug.log on the Pi4 itself.
 static void reporter_post_status_message(const char *message) {
+    // Always land in the local debug log first — the HTTP push below is
+    // best-effort (dropped silently if the dashboard is unreachable or the
+    // queue is full), so this is the only guaranteed record on the Pi4 itself.
+    fprintf(stderr, "[STATUS] %s\n", message);
+
     pthread_mutex_lock(&g_status_mutex);
     if (g_status_count < STATUS_QUEUE_SIZE) {
         strncpy(g_status_queue[g_status_tail], message, sizeof(g_status_queue[0]) - 1);
@@ -616,9 +621,10 @@ static void reporter_signal(const uint8_t *key_id, const uint8_t *payload,
 // GET  /status       no body — Response: {"key_id":"<16 hex chars>"|null,"baud":<int>}
 #define CHALLENGE_PORT 5001
 
-// The UART link to this Pi4's own RX Pico defaults to 1,000,000 baud at
-// startup, but can be changed at runtime via /set_baud to ANY integer
-// value — g_current_baud is what init_serial_baud() is actually called
+// The UART link to this Pi4's own RX Pico defaults to 100,000 baud at
+// startup (matches lifi_session_sender's BAUD_RATE), but can be changed at
+// runtime via /set_baud to ANY integer value — g_current_baud is what
+// init_serial_baud() is actually called
 // with (both at startup and on any later reconnect/'r'), so a runtime
 // change sticks across reconnects instead of reverting to the compile-time
 // default. init_serial_baud() uses the Linux BOTHER/termios2 ioctl
