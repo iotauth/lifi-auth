@@ -294,7 +294,14 @@ fi
 
 
 
-# === Prune: keep only the last M complete builds (artifact + .sha256 + .json) ===
+# === Prune: keep only the last M complete builds PER ARTIFACT KIND
+# (artifact + .sha256 + .json) ===
+# A single run can emit several artifact kinds at once (e.g. pi4 emits
+# flash_receiver, keys_receiver, ask_receiver, dash_receiver — 4 manifests
+# in one go). Counting retention globally across kinds meant a build could
+# prune its own just-built output before it was ever used; count per kind
+# instead. Manifest filenames are "<ts>_<kind>.json" where ts is always the
+# fixed-width "MTMDT-HH_MM" (10 chars) from `date +%m%d-%H_%M` above.
 M_BUILDS="${KEEP_BUILDS:-3}"   # override with: KEEP_BUILDS=N ./run_build <target>
 
 # newest→oldest manifests (exclude 'latest.json'); NUL-safe
@@ -305,25 +312,36 @@ mapfile -d '' manifests < <(
   | cut -z -d' ' -f2-
 )
 
-echo "🔎 Prune sees ${#manifests[@]} build(s); keeping $M_BUILDS"
-if (( ${#manifests[@]} > M_BUILDS )); then
-  echo "🧹 Pruning old builds…"
-  for (( i=M_BUILDS; i<${#manifests[@]}; i++ )); do
-    m="${manifests[$i]}"
+echo "🔎 Prune sees ${#manifests[@]} build(s) total; keeping $M_BUILDS per artifact kind"
+declare -A kind_seen
+pruned_any=0
+for m in "${manifests[@]}"; do
+  fname="$(basename "$m")"
+  kind="${fname:11}"      # strip the fixed 10-char ts + '_' separator
+  kind="${kind%.json}"
 
-    # Extract the JSON "file" value: look for the token file, then the next quoted string
-    base="$(awk -F'"' '{for (i=1;i<NF;i++) if ($i=="file") {print $(i+2); exit}}' "$m" 2>/dev/null || true)"
+  kind_seen[$kind]=$(( ${kind_seen[$kind]:-0} + 1 ))
+  if (( kind_seen[$kind] <= M_BUILDS )); then
+    continue  # within retention for this kind
+  fi
 
-    if [[ -n "$base" ]]; then
-      echo "   - removing $(basename "$base") (+ .sha256, manifest)"
-      rm -f -- "$art_dir/$base" "$art_dir/$base.sha256" "$m"
-    else
-      # Fallback: derive from manifest stem (works with our naming)
-      stem="${m%.json}"
-      echo "   - removing $(basename "$stem") (+ .sha256, manifest)"
-      rm -f -- "$stem" "$stem.sha256" "$m"
-    fi
-  done
-fi
+  if (( pruned_any == 0 )); then
+    echo "🧹 Pruning old builds…"
+    pruned_any=1
+  fi
+
+  # Extract the JSON "file" value: look for the token file, then the next quoted string
+  base="$(awk -F'"' '{for (i=1;i<NF;i++) if ($i=="file") {print $(i+2); exit}}' "$m" 2>/dev/null || true)"
+
+  if [[ -n "$base" ]]; then
+    echo "   - removing $(basename "$base") (+ .sha256, manifest)"
+    rm -f -- "$art_dir/$base" "$art_dir/$base.sha256" "$m"
+  else
+    # Fallback: derive from manifest stem (works with our naming)
+    stem="${m%.json}"
+    echo "   - removing $(basename "$stem") (+ .sha256, manifest)"
+    rm -f -- "$stem" "$stem.sha256" "$m"
+  fi
+done
 
 echo "🗂  Collected: $art_dir (keeping last ${M_BUILDS} builds)"
